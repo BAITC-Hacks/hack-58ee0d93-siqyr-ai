@@ -1,4 +1,4 @@
-import { ActionIcon, Alert, Button, Checkbox, FileInput, SegmentedControl, Select, TextInput } from '@mantine/core';
+import { ActionIcon, Alert, Button, Checkbox, FileInput, SegmentedControl, Select, Textarea, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { ArrowLeft, CircleAlert, FileAudio2, Mic2, Pause, Play, Square, Trash2, UploadCloud } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -15,7 +15,7 @@ function formatDuration(ms: number) {
 }
 
 export default function NewMeetingPage() {
-  const { recorder, streaming, beginRecording, finishRecording, mode, file, fileError, consent, setConsent, submitError, setSubmitError, saving, previewUrl, form, onFileChange, changeMode, onSave, activeRecording, sourceForPreview, showConsent } = useNewMeetingModel();
+  const { recorder, streaming, beginRecording, finishRecording, mode, file, fileError, consent, setConsent, submitError, setSubmitError, saving, previewUrl, form, onFileChange, changeMode, onSave, activeRecording, sourceForPreview, showConsent, participantsError, onParticipantsBlur } = useNewMeetingModel();
 
   return (
     <div className={styles.page}>
@@ -38,6 +38,9 @@ export default function NewMeetingPage() {
               <DatePickerInput label="Дата встречи" description="Если известна" placeholder="Выберите дату" locale="ru" valueFormat="DD.MM.YYYY" clearable value={form.values.date || null} onChange={(value) => form.setFieldValue('date', value || '')} />
             </div>
             <Select label="Язык встречи" data={[{ value: 'ru', label: 'Русский' }, { value: 'kk', label: 'Қазақша' }, { value: 'mixed', label: 'Русский и қазақша' }]} allowDeselect={false} {...form.getInputProps('language')} />
+            <Textarea label="Участники" autosize minRows={3} maxRows={10} placeholder={'Алия Сарсенова — главный инженер\nБекзат Омаров'}
+              description={mode === 'record' && streaming ? 'По одному на строке: Имя — роль. Во время записи список можно дополнять: он уйдёт на сервер, когда вы выйдете из поля.' : 'По одному на строке: Имя — роль. Помогает связать голоса в записи с людьми.'}
+              disabled={recorder.status === 'finishing'} {...form.getInputProps('participants')} onBlur={onParticipantsBlur} error={participantsError || undefined} />
           </div>
         </section>
 

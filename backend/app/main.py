@@ -35,10 +35,16 @@ from .profile import register_profile_routes
 from .profile_models import bump_token_version
 from .reminders import assignment_view, check_reminders, reminder_loop
 from .review import ProposalError, blocking, check_proposal, confirm_reviewed, preserve_review_metadata, unconfirmed_speakers
-from .schemas import Approval, AssignmentUpdate, DepartmentCreate, IdentityLink, Login, MembershipCreate, ProposalSave, UserCreate, UserUpdate, EcpSignature
+from .schemas import Approval, AssignmentUpdate, DepartmentCreate, IdentityLink, Login, MembershipCreate, ParticipantsUpdate, ProposalSave, UserCreate, UserUpdate, EcpSignature
 from .seed import seed_history
 
 UPLOAD_CHUNK = 1024 * 1024
+
+
+def clean_participants(participants: list[Participant]) -> list[dict]:
+    if any(not p.name.strip() for p in participants):
+        raise ValueError()
+    return [p.model_copy(update={"name": p.name.strip()}).model_dump() for p in participants]
 
 
 def parse_participants(raw: str | None, defaults: list[dict]) -> list[dict]:
@@ -49,10 +55,7 @@ def parse_participants(raw: str | None, defaults: list[dict]) -> list[dict]:
         values = json.loads(raw) if raw.startswith(("[", "{")) else [n.strip() for n in raw.split(",") if n.strip()]
         if not isinstance(values, list):
             raise ValueError()
-        participants = [Participant.model_validate({"name": value} if isinstance(value, str) else value) for value in values]
-        if any(not p.name.strip() for p in participants):
-            raise ValueError()
-        return [p.model_copy(update={"name": p.name.strip()}).model_dump() for p in participants]
+        return clean_participants([Participant.model_validate({"name": value} if isinstance(value, str) else value) for value in values])
     except (ValueError, TypeError, ValidationError):
         raise HTTPException(400, "Участники: укажите JSON-массив имён/объектов или имена через запятую.") from None
 
@@ -377,8 +380,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/api/runs/recordings", status_code=201)
     async def create_recording(title: str = Form(...), meeting_date: str | None = Form(None),
-                               lang: str = Form("rukk"), department_id: str = Form("default"),
-                               actor: Principal = Depends(principal)):
+                               lang: str = Form("rukk"), participants: str | None = Form(None),
+                               department_id: str = Form("default"), actor: Principal = Depends(principal)):
         actor.require(department_id, "write")
         if missing := unready(settings):
             raise HTTPException(503, "Модель недоступна: " + "; ".join(c.detail for c in missing))
@@ -390,11 +393,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             meeting_day = date.fromisoformat(meeting_date) if meeting_date else None
         except ValueError:
             raise HTTPException(400, "Дата совещания должна быть в формате ГГГГ-ММ-ДД.") from None
+        names = parse_participants(participants, [])
         with runtime().db.session() as session:
             if session.get(Department, department_id) is None:
                 raise HTTPException(400, "Департамент не найден.")
             run = Run(title=title.strip(), meeting_date=meeting_day, meeting_date_verified=meeting_day is not None,
-                      lang=lang, department_id=department_id, status="recording", synthetic=False)
+                      lang=lang, participants=names, department_id=department_id, status="recording", synthetic=False)
             run.audio_path = str(settings.uploads_dir / f"{run.id}.webm")
             session.add(run)
             session.commit()
@@ -434,6 +438,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 with path.open("ab") as target:
                     target.write(payload)
         return {"offset": size + len(payload)}
+
+    @app.patch("/api/runs/{run_id}/participants")
+    async def update_recording_participants(run_id: str, body: ParticipantsUpdate, actor: Principal = Depends(principal)):
+        run = require_run(run_id, actor)
+        actor.require(run.department_id, "write")
+        try:
+            names = clean_participants(body.participants)
+        except ValueError:
+            raise HTTPException(400, "Участники: имя не может быть пустым.") from None
+        async with runtime().events.lock:
+            with runtime().db.session() as session:
+                current = session.get(Run, run_id)
+                # propose() reads the list once after /finish; a later change would silently miss the speaker mapping.
+                if current.status != "recording":
+                    raise HTTPException(409, "Участников можно менять только до завершения записи.")
+                current.participants = names
+                session.add(current)
+                session.commit()
+        return {"run_id": run_id, "participants": names}
 
     @app.post("/api/runs/{run_id}/finish")
     async def finish_recording(run_id: str, actor: Principal = Depends(principal)):

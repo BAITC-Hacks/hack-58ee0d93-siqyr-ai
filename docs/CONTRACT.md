@@ -36,7 +36,8 @@ upload / sample ─► STT + диаризация ─► propose() ─► awaiti
 | GET | `/api/samples` | — | `[{id, title, description, lang, synthetic, participants}]` — пресеты для демо |
 | GET | `/api/formats` | — (без авторизации) | `{max_upload_mb, accept, extensions: [".wav", …], formats: [{id, label, extensions, mime_types}]}`; `accept` — готовое значение для `<input type="file" accept>` |
 | POST | `/api/runs` | multipart: `file` (аудио/видео) **или** `sample` (`demo`); `title`, `meeting_date` (YYYY-MM-DD, опц.), `lang` (`rukk`\|`kk`\|`ru`), `participants` (JSON-массив или имена через запятую), `department_id` (по умолчанию `default`) | `201 {run_id, status: "queued"}`; 503 если модели real-режима недоступны, 429 при полной очереди |
-| POST | `/api/runs/recordings` | multipart: `title`, `meeting_date` (опц.), `lang`, `department_id` (опц.) | `201 {run_id, status: "recording"}` |
+| POST | `/api/runs/recordings` | multipart: `title`, `meeting_date` (опц.), `lang`, `participants` (опц., как в `POST /api/runs`), `department_id` (опц.) | `201 {run_id, status: "recording"}` |
+| PATCH | `/api/runs/{id}/participants` | JSON `{participants: Participant[]}` — весь список целиком | `{run_id, participants}`; только пока `status=recording`, иначе 409; пустое имя или лишние поля → 400 |
 | POST | `/api/runs/{id}/chunks` | raw WebM bytes, `X-Chunk-Offset` = число уже подтверждённых байт | `{offset}`; последовательная запись на диск, повтор идентичного чанка идемпотентен; 409 при неверном смещении, 413 при превышении 5 МБ на чанк или MAX_UPLOAD_MB всего |
 | POST | `/api/runs/{id}/finish` | — | `{run_id, status: "queued"}`; пустая запись → 400, повтор → 409; после ответа запускается STT/propose и SSE |
 | GET | `/api/runs` | — | список запусков `{id, department_id, title, meeting_date, meeting_date_verified, status, synthetic, source_mode, assignments_count, created_at}` |
