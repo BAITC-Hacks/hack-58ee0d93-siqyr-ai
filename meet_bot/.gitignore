@@ -1,0 +1,12 @@
+.private/
+.deps/
+__pycache__/
+*.pyc
+*.webm
+*.wav
+*.mp3
+debug/
+*.db
+.env
+profile/
+output/
