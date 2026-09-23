@@ -29,6 +29,7 @@ from .limits import RequestLimits
 from .models import Assignment, Department, EcpChallenge, ExternalIdentity, Membership, Notification, Organization, Run, User, utcnow
 from .pipeline import Runtime
 from .readiness import as_dicts, blocking as unready
+from .jira import register_jira_routes
 from .profile import register_profile_routes
 from .profile_models import bump_token_version
 from .reminders import assignment_view, check_reminders, reminder_loop
@@ -607,6 +608,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return check_reminders(runtime().db, settings)
 
     register_profile_routes(app, settings, principal)
+    register_jira_routes(app, settings, principal, require_run)
     return app
 
 
