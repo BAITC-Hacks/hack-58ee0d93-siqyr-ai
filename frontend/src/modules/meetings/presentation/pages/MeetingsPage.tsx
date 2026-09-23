@@ -1,7 +1,7 @@
 import type { Meeting } from '@/modules/meetings/domain/meeting.types';
 import { formatDate } from '@/shared/lib/formatDate';
 import { ActionIcon, Button, Group, Menu, Modal, Select, Text, TextInput } from '@mantine/core';
-import { MoreHorizontal, Plus, Search, Trash2, X } from 'lucide-react';
+import { Mic2, MoreHorizontal, Plus, Search, Trash2, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useMeetingsModel, type MeetingView } from '../models/useMeetingsModel';
 import styles from './MeetingsPage.module.css';
@@ -44,7 +44,7 @@ export default function MeetingsPage() {
           <h1 className={styles.heading}>Встречи</h1>
           <p className={styles.subtitle}>Записи, черновики и материалы совещаний</p>
         </div>
-        <Button component={Link} to="/meetings/new" leftSection={<Plus size={18} />} className={styles.newButton}>Новая встреча</Button>
+        <Group gap="sm"><Button component={Link} to="/meetings/live" variant="default" leftSection={<Mic2 size={18} />}>Живой разговор</Button><Button component={Link} to="/meetings/new" leftSection={<Plus size={18} />} className={styles.newButton}>Новая встреча</Button></Group>
       </div>
 
       {error && <div className={styles.errorBanner} role="alert">Не удалось загрузить встречи: {error}</div>}

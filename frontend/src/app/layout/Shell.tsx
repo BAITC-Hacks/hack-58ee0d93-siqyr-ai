@@ -4,14 +4,17 @@ import { useAuth } from '@/modules/auth/presentation/AuthProvider';
 import { canAccess } from '@/modules/auth/domain/accessPolicy';
 import { pagePolicies, workspaceNavigation } from '../routing/access';
 import { Burger, Button, Drawer, Group, Menu, Modal, Text } from '@mantine/core';
-import { CalendarDays, CheckSquare2, ChevronDown, LogOut, Plug2, Settings2 } from 'lucide-react';
-import { useState } from 'react';
+import { CalendarDays, CheckSquare2, ChevronDown, LogOut, MessageSquareText, Mic2, PanelLeftClose, PanelLeftOpen, Plug2, Settings2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useBlocker, useLocation } from 'react-router-dom';
 import styles from './Shell.module.css';
 
-const navigationIcons = { meetings: CalendarDays, tasks: CheckSquare2, integrations: Plug2, settings: Settings2, meeting: CalendarDays, newMeeting: CalendarDays };
+const navigationIcons = { meetings: CalendarDays, tasks: CheckSquare2, integrations: Plug2, settings: Settings2, meeting: CalendarDays, newMeeting: CalendarDays, liveMeeting: Mic2, chat: MessageSquareText };
 
 function pageName(pathname: string) {
+  if (pathname.startsWith('/chat')) return 'Чат по встречам';
+  if (pathname.startsWith('/meetings/live/call')) return 'Разговор';
+  if (pathname.startsWith('/meetings/live')) return 'Разговоры';
   if (pathname.startsWith('/meetings/new')) return 'Новая встреча';
   if (pathname.startsWith('/meetings/') && pathname !== '/meetings/') return 'Встреча';
   if (pathname.startsWith('/tasks')) return 'Поручения';
@@ -22,19 +25,33 @@ function pageName(pathname: string) {
 
 export default function Shell() {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('siqyr-sidebar-collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  useEffect(() => {
+    try {
+      localStorage.setItem('siqyr-sidebar-collapsed', String(sidebarCollapsed));
+    } catch {
+      // Browser storage may be unavailable.
+    }
+  }, [sidebarCollapsed]);
   const { state: auth, controller } = useAuth();
   const recording = useRecordingActivity();
   const { pathname } = useLocation();
   const blocker = useBlocker(({ currentLocation, nextLocation }) =>
-    recording && currentLocation.pathname === '/meetings/new' && nextLocation.pathname !== currentLocation.pathname,
+    recording && (currentLocation.pathname === '/meetings/new' || currentLocation.pathname === '/meetings/live/call') && nextLocation.pathname !== currentLocation.pathname,
   );
   const { settings } = useWorkspace();
   const displayName = settings.displayName.trim() || (auth.status === 'authenticated' ? auth.session.principal.displayName : '') || 'Моё пространство';
   const initials = displayName.split(/\s+/).slice(0, 2).map((part) => part[0]?.toLocaleUpperCase('ru')).join('');
   const navigation = workspaceNavigation.filter((item) => auth.status === 'authenticated' && canAccess(auth.session, pagePolicies[item.id]));
-  const mainNavigation = navigation.filter((item) => item.id === 'meetings');
-  const bottomNavigation = navigation.filter((item) => item.id !== 'meetings');
+  const mainNavigation = navigation.filter((item) => item.id === 'meetings' || item.id === 'liveMeeting' || item.id === 'chat');
+  const bottomNavigation = navigation.filter((item) => item.id !== 'meetings' && item.id !== 'liveMeeting' && item.id !== 'chat');
 
   const sidebar = (
     <div className={styles.sidebarInner}>
@@ -50,6 +67,9 @@ export default function Shell() {
           <NavLink
             key={to}
             to={to}
+            end={id === 'meetings'}
+            title={label}
+            aria-label={label}
             onClick={() => setDrawerOpen(false)}
             className={({ isActive }) => `${styles.navItem} ${isActive ? styles.navItemActive : ''}`}
           >
@@ -65,6 +85,8 @@ export default function Shell() {
           return <NavLink
             key={to}
             to={to}
+            title={label}
+            aria-label={label}
             onClick={() => setDrawerOpen(false)}
             className={({ isActive }) => `${styles.navItem} ${isActive ? styles.navItemActive : ''}`}
           >
@@ -78,7 +100,7 @@ export default function Shell() {
 
   return (
     <div className={styles.app}>
-      <aside className={styles.sidebar}>{sidebar}</aside>
+      <aside className={`${styles.sidebar} ${sidebarCollapsed ? styles.sidebarCollapsed : ''}`}>{sidebar}</aside>
       <Drawer
         opened={drawerOpen}
         onClose={() => setDrawerOpen(false)}
@@ -109,6 +131,9 @@ export default function Shell() {
         <header className={styles.topbar}>
           <div className={styles.topbarLeft}>
             <Burger className={styles.mobileBurger} opened={drawerOpen} onClick={() => setDrawerOpen((value) => !value)} size="sm" aria-label="Открыть меню" />
+            <button type="button" className={styles.sidebarToggle} onClick={() => setSidebarCollapsed((collapsed) => !collapsed)} aria-label={sidebarCollapsed ? 'Развернуть боковое меню' : 'Свернуть боковое меню'} aria-expanded={!sidebarCollapsed} title={sidebarCollapsed ? 'Развернуть боковое меню' : 'Свернуть боковое меню'}>
+              {sidebarCollapsed ? <PanelLeftOpen size={20} strokeWidth={1.8} aria-hidden="true" /> : <PanelLeftClose size={20} strokeWidth={1.8} aria-hidden="true" />}
+            </button>
             <span className={styles.mobilePageName}>{pageName(pathname)}</span>
           </div>
           <div className={styles.topbarRight}>
@@ -127,7 +152,7 @@ export default function Shell() {
             </Menu>
           </div>
         </header>
-        <main className={styles.main}><Outlet /></main>
+        <main className={`${styles.main} ${pathname.startsWith('/chat') ? styles.mainChat : ''}`}><Outlet /></main>
       </div>
     </div>
   );

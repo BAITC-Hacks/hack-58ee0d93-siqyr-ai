@@ -1,4 +1,5 @@
-import { Alert, Button, Checkbox, SegmentedControl, Select, TextInput } from '@mantine/core';
+import { ActionIcon, Alert, Button, Checkbox, FileInput, SegmentedControl, Select, TextInput } from '@mantine/core';
+import { DatePickerInput } from '@mantine/dates';
 import { ArrowLeft, CircleAlert, FileAudio2, Mic2, Pause, Play, Square, Trash2, UploadCloud } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useNewMeetingModel } from '../models/useNewMeetingModel';
@@ -14,7 +15,7 @@ function formatDuration(ms: number) {
 }
 
 export default function NewMeetingPage() {
-  const { recorder, streaming, beginRecording, finishRecording, mode, file, fileError, consent, setConsent, submitError, setSubmitError, saving, previewUrl, fileInputRef, form, onFileChange, changeMode, onSave, activeRecording, sourceForPreview, showConsent } = useNewMeetingModel();
+  const { recorder, streaming, beginRecording, finishRecording, mode, file, fileError, consent, setConsent, submitError, setSubmitError, saving, previewUrl, form, onFileChange, changeMode, onSave, activeRecording, sourceForPreview, showConsent } = useNewMeetingModel();
 
   return (
     <div className={styles.page}>
@@ -34,7 +35,7 @@ export default function NewMeetingPage() {
             <TextInput label="Тема встречи" placeholder="Например, итоги производственного совещания" required maxLength={180} {...form.getInputProps('title')} />
             <div className={styles.fieldRow}>
               <TextInput label="Организация" placeholder="Название организации" required maxLength={160} {...form.getInputProps('organization')} />
-              <TextInput label="Дата встречи" type="date" description="Если известна" {...form.getInputProps('date')} />
+              <DatePickerInput label="Дата встречи" description="Если известна" placeholder="Выберите дату" locale="ru" valueFormat="DD.MM.YYYY" clearable value={form.values.date || null} onChange={(value) => form.setFieldValue('date', value || '')} />
             </div>
             <Select label="Язык встречи" data={[{ value: 'ru', label: 'Русский' }, { value: 'kk', label: 'Қазақша' }, { value: 'mixed', label: 'Русский и қазақша' }]} allowDeselect={false} {...form.getInputProps('language')} />
           </div>
@@ -45,8 +46,8 @@ export default function NewMeetingPage() {
           <div className={styles.sourceBody}>
             <SegmentedControl className={styles.modeSwitch} fullWidth value={mode} onChange={changeMode} disabled={activeRecording || recorder.status === 'requesting' || recorder.status === 'finishing'} data={[{ label: 'Загрузить файл', value: 'upload' }, { label: 'Записать звук', value: 'record' }, { label: 'Без записи', value: 'draft' }]} />
             {mode === 'upload' && <div className={styles.sourcePanel}>
-              <label className={styles.filePicker}><UploadCloud size={22} strokeWidth={1.7} /><span><strong>Выбрать аудио или видео</strong><small>MP3, M4A, MP4, WAV, WebM, OGG, AAC, MOV · до 100 МБ</small></span><input ref={fileInputRef} className={styles.visuallyHidden} type="file" accept="audio/*,video/*,.m4a,.webm,.ogg,.opus,.aac,.mov" onChange={(event) => onFileChange(event.target.files?.[0] || null)} /></label>
-              {file && <div className={styles.sourceFile}><FileAudio2 size={18} /><div><strong>{file.name}</strong><span>{formatSize(file.size)}</span></div><button type="button" onClick={() => { onFileChange(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} aria-label="Удалить выбранный файл"><Trash2 size={16} /></button></div>}
+              <FileInput label="Аудио или видео" placeholder="Выбрать файл" description="MP3, M4A, MP4, WAV, WebM, OGG, AAC, MOV · до 100 МБ" leftSection={<UploadCloud size={18} />} accept="audio/*,video/*,.m4a,.webm,.ogg,.opus,.aac,.mov" value={file} onChange={onFileChange} clearable />
+              {file && <div className={styles.sourceFile}><FileAudio2 size={18} /><div><strong>{file.name}</strong><span>{formatSize(file.size)}</span></div><ActionIcon type="button" variant="subtle" color="gray" onClick={() => onFileChange(null)} aria-label="Удалить выбранный файл"><Trash2 size={16} /></ActionIcon></div>}
               {fileError && <p className={styles.error} role="alert">{fileError}</p>}
             </div>}
             {mode === 'record' && <div className={styles.sourcePanel}>

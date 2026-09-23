@@ -2,6 +2,7 @@ import type { Task } from '@/modules/tasks/domain/task.types';
 import { useWorkspace } from '@/modules/workspace/presentation/useWorkspace';
 import { formatDate as readableDate } from '@/shared/lib/formatDate';
 import { Alert, Button, Group, Modal, Select, Stack, Textarea, TextInput } from '@mantine/core';
+import { DatePickerInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { useEffect, useState } from 'react';
 import { useTaskCommands } from '../useTaskCommands';
@@ -97,7 +98,7 @@ export default function TaskEditor({ opened, onClose, task, meetingId }: TaskEdi
           <TextInput label="Ответственный" placeholder="Можно указать позже" description="Оставьте пустым, если ответственный не назначен" {...form.getInputProps('assignee')} />
           <div className={styles.dateFields}>
             <TextInput label="Срок из протокола" placeholder="Например: до 15 октября или к пятнице" description="Исходная формулировка сохраняется без изменений" {...form.getInputProps('deadlineText')} />
-            <TextInput type="date" label="Точная дата" description="Для сортировки и напоминаний" {...form.getInputProps('dueDate')} />
+            <DatePickerInput label="Точная дата" description="Для сортировки и напоминаний" placeholder="Выберите дату" locale="ru" valueFormat="DD.MM.YYYY" clearable value={form.values.dueDate || null} onChange={(value) => form.setFieldValue('dueDate', value || '')} />
           </div>
           <Select label="Статус" data={statusOptions} allowDeselect={false} {...form.getInputProps('status')} />
           <Textarea label="Примечание" placeholder="Детали, ссылка или ход работы" minRows={3} autosize {...form.getInputProps('note')} />

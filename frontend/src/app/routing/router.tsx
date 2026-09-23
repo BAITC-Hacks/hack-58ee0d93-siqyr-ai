@@ -11,6 +11,9 @@ const MeetingsPage = lazy(() => import('@/modules/meetings/presentation/pages/Me
 const AuthenticatedWorkspace = lazy(() => import('../providers/AuthenticatedWorkspace').then((module) => ({ default: module.AuthenticatedWorkspace })));
 const MeetingPage = lazy(() => import('@/modules/meetings/presentation/pages/MeetingPage'));
 const NewMeetingPage = lazy(() => import('@/modules/meetings/presentation/pages/NewMeetingPage'));
+const LiveMeetingPage = lazy(() => import('@/modules/meetings/presentation/pages/LiveMeetingPage'));
+const CallPage = lazy(() => import('@/modules/meetings/presentation/pages/CallPage'));
+const ChatPage = lazy(() => import('@/modules/chat/presentation/pages/ChatPage'));
 const TasksPage = lazy(() => import('@/modules/tasks/presentation/pages/TasksPage'));
 const IntegrationsPage = lazy(() => import('@/modules/integrations/presentation/pages/IntegrationsPage'));
 const SettingsPage = lazy(() => import('@/modules/settings/presentation/pages/SettingsPage'));
@@ -31,6 +34,9 @@ export const router = createBrowserRouter([
         children: [
           { path: 'meetings', handle: { access: pagePolicies.meetings } satisfies SecurityHandle, element: <Suspense fallback={pageFallback}><MeetingsPage /></Suspense> },
           { path: 'meetings/new', handle: { access: pagePolicies.newMeeting } satisfies SecurityHandle, element: <Suspense fallback={pageFallback}><NewMeetingPage /></Suspense> },
+          { path: 'meetings/live', handle: { access: pagePolicies.liveMeeting } satisfies SecurityHandle, element: <Suspense fallback={pageFallback}><LiveMeetingPage /></Suspense> },
+          { path: 'meetings/live/call', handle: { access: pagePolicies.liveMeeting } satisfies SecurityHandle, element: <Suspense fallback={pageFallback}><CallPage /></Suspense> },
+          { path: 'chat', handle: { access: pagePolicies.chat } satisfies SecurityHandle, element: <Suspense fallback={pageFallback}><ChatPage /></Suspense> },
           { path: 'meetings/:id', handle: { access: pagePolicies.meeting } satisfies SecurityHandle, element: <Suspense fallback={pageFallback}><MeetingPage /></Suspense> },
           { path: 'tasks', handle: { access: pagePolicies.tasks } satisfies SecurityHandle, element: <Suspense fallback={pageFallback}><TasksPage /></Suspense> },
           { path: 'integrations', handle: { access: pagePolicies.integrations } satisfies SecurityHandle, element: <Suspense fallback={pageFallback}><IntegrationsPage /></Suspense> },

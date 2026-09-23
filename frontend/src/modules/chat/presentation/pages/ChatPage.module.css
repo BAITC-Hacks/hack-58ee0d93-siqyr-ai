@@ -1,0 +1,38 @@
+.page{width:100%;height:100%;min-height:0;display:grid;grid-template-columns:232px minmax(0,1fr);overflow:hidden;background:var(--paper)}
+.history{display:flex;flex-direction:column;min-height:0;padding:17px 12px;background:#f7f8fa;border-right:1px solid var(--line)}
+.newChat{justify-content:flex-start;height:40px;padding:0 12px;color:var(--ink)}
+.historyLabel{margin:26px 12px 12px;text-transform:uppercase;letter-spacing:.08em}
+.historyScroll{min-height:0;flex:1}
+.historyItem{width:100%;min-height:39px;display:flex;align-items:center;gap:10px;border:0;border-radius:8px;padding:7px 11px;background:transparent;color:var(--ink);text-align:left;cursor:pointer}
+.historyItem span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.historyItem:hover,.historyItemActive{background:#e9edf5}
+.historyEmpty{padding:0 12px;line-height:1.55}
+.chat{min-width:0;min-height:0;display:flex;flex-direction:column;background:#fff}
+.chatHeader{height:58px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 28px;border-bottom:1px solid #f0f1f4;color:var(--ink)}
+.chatHeader svg{color:var(--accent)}
+.mobileNewChat{display:none}
+.thread{min-height:0;flex:1;overflow-y:auto;overscroll-behavior:contain}
+.messages{max-width:780px;min-height:100%;margin:0 auto;padding:36px 28px 52px;display:flex;flex-direction:column;gap:29px}
+.userMessage{align-self:flex-end;max-width:min(85%,590px);padding:11px 17px;border-radius:20px;background:#f0f2f5;color:var(--ink)}
+.assistantMessage{width:100%;display:flex;gap:15px;color:var(--ink)}
+.assistantIcon{width:29px;height:29px;flex:none;display:grid;place-items:center;border:1px solid var(--line);border-radius:50%;color:var(--accent)}
+.messageBody{min-width:0;flex:1;padding-top:3px}
+.messageText{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7}
+.sources{margin-top:17px;display:grid;gap:8px}.sources a{color:var(--accent)}
+.welcome{max-width:660px;width:100%;box-sizing:border-box;min-height:100%;margin:0 auto;padding:70px 32px 30px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.welcomeIcon{width:58px;height:58px;display:grid;place-items:center;margin-bottom:19px;border-radius:18px;background:var(--accent-soft);color:var(--accent)}
+.welcome h1{margin:0 0 11px;font-size:clamp(23px,2.5vw,31px);font-weight:650;letter-spacing:-.035em}
+.welcome>p{max-width:470px;line-height:1.6}
+.suggestions{width:100%;display:grid;gap:9px;margin-top:28px}
+.suggestion{min-height:46px;border:1px solid var(--line);border-radius:12px;padding:10px 16px;background:#fff;color:var(--ink);text-align:left;cursor:pointer;transition:border-color .15s,background .15s}
+.suggestion:hover{border-color:#aab6df;background:#fafbfe}
+.composerWrap{width:100%;max-width:826px;box-sizing:border-box;margin:0 auto;padding:10px 24px 18px}
+.composer{border:1px solid #d9dce4;border-radius:18px;padding:11px 12px 10px 18px;background:#fff;box-shadow:0 2px 12px #2029390d}
+.composer:focus-within{border-color:#8b9bd7;box-shadow:0 0 0 3px #3448a518}
+.input textarea{padding:0;border:0;background:transparent;box-shadow:none;line-height:1.55;min-height:33px}
+.input textarea:focus,.input textarea:focus-within{border:0;outline:0}
+.composerBottom{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:4px}
+.disclaimer{margin-top:8px}
+@media(max-width:1000px){.page{grid-template-columns:190px minmax(0,1fr)}}
+@media(max-width:700px){.page{grid-template-columns:minmax(0,1fr);min-height:0}.history{display:none}.mobileNewChat{display:flex}.welcome{padding:40px 24px 20px}.messages{padding:26px 18px 36px}.chatHeader{padding:0 18px}}
+@media(max-width:550px){.composerWrap{padding:8px 13px 13px}.composerBottom>p{display:none}.composerBottom{justify-content:flex-end}.welcome h1{font-size:24px}}

@@ -5,6 +5,8 @@ export const pagePolicies = {
   meetings: {},
   meeting: {},
   newMeeting: {},
+  liveMeeting: {},
+  chat: {},
   tasks: {},
   integrations: {},
   settings: {},
@@ -15,9 +17,10 @@ export interface SecurityHandle { access: AccessPolicy }
 
 export const workspaceNavigation: ReadonlyArray<{ id: ProtectedPage; to: string; label: string }> = [
   { id: 'meetings', to: '/meetings', label: 'Встречи' },
+  { id: 'liveMeeting', to: '/meetings/live', label: 'Разговоры' },
+  { id: 'chat', to: '/chat', label: 'Чат по встречам' },
   { id: 'tasks', to: '/tasks', label: 'Поручения' },
   { id: 'integrations', to: '/integrations', label: 'Интеграции' },
-  { id: 'settings', to: '/settings', label: 'Настройки' },
 ];
 
 export function firstAccessiblePath(session: AuthSession): string | null {

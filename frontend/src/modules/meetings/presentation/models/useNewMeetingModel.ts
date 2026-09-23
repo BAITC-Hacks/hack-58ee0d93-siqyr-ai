@@ -9,7 +9,7 @@ import { mediaSourceError } from '../../domain/mediaSource';
 import { useMeetingCommands } from '../useMeetingCommands';
 type IntakeMode = 'upload' | 'record' | 'draft';
 
-export function useNewMeetingModel() {
+export function useNewMeetingModel(initialMode: IntakeMode = 'upload') {
   const navigate = useNavigate();
   const { settings, loading } = useWorkspace();
   const { createMeeting } = useMeetingCommands();
@@ -17,14 +17,13 @@ export function useNewMeetingModel() {
   const services = useServices();
   const streaming = services.recordings !== null;
   const runIdRef = useRef<string | null>(null);
-  const [mode, setMode] = useState<IntakeMode>('upload');
+  const [mode, setMode] = useState<IntakeMode>(initialMode);
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState('');
   const [consent, setConsent] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [saving, setSaving] = useState(false);
   const previewUrl = useObjectUrl(mode === 'upload' ? file : mode === 'record' ? recorder.blob : null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const initializedRef = useRef(false);
   const form = useForm({
     initialValues: {
@@ -65,7 +64,6 @@ export function useNewMeetingModel() {
     const issue = mediaSourceError(selected);
     if (issue) {
       setFileError(issue);
-      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
     setFile(selected);
@@ -77,7 +75,6 @@ export function useNewMeetingModel() {
     setFile(null);
     setFileError('');
     setSubmitError('');
-    if (fileInputRef.current) fileInputRef.current.value = '';
     if (value === 'upload' || value === 'record' || value === 'draft') setMode(value);
   }
 
@@ -164,5 +161,5 @@ export function useNewMeetingModel() {
   const sourceForPreview = mode === 'upload' ? file : recorder.blob;
   const showConsent = mode !== 'draft';
 
-  return { recorder, streaming, beginRecording, finishRecording, mode, file, fileError, consent, setConsent, submitError, setSubmitError, saving, previewUrl, fileInputRef, form, onFileChange, changeMode, onSave, activeRecording, sourceForPreview, showConsent };
+  return { recorder, streaming, beginRecording, finishRecording, mode, file, fileError, consent, setConsent, submitError, setSubmitError, saving, previewUrl, form, onFileChange, changeMode, onSave, activeRecording, sourceForPreview, showConsent };
 }
