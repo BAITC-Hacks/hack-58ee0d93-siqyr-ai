@@ -48,7 +48,9 @@ class Settings:
     cors_origins: list[str] = field(
         default_factory=lambda: [o.strip() for o in _env("CORS_ORIGINS", "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5174").split(",") if o.strip()]
     )
-    cors_origin_regex: str = field(default_factory=lambda: _env("CORS_ORIGIN_REGEX", r"https://.*\.vercel\.app"))
+    cors_origin_regex: str = field(default_factory=lambda: _env(
+        "CORS_ORIGIN_REGEX", r"^(?:https?://(?:localhost|127\.0\.0\.1)(?::[0-9]{1,5})?|https://.*\.vercel\.app)$"
+    ))
     rate_limit_per_min: int = field(default_factory=lambda: _int("RATE_LIMIT_PER_MIN", 10))
     max_upload_mb: int = field(default_factory=lambda: _int("MAX_UPLOAD_MB", 100))
 

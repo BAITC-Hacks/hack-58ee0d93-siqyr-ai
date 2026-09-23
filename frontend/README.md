@@ -1,38 +1,61 @@
-# SiqyrAI frontend
+# SiqyrAI
 
-React + TypeScript + Vite. Mantine provides the components, forms, dialogs and theme;
-Tailwind utilities are available for precise layout adjustments without Preflight.
+Локальное рабочее пространство для встреч, протоколов и поручений. React + TypeScript + Mantine, TanStack Query для асинхронных данных, Dexie для IndexedDB и Axios для будущих API-адаптеров.
 
-## Run locally
-
-Use Node.js 20.19+ (20.x) or 22.12+.
-
-```bash
-cd frontend
+```sh
 npm ci
+cp .env.example .env.local
 npm run dev
 ```
 
-Open http://127.0.0.1:5174. The Docker web service uses http://localhost:5173.
+Нужен Node.js 22.18+ (тесты используют встроенное выполнение TypeScript). Перед входом запустите API в режиме `AUTH_MODE=local`. Vite запускается на `http://127.0.0.1:5174`.
 
-```bash
-npm run build
-npm run preview -- --port 5176 --strictPort
+```sh
+npm run check             # границы архитектуры, типы, тесты и production build
+npm test                  # домен, IndexedDB, Query, HTTP и запись
+npm run check:architecture
 ```
 
-## Current scope
+## Структура
 
-The application includes a meeting index, recording/file intake, editable summary,
-transcript and protocol, an assignment register, and local settings. The two supplied
-protocol examples contain 60 transcript entries and 16 assignments. Original deadline
-wording is retained; deadlines without a full date are not classified as overdue.
+```text
+src/
+  app/                      # сборка приложения и конкретных зависимостей
+    composition/            # фабрики сервисов и HTTP-клиента
+    providers/              # QueryClient, Mantine, WorkspaceProvider
+    routing/                # маршруты и lazy loading
+    layout/                 # оболочка приложения
+    styles/                 # тема и глобальные стили
+  modules/
+    meetings/
+      domain/               # модели, команды, правила встречи и источника
+      application/          # MeetingService и интерфейсы адаптеров
+      infrastructure/       # печать и лениво загружаемый DOCX
+      presentation/
+        models/             # состояние форм и сценарии экранов
+        pages/              # JSX и CSS рядом
+    tasks/                  # TaskRecord, TaskBoard, TaskService и UI
+    settings/               # настройки, валидация и UI
+    recording/              # Recorder, BrowserRecorder и React hooks
+    workspace/              # общий снимок, DI context, Query keys/options
+  infrastructure/
+    persistence/            # схема Dexie, репозитории, демонстрационные данные
+    http/                   # AxiosHttpClient
+  shared/
+    domain/                 # ошибки домена, локальные даты, генератор ID/времени
+    application/            # HTTP-контракт и HttpError
+    lib/                    # общие чистые функции
+    presentation/           # общие React hooks
+```
 
-Meetings, audio/video blobs, assignments and preferences persist in this browser's
-IndexedDB. Restoring examples replaces only their records, preserving local meetings
-and settings. Recording requires participant notification and microphone permission.
-DOCX export runs in the browser; PDF is available through the browser print dialog.
+Детали и путь подключения бэкенда: [docs/architecture.md](docs/architecture.md).
 
-The frontend does not call the backend API or SSE endpoints yet. Uploading or recording
-creates a local record awaiting integration, without simulated transcription or AI results.
-`VITE_API_URL`, `VITE_FAKE`, approval and server reminders remain follow-up integration work
-against `docs/CONTRACT.md`; that contract and backend schemas are unchanged in this PR.
+Страница входа, защищённые маршруты и настройка будущих правил ролей/прав: [docs/frontend-auth.md](docs/frontend-auth.md). Конфигурация доступа централизована в `src/app/routing/access.ts`.
+
+## API
+
+Авторизация подключена к API: укажите публичный `VITE_API_URL` из `.env.example`, например `http://127.0.0.1:8000`, и запустите бэкенд с `AUTH_MODE=local`. Форма отправляет логин и пароль в `/api/auth/login`, хранит JWT в `sessionStorage` текущей вкладки и проверяет его через `/api/auth/me` после перезагрузки. Выход удаляет токен из вкладки. ЭЦП и Keycloak недоступны в UI до настройки корпоративных сервисов.
+
+`AxiosHttpClient` обеспечивает таймаут 30 секунд, `AbortSignal`, параметры запроса, типизированный ответ и `HttpError`.
+
+Данные встреч и поручений по-прежнему сохраняются в IndexedDB браузера: они разделены по ID пользователя на этом устройстве, но не синхронизируются с сервером. Для серверных данных нужны API-репозитории в `app/composition/createServices.ts`.

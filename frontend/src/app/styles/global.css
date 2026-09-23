@@ -1,0 +1,157 @@
+@layer mantine, utilities;
+@import '@mantine/core/styles.css' layer(mantine);
+@import 'tailwindcss/utilities' layer(utilities);
+
+:root {
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color-scheme: light;
+  --app-bg: #f7f8fa;
+  --sidebar-bg: #ffffff;
+  --topbar-bg: #ffffff;
+  --paper: #ffffff;
+  --ink: #202939;
+  --muted: #667085;
+  --muted-strong: #667085;
+  --line: #e4e7ec;
+  --accent: #3448a5;
+  --accent-strong: #293a87;
+  --accent-soft: #eef1fa;
+  --active-bg: #eef1fa;
+  --hover: #f7f8fa;
+  --count-bg: #eef1fa;
+  --clay: #a85d43;
+  --clay-soft: #fbede6;
+
+  --mantine-color-body: var(--app-bg);
+  --mantine-color-text: var(--ink);
+  --mantine-color-default: var(--paper);
+  --mantine-color-default-border: var(--line);
+  --mantine-color-placeholder: #667085;
+  --mantine-font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --mantine-font-family-headings: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+html {
+  min-width: 320px;
+  background: var(--app-bg);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  color: var(--ink);
+  background: var(--app-bg);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  color: var(--ink);
+  background: var(--active-bg);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.mantine-Input-input,
+.mantine-Select-input,
+.mantine-Textarea-input {
+  background-color: var(--paper);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.mantine-Input-input:focus,
+.mantine-Input-input:focus-within,
+.mantine-Select-input:focus,
+.mantine-Textarea-input:focus {
+  border-color: var(--accent);
+}
+
+.mantine-Input-label,
+.mantine-Select-label,
+.mantine-Textarea-label {
+  color: var(--muted-strong);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.mantine-Button-root {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.mantine-Button-root[data-variant='default'] {
+  background: var(--paper);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.mantine-Button-root[data-variant='default']:hover {
+  background: var(--hover);
+}
+
+.mantine-Paper-root,
+.mantine-Card-root {
+  border-color: var(--line);
+}
+
+.mantine-Tabs-tab {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mantine-Tabs-list {
+  border-color: var(--line);
+}
+
+.mantine-Modal-content,
+.mantine-Drawer-content,
+.mantine-Popover-dropdown {
+  background: var(--paper);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

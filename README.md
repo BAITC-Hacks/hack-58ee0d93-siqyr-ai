@@ -20,9 +20,9 @@ _TODO: схема из docs/ARCHITECTURE.md_
 Одной командой (Docker):
 ```bash
 cp .env.example .env
-# По умолчанию AUTH_MODE=disabled — демо без входа, секреты не нужны.
-# Для входа по логину: AUTH_MODE=local, JWT_SECRET (>=32 символов),
-# BOOTSTRAP_ADMIN_USER и BOOTSTRAP_ADMIN_PASSWORD (>=12 символов).
+# Для работы фронтенда установите AUTH_MODE=local, JWT_SECRET (>=32 символов),
+# BOOTSTRAP_ADMIN_USER и BOOTSTRAP_ADMIN_PASSWORD (>=12 символов) в .env.
+# AUTH_MODE=disabled оставлен для backend-демо и не открывает frontend.
 docker compose up --build
 ```
 API: http://localhost:8000/api/health · Фронт: http://localhost:5173
@@ -42,7 +42,7 @@ npm ci
 npm run dev
 ```
 Откройте http://127.0.0.1:5174. Подробнее: [frontend/README.md](frontend/README.md).
-Фронтенд пока хранит данные в браузере; API, SSE и ИИ будут подключены отдельно.
+Фронтенд подключён к API для входа по логину и паролю. Данные встреч и поручений пока остаются в браузере; их API, SSE и ИИ будут подключены отдельно.
 
 Режимы (`.env`): `AGENT_MODE=mock|real`, `STT_MODE=mock|real`, `DEMO_MODE=live|replay`, `LLM_BASE_URL` — пусто для OpenAI API или адрес self-hosted vLLM.
 

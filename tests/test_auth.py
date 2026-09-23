@@ -12,6 +12,23 @@ from backend.app.models import ExternalIdentity, User
 SECRET = "a-long-local-test-secret-with-more-than-32-characters"
 
 
+def test_cors_allows_localhost_on_any_port_but_rejects_lookalikes(client_factory):
+    client = client_factory()
+    for origin in ("http://localhost:5184", "http://127.0.0.1:5184", "https://localhost:5184"):
+        response = client.options("/api/auth/login", headers={
+            "Origin": origin, "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        })
+        assert response.status_code == 200
+        assert response.headers["access-control-allow-origin"] == origin
+    rejected = client.options("/api/auth/login", headers={
+        "Origin": "http://localhost.evil.test:5184", "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Headers": "content-type",
+    })
+    assert rejected.status_code == 400
+    assert "access-control-allow-origin" not in rejected.headers
+
+
 def admin_client(client_factory):
     client = client_factory(auth_mode="local", jwt_secret=SECRET,
         bootstrap_admin_user="admin", bootstrap_admin_password="strong-admin-password")
