@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { type TaskGroup as GroupId } from '../../domain/TaskBoard';
 import { isTaskStatus } from '../../domain/task.types';
 import { useTasksModel } from '../models/useTasksModel';
+import { ServerAssignmentsPanel } from '../../../protocol/presentation/ServerAssignmentsPanel.tsx';
 import styles from './TasksPage.module.css';
 
 
@@ -37,6 +38,8 @@ export default function TasksPage() {
         </div>
         <Button leftSection={<Plus size={17} />} onClick={() => openEditor()} disabled={meetings.length === 0}>Добавить поручение</Button>
       </header>
+
+      <ServerAssignmentsPanel className={styles.serverRegistry} />
 
       {error && <Alert color="red" title="Не удалось загрузить данные" mb="md">{error}</Alert>}
       {actionError && <Alert color="red" title="Не удалось выполнить действие" mb="md" withCloseButton onClose={() => setActionError('')}>{actionError}</Alert>}

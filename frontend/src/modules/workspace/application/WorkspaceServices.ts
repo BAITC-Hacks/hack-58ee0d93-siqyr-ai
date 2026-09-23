@@ -2,6 +2,7 @@ import type { MeetingExporter } from '../../meetings/application/MeetingExporter
 import type { MeetingService } from '../../meetings/application/MeetingService.ts';
 import type { Recorder } from '../../recording/application/Recorder.ts';
 import type { RecordingGateway } from '../../recording/application/RecordingGateway.ts';
+import type { ProtocolGateway } from '../../protocol/application/ProtocolGateway.ts';
 import type { SettingsService } from '../../settings/application/SettingsService.ts';
 import type { TaskService } from '../../tasks/application/TaskService.ts';
 import type { WorkspaceRepository } from './WorkspaceRepository.ts';
@@ -17,4 +18,6 @@ export interface WorkspaceServices {
   recordings: RecordingGateway | null;
   chat: ChatGateway | null;
   exporter: MeetingExporter;
+  /** Server draft review, approval, protocol files and assignment registry; absent without VITE_API_URL. */
+  protocols?: ProtocolGateway | null;
 }

@@ -4,6 +4,7 @@ import { demoRecords } from '@/infrastructure/persistence/demo/createDemoRecords
 import { MeetingService } from '@/modules/meetings/application/MeetingService';
 import { BrowserMeetingExporter } from '@/modules/meetings/infrastructure/BrowserMeetingExporter';
 import { ApiRecordingGateway } from '@/modules/recording/infrastructure/ApiRecordingGateway';
+import { ApiProtocolGateway } from '@/modules/protocol/infrastructure/ApiProtocolGateway';
 import { LOCAL_WORKSPACE_ID } from '@/modules/auth/domain/auth.types';
 import { storedAccessToken } from '@/modules/auth/infrastructure/ApiAuthGateway';
 import { BrowserRecorder } from '@/modules/recording/infrastructure/BrowserRecorder';
@@ -23,6 +24,8 @@ export function createServices(principalId: string): WorkspaceServices & { close
   const apiUrl = import.meta.env.VITE_API_URL?.trim();
   const host = apiUrl ? new URL(apiUrl).hostname : '';
   const localApi = host === 'localhost' || host === '127.0.0.1' || host === '::1';
+  const serverBacked = localApi && principalId !== LOCAL_WORKSPACE_ID;
+  const accessToken = () => storedAccessToken(window.sessionStorage);
   return {
     close: () => database.close({ disableAutoOpen: false }),
     workspace: repository,
@@ -30,9 +33,9 @@ export function createServices(principalId: string): WorkspaceServices & { close
     tasks: new TaskService(repository, identity),
     settings: new SettingsService(repository),
     recorder: new BrowserRecorder(),
-    recordings: localApi && principalId !== LOCAL_WORKSPACE_ID
-      ? new ApiRecordingGateway(createHttpClient(), apiUrl, () => storedAccessToken(window.sessionStorage)) : null,
-    chat: localApi && principalId !== LOCAL_WORKSPACE_ID ? new ApiChatGateway(createHttpClient()) : null,
+    recordings: serverBacked ? new ApiRecordingGateway(createHttpClient(), apiUrl, accessToken) : null,
+    chat: serverBacked ? new ApiChatGateway(createHttpClient()) : null,
+    protocols: serverBacked && apiUrl ? new ApiProtocolGateway(apiUrl, accessToken) : null,
     exporter: new BrowserMeetingExporter(),
   };
 }
