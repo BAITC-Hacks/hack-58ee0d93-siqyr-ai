@@ -20,7 +20,7 @@ from sqlmodel import select
 import httpx
 
 from backend.shared.schemas import Participant, Proposal, Segment, StepEvent
-from . import config, llm
+from . import config, llm, media
 from .auth import Auth, Principal, hash_password, ROLES
 from .config import Settings, today
 from .demo import demo_meeting
@@ -37,7 +37,7 @@ from .review import ProposalError, blocking, check_proposal, confirm_reviewed
 from .schemas import Approval, AssignmentUpdate, DepartmentCreate, IdentityLink, Login, MembershipCreate, ProposalSave, UserCreate, UserUpdate, EcpSignature
 from .seed import seed_history
 
-AUDIO_EXTENSIONS = {".wav", ".mp3", ".m4a", ".aac", ".ogg", ".opus", ".flac", ".mp4", ".webm", ".mov", ".avi", ".mkv", ".mpeg", ".mpg", ".wma"}
+UPLOAD_CHUNK = 1024 * 1024
 
 
 def parse_participants(raw: str | None, defaults: list[dict]) -> list[dict]:
@@ -286,6 +286,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {"access_token": auth().issue(user), "token_type": "bearer",
                 "expires_in": settings.jwt_ttl_minutes * 60, "user": user_view(auth().principal(user))}
 
+    @app.get("/api/formats")
+    def formats() -> dict:
+        """Какие записи принимает POST /api/runs: фронт берёт отсюда accept и подсказку."""
+        return media.formats_view(settings.max_upload_mb)
+
     @app.get("/api/samples")
     def samples(actor: Principal = Depends(principal)):
         demo = demo_meeting()
@@ -330,23 +335,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                   participants=names, department_id=department_id, synthetic=bool(sample))
         path = None
         if file is not None:
-            suffix = Path(file.filename or "").suffix.lower()
-            if suffix not in AUDIO_EXTENSIONS:
-                raise HTTPException(415, "Неподдерживаемый формат. Загрузите аудио или видео: WAV, MP3, M4A, OGG, FLAC, MP4 или WEBM.")
-            path = settings.uploads_dir / f"{run.id}{suffix}"
-            total = 0
             try:
-                with path.open("wb") as target:
-                    while chunk := await file.read(1024 * 1024):
-                        total += len(chunk)
-                        if total > settings.max_upload_mb * 1024 * 1024:
-                            raise HTTPException(413, f"Файл слишком большой. Максимум: {settings.max_upload_mb} МБ.")
-                        target.write(chunk)
-                if total == 0:
-                    raise HTTPException(400, "Загруженный файл пуст.")
-            except BaseException:
-                path.unlink(missing_ok=True)
-                raise
+                # Имя и MIME проверяются до чтения, сигнатура контейнера — по первому чанку до записи на диск.
+                try:
+                    suffix = media.check_declared(file.filename, file.content_type)
+                    chunk = await file.read(UPLOAD_CHUNK)
+                    if not chunk:
+                        raise HTTPException(400, "Загруженный файл пуст.")
+                    suffix = media.check_content(suffix, chunk)
+                except media.UnsupportedRecording as exc:
+                    raise HTTPException(415, str(exc)) from None
+                path = settings.uploads_dir / f"{run.id}{suffix}"
+                total = 0
+                try:
+                    with path.open("wb") as target:
+                        while chunk:
+                            total += len(chunk)
+                            if total > settings.max_upload_mb * 1024 * 1024:
+                                raise HTTPException(413, f"Файл слишком большой. Максимум: {settings.max_upload_mb} МБ.")
+                            target.write(chunk)
+                            chunk = await file.read(UPLOAD_CHUNK)
+                except BaseException:
+                    path.unlink(missing_ok=True)
+                    raise
             finally:
                 await file.close()
             run.audio_path = str(path)

@@ -98,7 +98,7 @@ def test_conflict_blocks_approval_until_excluded(client):
 
 
 def test_unknown_meeting_date_is_not_today(client):
-    response = client.post("/api/runs", files={"file": ("meeting.wav", b"RIFF-demo-bytes")}, data={"title": "Без даты"})
+    response = client.post("/api/runs", files={"file": ("meeting.wav", b"RIFF\0\0\0\0WAVE-demo-bytes")}, data={"title": "Без даты"})
     run_id = response.json()["run_id"]
     detail = wait_for(client, run_id, "awaiting_approval")
     assert detail["run"]["meeting_date"] is None and detail["run"]["meeting_date_verified"] is False
@@ -111,7 +111,7 @@ def test_unknown_meeting_date_is_not_today(client):
 
 
 def test_audio_supports_range(client):
-    payload = bytes(range(256)) * 4
+    payload = b"RIFF\0\0\0\0WAVE" + bytes(range(256)) * 4
     run_id = client.post("/api/runs", files={"file": ("meeting.wav", payload)}, data={"meeting_date": "2026-09-23"}).json()["run_id"]
     detail = wait_for(client, run_id, "awaiting_approval")
     assert detail["audio"] == f"/api/runs/{run_id}/audio"

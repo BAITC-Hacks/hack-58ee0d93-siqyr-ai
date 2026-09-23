@@ -87,7 +87,7 @@ def test_demo_flow(client):
 
 @pytest.mark.parametrize("participants", ["Алия,Бек,Дана", json.dumps(["Алия", "Бек", "Дана"]), json.dumps([{"name": "Алия"}, {"name": "Бек"}, {"name": "Дана"}])])
 def test_upload_and_participants(client, participants):
-    response = client.post("/api/runs", files={"file": ("../../meeting.WAV", b"RIFF synthetic audio", "audio/wav")},
+    response = client.post("/api/runs", files={"file": ("../../meeting.WAV", b"RIFF\0\0\0\0WAVE synthetic audio", "audio/wav")},
                            data={"title": "Тест", "meeting_date": "2027-09-24", "participants": participants, "lang": "kk"})
     assert response.status_code == 201, response.text
     run_id = response.json()["run_id"]
@@ -181,7 +181,7 @@ def test_errors(client):
 
 def test_size_rate_limit(client_factory):
     client = client_factory(max_upload_mb=0, rate_limit_per_min=2)
-    assert client.post("/api/runs", files={"file": ("x.wav", b"x")}).status_code == 413
+    assert client.post("/api/runs", files={"file": ("x.wav", b"RIFF\0\0\0\0WAVE")}).status_code == 413
     assert not list(client.settings.uploads_dir.iterdir())
     create(client)
     limited = client.post("/api/runs", data={"sample": "demo"})

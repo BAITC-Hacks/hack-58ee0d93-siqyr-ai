@@ -34,6 +34,7 @@ upload / sample ─► STT + диаризация ─► propose() ─► awaiti
 |---|---|---|---|
 | GET | `/api/health` | — | `{status, agent_mode, stt_mode, demo_mode, auth_mode, llm, llm_provider, llm_model, today, ready, problems: [{name, level, detail}]}` |
 | GET | `/api/samples` | — | `[{id, title, description, lang, synthetic, participants}]` — пресеты для демо |
+| GET | `/api/formats` | — (без авторизации) | `{max_upload_mb, accept, extensions: [".wav", …], formats: [{id, label, extensions, mime_types}]}`; `accept` — готовое значение для `<input type="file" accept>` |
 | POST | `/api/runs` | multipart: `file` (аудио/видео) **или** `sample` (`demo`); `title`, `meeting_date` (YYYY-MM-DD, опц.), `lang` (`rukk`\|`kk`\|`ru`), `participants` (JSON-массив или имена через запятую), `department_id` (по умолчанию `default`) | `201 {run_id, status: "queued"}`; 503 если модели real-режима недоступны, 429 при полной очереди |
 | POST | `/api/runs/recordings` | multipart: `title`, `meeting_date` (опц.), `lang`, `department_id` (опц.) | `201 {run_id, status: "recording"}` |
 | POST | `/api/runs/{id}/chunks` | raw WebM bytes, `X-Chunk-Offset` = число уже подтверждённых байт | `{offset}`; последовательная запись на диск, повтор идентичного чанка идемпотентен; 409 при неверном смещении, 413 при превышении 5 МБ на чанк или MAX_UPLOAD_MB всего |
@@ -75,7 +76,7 @@ upload / sample ─► STT + диаризация ─► propose() ─► awaiti
 
 Не реализовано:
 - audit log с автором правки отдельной таблицей (сейчас шаг SSE `stage=review`/`approve` с `user_id`); speaker mapping как отдельный маршрут (правится через `speakers`/`speaker_records` в PUT); `usage_available` в StepEvent.
-- Лимит длительности 10 минут не проверяется — только размер `MAX_UPLOAD_MB` (100). Форматы шире, чем MP3/WAV: см. список расширений в 415.
+- Лимит длительности 10 минут не проверяется — только размер `MAX_UPLOAD_MB` (100). Форматы записи — `GET /api/formats` (backend/app/media.py): `file` в `POST /api/runs` получает 415, если расширение не из списка, заявленный Content-Type не аудио/видео (пустой и `application/octet-stream` допустимы) или первые байты не совпадают ни с одним контейнером (WAV/RF64, MP3±ID3, ADTS AAC, MP4/M4A/MOV/3GP, OGG/Opus, WebM/MKV, FLAC, WMA, AMR, AIFF, AVI, MPEG-PS). Файл хранится с расширением фактического контейнера (M4A под именем `.mp3` → `.m4a`). Декодируемость и длительность не проверяются — это делает ffmpeg в STT.
 - SSE `error` без `code`/`retryable`; этапы `ingest`, `normalize_audio`, `vad`, `diarize` backend не эмитит (сейчас только `transcribe` целиком) — их может добавить engine Alibi через свой шаг, если нужно.
 - Реальные `backend/stt/engine.py`, `backend/agents/runner.py` — отсутствуют. Если readiness пройдена, а модуля нет, запуск уходит в `error` с текстом «Модуль реального режима ещё не установлен».
 
