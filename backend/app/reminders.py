@@ -6,6 +6,7 @@ from sqlmodel import select
 
 from .config import Settings, today
 from .db import Database
+from .mailer import send_due
 from .models import Assignment, Notification, Run, identifier, utcnow
 
 logger = logging.getLogger(__name__)
@@ -46,6 +47,7 @@ async def reminder_loop(db: Database, settings: Settings):
     while True:
         try:
             await asyncio.to_thread(check_reminders, db, settings)
+            await asyncio.to_thread(send_due, db, settings)
         except Exception:
             logger.exception("Не удалось проверить сроки поручений")
         await asyncio.sleep(settings.reminder_interval_sec)
