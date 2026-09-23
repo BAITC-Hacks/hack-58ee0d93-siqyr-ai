@@ -144,7 +144,8 @@ def test_dashboard_reminders_seed(client_factory):
         responses = list(pool.map(lambda _: client.post("/api/reminders/run").json(), range(2)))
     assert sum(r["created"] for r in responses) == 2
     assert {n["kind"] for n in client.get("/api/notifications").json()} == {"overdue", "due_soon"}
-    assert client.post("/api/reminders/run").json() == {"created": 0, "today": "2026-09-23"}
+    assert client.post("/api/reminders/run").json() == {"created": 0, "today": "2026-09-23",
+                                                        "email": {"enabled": False, "sent": 0, "failed": 0, "unmapped": []}}
     assert client.patch(f"/api/assignments/{target['id']}", json={"done": True}).json()["status"] == "done"
     assert client.patch(f"/api/assignments/{target['id']}", json={"done": False}).json()["status"] == "overdue"
     from backend.app.seed import seed_history

@@ -26,7 +26,8 @@ from .config import Settings, today
 from .demo import demo_meeting
 from .exports import export_protocol
 from .limits import RequestLimits
-from .models import Assignment, Department, EcpChallenge, ExternalIdentity, Membership, Notification, Organization, Run, User, utcnow
+from .mailer import send_due
+from .models import Assignment, Department, EcpChallenge, EmailDelivery, ExternalIdentity, Membership, Notification, Organization, Run, User, utcnow
 from .pipeline import Runtime
 from .readiness import as_dicts, blocking as unready
 from .jira import register_jira_routes
@@ -123,6 +124,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {"status": "ok", "agent_mode": settings.agent_mode, "stt_mode": settings.stt_mode,
                 "demo_mode": settings.demo_mode, "auth_mode": settings.auth_mode, "llm": "configured" if settings.llm_base_url else "unconfigured",
                 "llm_provider": settings.llm_provider, "llm_model": settings.model_main, "today": today(settings).isoformat(),
+                "email": "configured" if settings.smtp_host else "unconfigured",
                 "ready": not unready(settings), "problems": as_dicts(unready(settings))}
 
     def user_view(actor: Principal) -> dict:
@@ -609,14 +611,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 assignment = session.get(Assignment, n.assignment_id) if n.assignment_id else None
                 run = session.get(Run, n.run_id) if n.run_id else session.get(Run, assignment.run_id) if assignment else None
                 if run and actor.can(run.department_id):
-                    result.append(n.model_dump(exclude={"day"}))
+                    # Только статус письма: адреса и текст ошибки SMTP остаются в логе сервера.
+                    delivery = session.get(EmailDelivery, n.id)
+                    result.append({**n.model_dump(exclude={"day"}), "email": delivery.status if delivery else None})
             return result
 
     @app.post("/api/reminders/run")
     def reminders(actor: Principal = Depends(principal)):
         if not actor.user.is_system_admin:
             raise HTTPException(403, "Только системный администратор может запускать общую проверку сроков.")
-        return check_reminders(runtime().db, settings)
+        return {**check_reminders(runtime().db, settings), "email": send_due(runtime().db, settings)}
 
     register_profile_routes(app, settings, principal)
     register_jira_routes(app, settings, principal, require_run)

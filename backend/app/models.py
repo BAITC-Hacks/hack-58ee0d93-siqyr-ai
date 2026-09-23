@@ -82,6 +82,17 @@ class Notification(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utcnow)
 
 
+class EmailDelivery(SQLModel, table=True):
+    """Письмо по напоминанию: отправленное не повторяется, ошибка SMTP повторяется до mailer.MAX_ATTEMPTS."""
+    __tablename__ = "email_deliveries"
+    notification_id: str = Field(primary_key=True, foreign_key="notifications.id")
+    status: str  # sent | failed
+    recipients: str = ""
+    attempts: int = 0
+    error: str | None = None
+    updated_at: datetime = Field(default_factory=utcnow)
+
+
 class Cache(SQLModel, table=True):
     __tablename__ = "cache"
     key: str = Field(primary_key=True)
