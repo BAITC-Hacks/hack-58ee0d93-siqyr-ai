@@ -43,7 +43,23 @@ upload / sample ─► STT + диаризация ─► propose() ─► awaiti
 | GET | `/api/notifications` | `?recipient=` | `[{id, kind: excerpt\|due_soon\|overdue, recipient, message, assignment_id, created_at}]` |
 | POST | `/api/reminders/run` | — | `{created, today}` — ручной запуск проверки сроков (сценарий 2) |
 
-MVP реализует health, samples, POST/GET runs, GET run, events, approve и оба protocol-файла. Остальные assignments/notifications/reminders маршруты — отложенные, UI их не вызывает до реализации. Добавления v0.2: GET `/api/runs/{id}/audio` для исходного аудио с Range; PUT `/api/runs/{id}/proposal` для сохранения проверяемого черновика с `{expected_revision, proposal}`. Это проект маршрутов; сейчас в main.py реализован только health.
+MVP реализует health, samples, POST/GET runs, GET run, events, approve и оба protocol-файла. Остальные assignments/notifications/reminders маршруты — отложенные, UI их не вызывает до реализации. Добавления v0.2: GET `/api/runs/{id}/audio` для исходного аудио с Range; PUT `/api/runs/{id}/proposal` для сохранения проверяемого черновика с `{expected_revision, proposal}`.
+
+### Статус реализации v0.2 (ветка api, Meiirlan, 14:46)
+
+Реализовано и покрыто тестами (`tests/test_contract_v02.py`, mock STT/агенты):
+- `backend/shared/schemas.py` v0.2 **только добавлением полей с умолчаниями**: ответы v0.1 остаются валидными. Segment: `speaker` nullable, `speaker_candidates`, `corrected_text`, `review_reasons`. Participant: `kind`, `present`. RunInput: `meeting_date` nullable, `meeting_date_verified`. AssignmentDraft: `assignee` nullable, `deadline_candidates`, `evidence[]`, `review_status`, `review_reasons`, `review_note`, `confidence=null`. Proposal: `revision`, `source_mode`, `speaker_records`. Новые типы `Evidence`, `Speaker`.
+- `PUT /api/runs/{id}/proposal` `{expected_revision, proposal}` → `{revision, proposal}`. Только `awaiting_approval`; чужая revision → 409; ссылка на несуществующую реплику, цитата не из реплики, изменение числа реплик → 422. `text/start/end` реплик всегда берутся из сырого транскрипта; правка человека — только `corrected_text`/`speaker`.
+- `POST /api/runs/{id}/approve` принимает `expected_revision` (рекомендуется). Ответ `{status, revision}`. Повтор той же revision в executing/done → 200 тот же результат; другая → 409. Утверждение сохраняет immutable `approved` snapshot; execute, реестр поручений и DOCX/PDF строятся только из него. `review_status=excluded` не попадает в реестр и файлы.
+- Блокирующие причины (`deadline_conflict`, `evidence_missing`, `speaker_uncertain`, `overlap`, `audio_protocol_mismatch`) у `unreviewed` поручения → approve 409 `{detail, code: "review_required", assignments: [номера]}`. `owner_uncertain`/`deadline_unknown` не блокируют: утверждение протокола подтверждает «не указан». Остальные `unreviewed` при approve становятся `confirmed`.
+- Сервер проверяет вывод модели: несуществующие индексы и непроверяемые цитаты удаляются с причиной `evidence_missing`; `start/end` evidence берутся из сегмента; при отсутствии цитат evidence = целая реплика из `source_segments`. `revision=1` и `source_mode` задаёт сервер (раннер не может объявить mock реальным).
+- Дата совещания не подставляется: без `meeting_date` у загрузки → `meeting_date=null`, `meeting_date_verified=false`, абсолютная дата срока удаляется, причина `deadline_unknown`. Для `sample=demo` берётся дата сценария fixture.
+- `GET /api/runs/{id}/audio` — исходный файл с Range (206), 404 если записи нет (sample). В режиме с авторизацией `<audio src>` не шлёт Bearer: фронту нужен fetch→blob.
+- GET run дополнительно: `revision`, `approved`, `approved_at`, `transcript {source_mode, segments}` (сырой), `audio`. Run view: `meeting_date_verified`, `source_mode`.
+- SSE `data.stage`: `transcribe`, `validate`, `review` (needs_approval и каждое сохранение), `approve`, `export`, `complete`; `duration_ms` у transcribe/validate/export. Этапы внутри раннера (`map_speakers`, `extract`, `summarize`) проставляет раннер Alibi.
+- `LLM_PROVIDER=local|dev_openai` (по умолчанию local, `MODEL_MAIN=qwen3:4b`, `MODEL_FAST=qwen3:1.7b`). local с адресом OpenAI и dev_openai с несинтетическим запуском останавливают real-run. `/api/health` отдаёт `llm_provider`, `llm_model`.
+
+Не реализовано: audit log с автором правки отдельной таблицей (сейчас шаг SSE `stage=review` с `user_id`), speaker mapping как отдельный маршрут (правится через `speakers`/`speaker_records` в PUT), 429 при занятом worker, 503 при отсутствии модели, `usage_available`.
 
 Ошибки: `{detail: "текст для пользователя"}`. 400 — неверный ввод, 404 — нет запуска, 409 — не тот статус, 413 — файл больше MAX_UPLOAD_MB, 415 — формат, 429 — rate limit.
 

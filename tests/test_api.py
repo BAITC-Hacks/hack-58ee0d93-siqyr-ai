@@ -33,7 +33,7 @@ def create(client, **data):
 
 def finish(client, run_id):
     wait_for(client, run_id, "awaiting_approval")
-    assert client.post(f"/api/runs/{run_id}/approve", json={"approved": True}).json() == {"status": "executing"}
+    assert client.post(f"/api/runs/{run_id}/approve", json={"approved": True}).json()["status"] == "executing"
     return wait_for(client, run_id, "done")
 
 
@@ -47,7 +47,10 @@ def test_demo_flow(client):
     run_id = create(client)
     pending = wait_for(client, run_id, "awaiting_approval")
     assert pending["run"]["synthetic"] is True
-    assert pending["proposal"]["assignments"] == [dict(item, category=None) for item in demo_meeting()["expected"]["assignments"]]
+    v01 = [{key: item[key] for key in (*expected, "category")} for item, expected in zip(pending["proposal"]["assignments"], demo_meeting()["expected"]["assignments"])]
+    assert v01 == [dict(item, category=None) for item in demo_meeting()["expected"]["assignments"]]
+    assert all(item["evidence"] and item["confidence"] is None for item in pending["proposal"]["assignments"])
+    assert pending["proposal"]["revision"] == 1 and pending["proposal"]["source_mode"] == pending["run"]["source_mode"] == "mock"
     assert pending["files"] == {"docx": None, "pdf": None}
     assert client.get(f"/api/runs/{run_id}/protocol.docx").status_code == 409
     assert client.get("/api/assignments").json() == []
@@ -118,7 +121,7 @@ def test_edited_approval_and_double_submit(client):
 def test_reject(client):
     run_id = create(client)
     wait_for(client, run_id, "awaiting_approval")
-    assert client.post(f"/api/runs/{run_id}/approve", json={"approved": False}).json() == {"status": "rejected"}
+    assert client.post(f"/api/runs/{run_id}/approve", json={"approved": False}).json()["status"] == "rejected"
     stream = client.get(f"/api/runs/{run_id}/events").text
     assert '"status": "rejected"' in stream and '"type": "final"' not in stream
     assert client.get("/api/assignments").json() == client.get("/api/notifications").json() == []

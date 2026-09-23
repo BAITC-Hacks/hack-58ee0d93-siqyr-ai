@@ -1,6 +1,7 @@
 import asyncio
 import importlib
 import logging
+import time
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -8,13 +9,14 @@ from urllib.parse import urlsplit
 from sqlmodel import select
 
 from backend import stt
-from backend.shared.schemas import Proposal, Result, RunInput, StepEvent
+from backend.shared.schemas import Proposal, Result, RunInput, Segment, Speaker, StepEvent
 from .config import Settings, today
 from .db import Database
 from .events import Events
 from .exports import export_protocol
 from .llm import LLM
 from .models import Assignment, Notification, Run, utcnow
+from .review import check_proposal
 
 logger = logging.getLogger(__name__)
 
@@ -45,13 +47,24 @@ class Runtime:
             raise ValueError("Неизвестный режим AGENT_MODE.")
         return importlib.import_module("backend.agents.runner_mock" if self.settings.agent_mode == "mock" else "backend.agents.runner")
 
+    def source_mode(self) -> str:
+        if self.settings.demo_mode == "replay":
+            return "replay"
+        # Any mock stage makes the whole result mock; never label partial mocks as real.
+        return "real" if self.settings.stt_mode == "real" and self.settings.agent_mode == "real" else "mock"
+
     def guard_llm_destination(self, run: Run):
         if self.settings.agent_mode != "real":
             return
         if not self.settings.llm_base_url:
             raise ValueError("Для реальных агентов задайте LLM_BASE_URL; облачного fallback нет.")
-        if urlsplit(self.settings.llm_base_url).hostname == "api.openai.com" and not run.synthetic:
+        if self.settings.llm_provider not in {"local", "dev_openai"}:
+            raise ValueError("LLM_PROVIDER должен быть local или dev_openai.")
+        hosted = urlsplit(self.settings.llm_base_url).hostname == "api.openai.com"
+        if (hosted or self.settings.llm_provider == "dev_openai") and not run.synthetic:
             raise ValueError("OpenAI API разрешён только для синтетических запусков.")
+        if hosted and self.settings.llm_provider == "local":
+            raise ValueError("Профиль local не может указывать на OpenAI API: задайте локальный LLM_BASE_URL.")
 
     def get_run(self, run_id: str) -> Run:
         with self.db.session() as session:
@@ -107,33 +120,54 @@ class Runtime:
     async def propose(self, run_id: str):
         try:
             run = self.get_run(run_id)
-            if self.settings.demo_mode == "replay":
+            mode = self.source_mode()
+            elapsed = None
+            if mode == "replay":
                 await self.events.status(run_id, "running")
                 proposal = await self.replay(run)
+                segments = [Segment.model_validate(s) for s in proposal.segments]
             else:
                 await self.events.status(run_id, "transcribing")
-                await self.events.emit(StepEvent(run_id=run_id, type="agent_start", agent="stt", content="Распознаю запись и разделяю реплики участников."))
+                await self.events.emit(StepEvent(run_id=run_id, type="agent_start", agent="stt", content="Распознаю запись и разделяю реплики участников.",
+                                                 data={"stage": "transcribe", "source_mode": mode}))
+                started = time.monotonic()
                 segments = await asyncio.to_thread(stt.transcribe, Path(run.audio_path or "demo"), run.lang)
                 with self.db.session() as session:
                     stored = session.get(Run, run_id)
                     stored.segments = [s.model_dump(mode="json") for s in segments]
                     session.add(stored)
                     session.commit()
-                await self.events.emit(StepEvent(run_id=run_id, type="tool_result", agent="stt", content=f"Транскрипт готов: {len(segments)} реплик.", data={"segments": [s.model_dump(mode="json") for s in segments]}))
+                await self.events.emit(StepEvent(run_id=run_id, type="tool_result", agent="stt", content=f"Транскрипт готов: {len(segments)} реплик.",
+                                                 data={"stage": "transcribe", "duration_ms": int((time.monotonic() - started) * 1000), "source_mode": mode,
+                                                       "segments": [s.model_dump(mode="json") for s in segments]}))
                 await self.events.status(run_id, "running")
-                run_input = RunInput(run_id=run_id, title=run.title, meeting_date=run.meeting_date, lang=run.lang, participants=run.participants, segments=segments)
+                run_input = RunInput(run_id=run_id, title=run.title, meeting_date=run.meeting_date if run.meeting_date_verified else None,
+                                     meeting_date_verified=run.meeting_date_verified, lang=run.lang, participants=run.participants, segments=segments)
                 self.guard_llm_destination(run)
+                started = time.monotonic()
                 proposal = Proposal.model_validate(await self.runner().propose(run_input, self.events.emit))
+                elapsed = int((time.monotonic() - started) * 1000)
             if proposal.run_id != run_id:
                 raise ValueError("Агент вернул протокол другого совещания.")
-            if not proposal.segments:
-                proposal = proposal.model_copy(update={"segments": segments if self.settings.demo_mode != "replay" else run.segments})
+            # Model output is checked against the immutable raw transcript; bad refs become review reasons.
+            proposal = check_proposal(proposal, segments, strict=False, date_verified=run.meeting_date_verified)
+            proposal = proposal.model_copy(update={"revision": 1, "source_mode": mode,
+                                                   "speaker_records": proposal.speaker_records or speaker_records(proposal)})
             with self.db.session() as session:
                 stored = session.get(Run, run_id)
+                stored.segments = [s.model_dump(mode="json") for s in segments]
+                stored.source_mode = mode
                 stored.proposal = proposal.model_dump(mode="json")
                 session.add(stored)
                 session.commit()
-            await self.events.emit(StepEvent(run_id=run_id, type="needs_approval", agent="secretary", content="Проверьте и утвердите проект протокола.", data={"proposal": proposal.model_dump(mode="json")}))
+            flagged = sum(bool(a.review_reasons) for a in proposal.assignments)
+            await self.events.emit(StepEvent(run_id=run_id, type="tool_result", agent="orchestrator",
+                                             content=f"Проверены источники: поручений {len(proposal.assignments)}, требуют проверки {flagged}.",
+                                             data={"stage": "validate", "assignments": len(proposal.assignments), "needs_review": flagged,
+                                                   **({"duration_ms": elapsed} if elapsed is not None else {})}))
+            await self.events.emit(StepEvent(run_id=run_id, type="needs_approval", agent="secretary", content="Проверьте и утвердите проект протокола.",
+                                             data={"stage": "review", "revision": proposal.revision, "needs_review": flagged,
+                                                   "proposal": proposal.model_dump(mode="json")}))
             await self.events.status(run_id, "awaiting_approval")
         except Exception as exc:
             await self.fail(run_id, exc)
@@ -142,16 +176,25 @@ class Runtime:
         try:
             run = self.get_run(run_id)
             self.guard_llm_destination(run)
-            proposal = Proposal.model_validate(run.proposal)
+            # Only the immutable approved snapshot feeds execute, exports and the assignment register.
+            proposal = Proposal.model_validate(run.approved or run.proposal)
             result = Result.model_validate(await self.runner().execute(proposal, self.events.emit))
             if result.run_id != run_id:
                 raise ValueError("Агент вернул результат другого совещания.")
+            await self.events.emit(StepEvent(run_id=run_id, type="tool_call", agent="orchestrator", content="Формирую DOCX и PDF утверждённой редакции.",
+                                             data={"stage": "export", "revision": proposal.revision}))
+            started = time.monotonic()
             for kind in ("docx", "pdf"):
                 await asyncio.to_thread(export_protocol, run, self.settings, kind)
+            await self.events.emit(StepEvent(run_id=run_id, type="tool_result", agent="orchestrator", content="Файлы протокола готовы.",
+                                             data={"stage": "export", "revision": proposal.revision, "duration_ms": int((time.monotonic() - started) * 1000)}))
             with self.db.session() as session:
                 assignments = []
                 for draft in proposal.assignments:
-                    item = Assignment(run_id=run_id, **draft.model_dump())
+                    if draft.review_status == "excluded":
+                        continue
+                    item = Assignment(run_id=run_id, assignee=draft.assignee or "Не указан",
+                                      **draft.model_dump(include={"task", "deadline", "deadline_text", "priority", "category", "source_segments"}))
                     session.add(item)
                     assignments.append(item)
                 session.flush()
@@ -165,10 +208,21 @@ class Runtime:
                 session.add(stored)
                 session.commit()
             await self.events.emit(StepEvent(run_id=run_id, type="final", agent="secretary", content="Протокол сохранён, поручения и выдержки подготовлены.", data={
-                "docx": f"/api/runs/{run_id}/protocol.docx", "pdf": f"/api/runs/{run_id}/protocol.pdf",
+                "stage": "complete", "revision": proposal.revision, "docx": f"/api/runs/{run_id}/protocol.docx", "pdf": f"/api/runs/{run_id}/protocol.pdf",
                 "assignments": [a.model_dump(mode="json", exclude={"source_segments"}) for a in assignments],
             }))
             # Terminal status must come after the durable final step.
             await self.events.status(run_id, "done")
         except Exception as exc:
             await self.fail(run_id, exc)
+
+
+def speaker_records(proposal: Proposal) -> list[Speaker]:
+    """Suggested voice-to-name links; a human confirms them in review."""
+    labels: dict[str, list[int]] = {}
+    for index, segment in enumerate(proposal.segments):
+        if segment.speaker:
+            labels.setdefault(segment.speaker, []).append(index)
+    return [Speaker(label=label, participant_name=proposal.speakers.get(label),
+                    mapping_status="suggested" if proposal.speakers.get(label) else "unmapped", source_segments=indices)
+            for label, indices in labels.items()]

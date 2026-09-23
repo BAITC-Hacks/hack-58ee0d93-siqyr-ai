@@ -29,7 +29,9 @@ def test_replay_latest_and_explicit(client_factory, monkeypatch):
         run_id = create(client)
         pending = wait_for(client, run_id, "awaiting_approval")
         assert pending["proposal"]["run_id"] == run_id
-        assert pending["proposal"]["assignments"] == original["proposal"]["assignments"]
+        # Replay reproduces the pre-approval draft; the original was confirmed on approval.
+        assert pending["proposal"]["assignments"] == [dict(a, review_status="unreviewed") for a in original["proposal"]["assignments"]]
+        assert pending["run"]["source_mode"] == pending["proposal"]["source_mode"] == "replay"
         assert pending["steps"][-1]["type"] == "needs_approval"
         assert sum(step["type"] == "needs_approval" for step in pending["steps"]) == 1
         assert all(step["run_id"] == run_id for step in pending["steps"])
