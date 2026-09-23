@@ -54,11 +54,17 @@ def main():
         document.raise_for_status()
         if not document.content.startswith(b"PK"):
             raise RuntimeError("Invalid DOCX header")
+        pdf = client.get(f"/api/runs/{run_id}/protocol.pdf")
+        pdf.raise_for_status()
+        if not pdf.content.startswith(b"%PDF"):
+            raise RuntimeError("Invalid PDF header")
         output = Path(os.environ.get("DEMO_OUTPUT_DIR", "data/runtime/demo_e2e"))
         output.mkdir(parents=True, exist_ok=True)
         destination = output / f"protocol-{run_id}.docx"
         destination.write_bytes(document.content)
-        print(f"OK: {destination}")
+        pdf_destination = destination.with_suffix(".pdf")
+        pdf_destination.write_bytes(pdf.content)
+        print(f"OK: {destination}; {pdf_destination}")
 
 
 if __name__ == "__main__":
