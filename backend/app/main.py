@@ -149,7 +149,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/api/health")
     def health() -> dict:
-        rag_health = rag().ai.health()
+        rag_engine = getattr(app.state, "rag", None)
+        rag_health = rag_engine.ai.health() if rag_engine is not None else None
         return {"status": "ok", "agent_mode": settings.agent_mode, "stt_mode": settings.stt_mode,
                 "demo_mode": settings.demo_mode, "auth_mode": settings.auth_mode, "llm": "configured" if settings.llm_base_url else "unconfigured",
                 "llm_provider": settings.llm_provider, "llm_model": settings.model_main, "today": today(settings).isoformat(),

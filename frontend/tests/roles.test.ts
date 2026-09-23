@@ -40,7 +40,7 @@ test('a viewer can open meetings but not the pages that create a server run', as
   assert.equal(resolveRouteAccess(viewer, [{ access: pagePolicies.meetings }]), true);
   assert.equal(resolveRouteAccess(viewer, [{ access: pagePolicies.newMeeting }]), false);
   assert.equal(resolveRouteAccess(viewer, [{ access: pagePolicies.call }]), false);
-  assert.equal(firstAccessiblePath(viewer), '/meetings');
+  assert.equal(firstAccessiblePath(viewer), '/meetings/live');
 
   for (const [admin, departments] of [[false, { default: 'editor' }], [false, { default: 'secretary' }], [true, {}]] as const) {
     const writer = await signIn(admin, departments);

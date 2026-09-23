@@ -12,13 +12,17 @@ import { TaskService } from '@/modules/tasks/application/TaskService';
 import type { WorkspaceServices } from '@/modules/workspace/application/WorkspaceServices';
 import type { Identity } from '@/shared/domain/Identity';
 import { createHttpClient } from './createHttpClient';
+import { ApiChatGateway } from '@/modules/chat/infrastructure/ApiChatGateway';
 
 export function createServices(principalId: string): WorkspaceServices & { close(): void } {
   if (!principalId.trim()) throw new Error('A confirmed principal is required.');
   const database = new WorkspaceDatabase(`siqyrai-workspace:${encodeURIComponent(principalId)}`);
-  const repository = new DexieWorkspaceRepository(database, demoRecords);
+  const repository = new DexieWorkspaceRepository(database, import.meta.env.VITE_DEMO_SEED === '0'
+    ? () => ({ meetings: [], tasks: [] }) : demoRecords);
   const identity: Identity = { nextId: () => crypto.randomUUID(), now: () => new Date() };
   const apiUrl = import.meta.env.VITE_API_URL?.trim();
+  const host = apiUrl ? new URL(apiUrl).hostname : '';
+  const localApi = host === 'localhost' || host === '127.0.0.1' || host === '::1';
   return {
     close: () => database.close({ disableAutoOpen: false }),
     workspace: repository,
@@ -28,6 +32,7 @@ export function createServices(principalId: string): WorkspaceServices & { close
     recorder: new BrowserRecorder(),
     recordings: apiUrl && principalId !== LOCAL_WORKSPACE_ID
       ? new ApiRecordingGateway(createHttpClient(), apiUrl, () => storedAccessToken(window.sessionStorage)) : null,
+    chat: localApi && principalId !== LOCAL_WORKSPACE_ID ? new ApiChatGateway(createHttpClient()) : null,
     exporter: new BrowserMeetingExporter(),
   };
 }

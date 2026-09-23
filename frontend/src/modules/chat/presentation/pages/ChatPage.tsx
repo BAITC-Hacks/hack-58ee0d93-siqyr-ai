@@ -2,10 +2,10 @@ import { ActionIcon, Alert, Button, Group, Modal, Paper, ScrollArea, Stack, Text
 import { ArrowUp, BookOpenText, MessageSquareText, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useWorkspace } from '@/modules/workspace/presentation/useWorkspace';
-import { ApiChatGateway, type ChatConversation, type ChatMessage } from '../../infrastructure/ApiChatGateway';
+import { useServices } from '@/modules/workspace/presentation/WorkspaceProvider';
+import type { ChatConversation, ChatMessage } from '../../application/ChatGateway';
 import styles from './ChatPage.module.css';
 
-const gateway = new ApiChatGateway();
 const suggestions = [
   'Какие поручения обсуждали на последних встречах?',
   'Кто отвечает за открытые задачи?',
@@ -13,6 +13,7 @@ const suggestions = [
 ];
 
 export default function ChatPage() {
+  const { chat: gateway } = useServices();
   const { meetings, tasks, loading, error: workspaceError } = useWorkspace();
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -26,6 +27,7 @@ export default function ChatPage() {
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length, busy]);
   useEffect(() => {
+    if (!gateway) { setError('Для чата подключите локальный сервер и войдите в аккаунт.'); return; }
     let mounted = true;
     void gateway.list().then(async (items) => {
       if (!mounted) return;
@@ -37,10 +39,10 @@ export default function ChatPage() {
     })
       .catch((cause) => { if (mounted) setError(cause instanceof Error ? cause.message : 'Не удалось загрузить чаты.'); });
     return () => { mounted = false; };
-  }, []);
+  }, [gateway]);
 
   async function newChat() {
-    if (busy) return;
+    if (busy || !gateway) return;
     try {
       const created = await gateway.create();
       setConversations((items) => [created, ...items]);
@@ -52,7 +54,7 @@ export default function ChatPage() {
   }
 
   async function openChat(id: string) {
-    if (busy) return;
+    if (busy || !gateway) return;
     setError('');
     try {
       const loaded = await gateway.messages(id);
@@ -62,7 +64,7 @@ export default function ChatPage() {
   }
 
   async function deleteChat(id: string) {
-    if (busy) return;
+    if (busy || !gateway) return;
     try {
       await gateway.delete(id);
       setConversations((items) => items.filter((item) => item.id !== id));
@@ -71,7 +73,7 @@ export default function ChatPage() {
   }
 
   async function saveTitle() {
-    if (!renaming || !newTitle.trim()) return;
+    if (!gateway || !renaming || !newTitle.trim()) return;
     try {
       const updated = await gateway.rename(renaming.id, newTitle.trim());
       setConversations((items) => items.map((item) => item.id === updated.id ? updated : item));
@@ -82,7 +84,7 @@ export default function ChatPage() {
   async function send(event?: FormEvent) {
     event?.preventDefault();
     const text = question.trim();
-    if (!text || busy) return;
+    if (!text || busy || !gateway) return;
     if (loading || workspaceError) { setError(workspaceError || 'Подождите загрузки встреч.'); return; }
     setBusy(true);
     setError('');
