@@ -6,6 +6,7 @@ export const pagePolicies = {
   meeting: {},
   newMeeting: {},
   tasks: {},
+  integrations: {},
   settings: {},
 } satisfies Record<string, AccessPolicy>;
 
@@ -15,6 +16,7 @@ export interface SecurityHandle { access: AccessPolicy }
 export const workspaceNavigation: ReadonlyArray<{ id: ProtectedPage; to: string; label: string }> = [
   { id: 'meetings', to: '/meetings', label: 'Встречи' },
   { id: 'tasks', to: '/tasks', label: 'Поручения' },
+  { id: 'integrations', to: '/integrations', label: 'Интеграции' },
   { id: 'settings', to: '/settings', label: 'Настройки' },
 ];
 

@@ -1,7 +1,4 @@
-import '@fontsource/inter/cyrillic-400.css';
-import '@fontsource/inter/cyrillic-500.css';
-import '@fontsource/inter/cyrillic-600.css';
-import '@fontsource/inter/cyrillic-700.css';
+import '@fontsource-variable/geist/wght.css';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './app/App';

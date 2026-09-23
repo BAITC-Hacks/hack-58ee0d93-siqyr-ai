@@ -3,7 +3,7 @@
 @import 'tailwindcss/utilities' layer(utilities);
 
 :root {
-  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   color-scheme: light;
   --app-bg: #f7f8fa;
   --sidebar-bg: #ffffff;
@@ -21,14 +21,20 @@
   --count-bg: #eef1fa;
   --clay: #a85d43;
   --clay-soft: #fbede6;
+  --type-page-title: 34px;
+  --type-brand: 22px;
+  --type-subheading: 16px;
+  --type-body: 14px;
+  --type-label: 12px;
+  --type-caption: 11px;
 
   --mantine-color-body: var(--app-bg);
   --mantine-color-text: var(--ink);
   --mantine-color-default: var(--paper);
   --mantine-color-default-border: var(--line);
   --mantine-color-placeholder: #667085;
-  --mantine-font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --mantine-font-family-headings: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --mantine-font-family: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --mantine-font-family-headings: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 html {

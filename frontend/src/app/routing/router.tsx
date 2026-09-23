@@ -12,6 +12,7 @@ const AuthenticatedWorkspace = lazy(() => import('../providers/AuthenticatedWork
 const MeetingPage = lazy(() => import('@/modules/meetings/presentation/pages/MeetingPage'));
 const NewMeetingPage = lazy(() => import('@/modules/meetings/presentation/pages/NewMeetingPage'));
 const TasksPage = lazy(() => import('@/modules/tasks/presentation/pages/TasksPage'));
+const IntegrationsPage = lazy(() => import('@/modules/integrations/presentation/pages/IntegrationsPage'));
 const SettingsPage = lazy(() => import('@/modules/settings/presentation/pages/SettingsPage'));
 const pageFallback = <Center mih="50vh"><Loader aria-label="Загрузка страницы" /></Center>;
 
@@ -32,6 +33,7 @@ export const router = createBrowserRouter([
           { path: 'meetings/new', handle: { access: pagePolicies.newMeeting } satisfies SecurityHandle, element: <Suspense fallback={pageFallback}><NewMeetingPage /></Suspense> },
           { path: 'meetings/:id', handle: { access: pagePolicies.meeting } satisfies SecurityHandle, element: <Suspense fallback={pageFallback}><MeetingPage /></Suspense> },
           { path: 'tasks', handle: { access: pagePolicies.tasks } satisfies SecurityHandle, element: <Suspense fallback={pageFallback}><TasksPage /></Suspense> },
+          { path: 'integrations', handle: { access: pagePolicies.integrations } satisfies SecurityHandle, element: <Suspense fallback={pageFallback}><IntegrationsPage /></Suspense> },
           { path: 'settings', handle: { access: pagePolicies.settings } satisfies SecurityHandle, element: <Suspense fallback={pageFallback}><SettingsPage /></Suspense> },
         ],
       },

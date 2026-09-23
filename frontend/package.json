@@ -13,7 +13,7 @@
     "check": "npm run check:architecture && npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
-    "@fontsource/inter": "^5.2.8",
+    "@fontsource-variable/geist": "^5.3.0",
     "@mantine/core": "9.6.2",
     "@mantine/form": "9.6.2",
     "@mantine/hooks": "9.6.2",

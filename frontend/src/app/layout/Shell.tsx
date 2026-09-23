@@ -3,18 +3,19 @@ import { useWorkspace } from '@/modules/workspace/presentation/useWorkspace';
 import { useAuth } from '@/modules/auth/presentation/AuthProvider';
 import { canAccess } from '@/modules/auth/domain/accessPolicy';
 import { pagePolicies, workspaceNavigation } from '../routing/access';
-import { Burger, Button, Drawer, Group, Modal, Text } from '@mantine/core';
-import { CheckSquare2, Mic2, Settings2 } from 'lucide-react';
+import { Burger, Button, Drawer, Group, Menu, Modal, Text } from '@mantine/core';
+import { CalendarDays, CheckSquare2, ChevronDown, LogOut, Plug2, Settings2 } from 'lucide-react';
 import { useState } from 'react';
 import { NavLink, Outlet, useBlocker, useLocation } from 'react-router-dom';
 import styles from './Shell.module.css';
 
-const navigationIcons = { meetings: Mic2, tasks: CheckSquare2, settings: Settings2, meeting: Mic2, newMeeting: Mic2 };
+const navigationIcons = { meetings: CalendarDays, tasks: CheckSquare2, integrations: Plug2, settings: Settings2, meeting: CalendarDays, newMeeting: CalendarDays };
 
 function pageName(pathname: string) {
   if (pathname.startsWith('/meetings/new')) return 'Новая встреча';
   if (pathname.startsWith('/meetings/') && pathname !== '/meetings/') return 'Встреча';
   if (pathname.startsWith('/tasks')) return 'Поручения';
+  if (pathname.startsWith('/integrations')) return 'Интеграции';
   if (pathname.startsWith('/settings')) return 'Настройки';
   return 'Встречи';
 }
@@ -28,10 +29,12 @@ export default function Shell() {
   const blocker = useBlocker(({ currentLocation, nextLocation }) =>
     recording && currentLocation.pathname === '/meetings/new' && nextLocation.pathname !== currentLocation.pathname,
   );
-  const { tasks, settings } = useWorkspace();
-  const openTasks = tasks.filter((task) => task.status !== 'done').length;
+  const { settings } = useWorkspace();
   const displayName = settings.displayName.trim() || (auth.status === 'authenticated' ? auth.session.principal.displayName : '') || 'Моё пространство';
+  const initials = displayName.split(/\s+/).slice(0, 2).map((part) => part[0]?.toLocaleUpperCase('ru')).join('');
   const navigation = workspaceNavigation.filter((item) => auth.status === 'authenticated' && canAccess(auth.session, pagePolicies[item.id]));
+  const mainNavigation = navigation.filter((item) => item.id === 'meetings');
+  const bottomNavigation = navigation.filter((item) => item.id !== 'meetings');
 
   const sidebar = (
     <div className={styles.sidebarInner}>
@@ -40,9 +43,8 @@ export default function Shell() {
         <span className={styles.brandText}>Siqyr<span className={styles.brandDot}>AI</span></span>
       </NavLink>
 
-      <div className={styles.workspaceLabel}>РАБОЧЕЕ ПРОСТРАНСТВО</div>
       <nav className={styles.navigation} aria-label="Основная навигация">
-        {navigation.map(({ id, to, label }) => {
+        {mainNavigation.map(({ id, to, label }) => {
           const Icon = navigationIcons[id];
           return (
           <NavLink
@@ -53,12 +55,24 @@ export default function Shell() {
           >
             <Icon size={18} strokeWidth={1.8} aria-hidden="true" />
             <span>{label}</span>
-            {to === '/tasks' && openTasks > 0 && <span className={styles.navCount}>{openTasks}</span>}
           </NavLink>
           );
         })}
       </nav>
-
+      <nav className={styles.bottomNavigation} aria-label="Дополнительная навигация">
+        {bottomNavigation.map(({ id, to, label }) => {
+          const Icon = navigationIcons[id];
+          return <NavLink
+            key={to}
+            to={to}
+            onClick={() => setDrawerOpen(false)}
+            className={({ isActive }) => `${styles.navItem} ${isActive ? styles.navItemActive : ''}`}
+          >
+            <Icon size={20} strokeWidth={1.8} aria-hidden="true" />
+            <span>{label}</span>
+          </NavLink>;
+        })}
+      </nav>
     </div>
   );
 
@@ -95,16 +109,22 @@ export default function Shell() {
         <header className={styles.topbar}>
           <div className={styles.topbarLeft}>
             <Burger className={styles.mobileBurger} opened={drawerOpen} onClick={() => setDrawerOpen((value) => !value)} size="sm" aria-label="Открыть меню" />
-            <span className={styles.breadcrumbRoot}>Рабочее пространство</span>
-            <span className={styles.breadcrumbSlash}>/</span>
-            <span className={styles.breadcrumbCurrent}>{pageName(pathname)}</span>
+            <span className={styles.mobilePageName}>{pageName(pathname)}</span>
           </div>
           <div className={styles.topbarRight}>
-            <Button variant="subtle" color="gray" size="compact-sm" onClick={() => recording ? setConfirmSignOut(true) : void controller.signOut()}>Выйти</Button>
-            <div className={styles.account} title={displayName}>
-              <span className={styles.avatar}>{displayName.slice(0, 1).toUpperCase()}</span>
-              <span className={styles.accountName}>{displayName}</span>
-            </div>
+            <Menu position="bottom-end" width={200} shadow="sm" withinPortal>
+              <Menu.Target>
+                <button type="button" className={styles.account} aria-label={`Профиль: ${displayName}`}>
+                  <span className={styles.avatar}>{initials}</span>
+                  <span className={styles.accountName}>{displayName}</span>
+                  <ChevronDown size={16} strokeWidth={1.8} aria-hidden="true" />
+                </button>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Label>{displayName}</Menu.Label>
+                <Menu.Item leftSection={<LogOut size={15} />} onClick={() => recording ? setConfirmSignOut(true) : void controller.signOut()}>Выйти</Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
           </div>
         </header>
         <main className={styles.main}><Outlet /></main>

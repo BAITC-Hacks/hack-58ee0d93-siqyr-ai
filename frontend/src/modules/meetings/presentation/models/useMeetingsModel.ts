@@ -1,34 +1,39 @@
 import type { Meeting } from '@/modules/meetings/domain/meeting.types';
-import type { Task } from '@/modules/tasks/domain/task.types';
 import { useWorkspace } from '@/modules/workspace/presentation/useWorkspace';
 import { useMemo, useState } from 'react';
-import { filterMeetings, type MeetingFilters } from '../../domain/MeetingCatalog';
+import { filterMeetings } from '../../domain/MeetingCatalog';
 import { useMeetingCommands } from '../useMeetingCommands';
-type KindFilter = 'all' | 'example' | 'local';
 
-function meetingTasks(tasks: Task[], meetingId: string) { return tasks.filter((task) => task.meetingId === meetingId); }
+export type MeetingView = 'all' | 'review' | 'processing' | 'ready';
+type KindFilter = 'all' | 'example' | 'local';
 
 export function useMeetingsModel() {
   const { meetings, tasks, loading, error } = useWorkspace();
   const { deleteMeeting } = useMeetingCommands();
   const [search, setSearch] = useState('');
   const [kind, setKind] = useState<KindFilter>('all');
-  const [status, setStatus] = useState<MeetingFilters['status']>('all');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [view, setView] = useState<MeetingView>('all');
   const [deleting, setDeleting] = useState<Meeting | null>(null);
   const [deleteError, setDeleteError] = useState('');
   const [deletingNow, setDeletingNow] = useState(false);
 
-  const visibleMeetings = useMemo(() => filterMeetings(meetings, { search, kind, status }), [meetings, search, kind, status]);
-  const selected = visibleMeetings.find((meeting) => meeting.id === selectedId) ?? visibleMeetings[0] ?? null;
-  const selectedTasks = selected ? meetingTasks(tasks, selected.id) : [];
-  const sections = selected ? [...new Set(selected.transcript.map((item) => item.section).filter((section) => section && section !== 'Текст совещания'))] : [];
-  const hasFilters = Boolean(search.trim()) || kind !== 'all' || status !== 'all';
+  const visibleMeetings = useMemo(() => {
+    const matches = filterMeetings(meetings, { search, kind, status: 'all' });
+    if (view === 'all') return matches;
+    const status = view === 'review' ? 'draft' : view === 'processing' ? 'pending' : 'ready';
+    return matches.filter((meeting) => meeting.status === status);
+  }, [meetings, search, kind, view]);
+  const taskCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const task of tasks) counts.set(task.meetingId, (counts.get(task.meetingId) ?? 0) + 1);
+    return counts;
+  }, [tasks]);
+  const hasFilters = Boolean(search.trim()) || kind !== 'all' || view !== 'all';
 
   function clearFilters() {
     setSearch('');
     setKind('all');
-    setStatus('all');
+    setView('all');
   }
 
   async function confirmDelete() {
@@ -38,7 +43,6 @@ export function useMeetingsModel() {
     try {
       await deleteMeeting(deleting.id);
       setDeleting(null);
-      if (selectedId === deleting.id) setSelectedId(null);
     } catch (cause) {
       setDeleteError(cause instanceof Error ? cause.message : 'Не удалось удалить встречу. Попробуйте ещё раз.');
     } finally {
@@ -46,5 +50,5 @@ export function useMeetingsModel() {
     }
   }
 
-  return { meetings, tasks, loading, error, search, setSearch, kind, setKind, status, setStatus, setSelectedId, deleting, setDeleting, deleteError, setDeleteError, deletingNow, visibleMeetings, selected, selectedTasks, sections, hasFilters, clearFilters, confirmDelete };
+  return { meetings, loading, error, search, setSearch, kind, setKind, view, setView, deleting, setDeleting, deleteError, setDeleteError, deletingNow, visibleMeetings, taskCounts, hasFilters, clearFilters, confirmDelete };
 }

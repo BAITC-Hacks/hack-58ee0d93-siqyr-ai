@@ -17,9 +17,9 @@ export const theme = createTheme({
   primaryColor: 'indigo',
   primaryShade: 6,
   colors: { indigo },
-  fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  fontFamily: 'Geist Variable, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
   headings: {
-    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    fontFamily: 'Geist Variable, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     fontWeight: '650',
   },
   defaultRadius: 'sm',

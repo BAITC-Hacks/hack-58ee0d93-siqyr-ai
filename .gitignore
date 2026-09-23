@@ -15,3 +15,4 @@ data/runtime/
 /.frontend-workbench/
 .tmp/
 models/
+frontend/design/
