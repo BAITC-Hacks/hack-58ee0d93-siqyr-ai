@@ -46,7 +46,7 @@ class Settings:
 
     data_dir: Path = field(default_factory=lambda: _path("DATA_DIR", "data/runtime"))
     cors_origins: list[str] = field(
-        default_factory=lambda: [o.strip() for o in _env("CORS_ORIGINS", "http://localhost:5173").split(",") if o.strip()]
+        default_factory=lambda: [o.strip() for o in _env("CORS_ORIGINS", "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5174").split(",") if o.strip()]
     )
     cors_origin_regex: str = field(default_factory=lambda: _env("CORS_ORIGIN_REGEX", r"https://.*\.vercel\.app"))
     rate_limit_per_min: int = field(default_factory=lambda: _int("RATE_LIMIT_PER_MIN", 10))
@@ -58,7 +58,7 @@ class Settings:
     demo_today: str = field(default_factory=lambda: _env("DEMO_TODAY"))  # YYYY-MM-DD, для демо
     seed: bool = field(default_factory=lambda: _env("SEED", "1") == "1")
 
-    auth_mode: str = field(default_factory=lambda: _env("AUTH_MODE", "local"))  # local | keycloak | disabled (tests only)
+    auth_mode: str = field(default_factory=lambda: _env("AUTH_MODE", "disabled"))  # disabled (демо, без входа) | local | keycloak | hybrid
     jwt_secret: str = field(default_factory=lambda: _env("JWT_SECRET"))
     jwt_issuer: str = field(default_factory=lambda: _env("JWT_ISSUER", "siqyr-ai"))
     jwt_ttl_minutes: int = field(default_factory=lambda: _int("JWT_TTL_MINUTES", 30))

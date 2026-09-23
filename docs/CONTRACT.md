@@ -15,6 +15,7 @@ upload / sample ─► STT + диаризация ─► propose() ─► awaiti
 
 ### Авторизация и департаменты
 
+- **Демо: `AUTH_MODE=disabled` (по умолчанию).** Токен не нужен, все маршруты доступны от демо-администратора, SSE читается обычным `EventSource`. `GET /api/health` отдаёт `auth_mode`, фронт показывает плашку «демо без входа». Правила ниже действуют при `AUTH_MODE=local|keycloak|hybrid`.
 - Все маршруты `/api`, кроме `/api/health`, `/api/auth/login`, `/api/auth/ecp/challenge`, `/api/auth/ecp/verify`, требуют `Authorization: Bearer <access_token>`; без токена — 401. `/api/samples` тоже требует токен.
 - `POST /api/auth/login` принимает `{username, password}` и отдаёт `{access_token, token_type: "bearer", expires_in, user}`. `GET /api/auth/me` отдаёт `{id, username, display_name, is_system_admin, departments: {department_id: role}}`.
 - При `AUTH_MODE=keycloak|hybrid` тот же заголовок принимает подписанный RS256 access token Keycloak с настроенными `iss` и `aud`. `sub` должен быть заранее привязан к локальному пользователю через `POST /api/admin/identities`; роли берутся только из локальных membership. `hybrid` также принимает локальные токены; `keycloak` выключает вход по паролю.

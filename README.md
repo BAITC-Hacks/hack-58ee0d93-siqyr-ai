@@ -20,7 +20,8 @@ _TODO: схема из docs/ARCHITECTURE.md_
 Одной командой (Docker):
 ```bash
 cp .env.example .env
-# В .env задайте JWT_SECRET (>=32 случайных символов),
+# По умолчанию AUTH_MODE=disabled — демо без входа, секреты не нужны.
+# Для входа по логину: AUTH_MODE=local, JWT_SECRET (>=32 символов),
 # BOOTSTRAP_ADMIN_USER и BOOTSTRAP_ADMIN_PASSWORD (>=12 символов).
 docker compose up --build
 ```

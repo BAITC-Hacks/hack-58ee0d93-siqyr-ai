@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -11,6 +12,8 @@ import jwt
 from fastapi import HTTPException
 from jwt import PyJWKClient
 from jwt.exceptions import InvalidTokenError
+
+log = logging.getLogger("siqyr.auth")
 from sqlmodel import select
 
 from .config import Settings
@@ -71,6 +74,8 @@ class Auth:
         self.settings, self.db = settings, db
         if settings.auth_mode not in {"local", "keycloak", "hybrid", "disabled"}:
             raise RuntimeError("AUTH_MODE должен быть local, keycloak, hybrid или disabled.")
+        if settings.auth_mode == "disabled":
+            log.warning("AUTH_MODE=disabled: вход отключён, все запросы идут от демо-администратора. Только для демо.")
         if settings.auth_mode != "disabled" and len(settings.jwt_secret) < 32:
             raise RuntimeError("Для авторизации задайте JWT_SECRET длиной не менее 32 символов.")
         if settings.auth_mode in {"keycloak", "hybrid"}:
@@ -112,7 +117,7 @@ class Auth:
 
     def identify(self, authorization: str | None) -> Principal:
         if self.settings.auth_mode == "disabled":
-            return Principal(User(id="test", username="test", display_name="Test", is_system_admin=True), {})
+            return Principal(User(id="demo", username="demo", display_name="Демо-режим (без входа)", is_system_admin=True), {})
         if not authorization or not authorization.startswith("Bearer "):
             raise HTTPException(401, "Требуется токен доступа.", headers={"WWW-Authenticate": "Bearer"})
         token = authorization[7:]
