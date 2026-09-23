@@ -5,7 +5,7 @@
 <h1 align="center">Siqyr AI</h1>
 <p align="center"><strong>От встречи — к проверяемым поручениям.</strong></p>
 
-[![Siqyr AI — короткое демо, 32 секунды. Нажмите, чтобы смотреть со звуком.](artifacts/demo-video/SiqyrAI-highlights.gif)](artifacts/demo-video/SiqyrAI-highlights.mp4)
+[![Siqyr AI — короткое демо, 32 секунды. Нажмите, чтобы смотреть со звуком.](artifacts/demo-video/SiqyrAI-highlights.gif)](artifacts/demo-video/SiqyrAI-demo.mp4)
 
 <p align="center">
   <a href="artifacts/demo-video/SiqyrAI-highlights.mp4"><strong>▶ Короткое демо · 32 секунды · со звуком</strong></a><br>
