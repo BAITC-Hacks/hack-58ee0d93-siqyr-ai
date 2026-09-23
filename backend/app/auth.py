@@ -5,6 +5,7 @@ import hashlib
 import hmac
 import logging
 import os
+import secrets
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
@@ -23,6 +24,10 @@ from .profile_models import token_version
 
 ROLES = {"viewer", "editor", "secretary", "department_admin"}
 WRITE_ROLES = {"editor", "secretary", "department_admin"}
+# EventSource cannot send Authorization, so /events takes ?token=. The URL ends up in access logs,
+# hence a separate audience (useless as a Bearer), one run and a short life; it is checked only on connect.
+STREAM_AUDIENCE = "siqyr-sse"
+STREAM_TOKEN_TTL = timedelta(minutes=5)
 
 
 def hash_password(password: str) -> str:
@@ -85,6 +90,8 @@ class Auth:
             self.jwks = PyJWKClient(settings.keycloak_issuer.rstrip("/") + "/protocol/openid-connect/certs")
         else:
             self.jwks = None
+        # Without login (disabled) there may be no JWT_SECRET; stream tokens are then ignored anyway.
+        self.stream_key = settings.jwt_secret if len(settings.jwt_secret) >= 32 else secrets.token_urlsafe(32)
         if settings.bootstrap_admin_user or settings.bootstrap_admin_password:
             if not settings.bootstrap_admin_user or not settings.bootstrap_admin_password:
                 raise RuntimeError("BOOTSTRAP_ADMIN_USER и BOOTSTRAP_ADMIN_PASSWORD задаются вместе.")
@@ -118,6 +125,31 @@ class Auth:
                            "iat": now, "exp": now + timedelta(minutes=self.settings.jwt_ttl_minutes),
                            "ver": version},
                           self.settings.jwt_secret, algorithm="HS256")
+
+    def issue_stream(self, user: User, run_id: str) -> str:
+        """Token for ?token= of one run's /events; revoked with the user's other tokens on password change."""
+        now = datetime.now(timezone.utc)
+        with self.db.session() as session:
+            version = token_version(session, user.id)
+        return jwt.encode({"sub": user.id, "iss": self.settings.jwt_issuer, "aud": STREAM_AUDIENCE, "run": run_id,
+                           "iat": now, "exp": now + STREAM_TOKEN_TTL, "ver": version},
+                          self.stream_key, algorithm="HS256")
+
+    def identify_stream(self, token: str, run_id: str) -> Principal:
+        if self.settings.auth_mode == "disabled":
+            return self.identify(None)
+        try:
+            payload = jwt.decode(token, self.stream_key, algorithms=["HS256"], issuer=self.settings.jwt_issuer,
+                                 audience=STREAM_AUDIENCE, options={"require": ["sub", "iss", "aud", "exp", "run"]})
+        except InvalidTokenError:
+            raise HTTPException(401, "Токен потока событий недействителен или истёк: запросите новый.") from None
+        if payload["run"] != run_id:
+            raise HTTPException(401, "Токен потока событий выдан для другого совещания.")
+        with self.db.session() as session:
+            user = session.get(User, payload["sub"])
+            if user is None or not user.active or payload.get("ver", 0) != token_version(session, user.id):
+                raise HTTPException(401, "Токен потока событий отозван: войдите снова.")
+        return self.principal(user)
 
     def identify(self, authorization: str | None) -> Principal:
         if self.settings.auth_mode == "disabled":

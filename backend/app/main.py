@@ -4,13 +4,14 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import logging
 import mimetypes
 import re
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
@@ -21,7 +22,7 @@ import httpx
 
 from backend.shared.schemas import Participant, Proposal, Segment, StepEvent
 from . import config, llm, media
-from .auth import Auth, Principal, hash_password, ROLES
+from .auth import Auth, Principal, hash_password, ROLES, STREAM_TOKEN_TTL
 from .config import Settings, today
 from .demo import demo_meeting
 from .exports import export_protocol
@@ -39,6 +40,21 @@ from .schemas import Approval, AssignmentUpdate, DepartmentCreate, IdentityLink,
 from .seed import seed_history
 
 UPLOAD_CHUNK = 1024 * 1024
+
+
+class HideStreamToken(logging.Filter):
+    """uvicorn writes the query string to the access log: the /events ?token= must not stay there."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        args = record.args
+        if isinstance(args, tuple) and len(args) >= 3 and isinstance(args[2], str) and "token=" in args[2]:
+            record.args = (*args[:2], re.sub(r"([?&]token=)[^&\s]+", r"\1***", args[2]), *args[3:])
+        return True
+
+
+# addFilter skips an instance that is already attached, so repeated create_app() adds it once.
+_hide_stream_token = HideStreamToken()
+logging.getLogger("uvicorn.access").addFilter(_hide_stream_token)
 
 
 def clean_participants(participants: list[Participant]) -> list[dict]:
@@ -520,8 +536,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                                               data={"stage": "review", "revision": draft.revision, "user_id": actor.user.id}))
         return {"revision": draft.revision, "proposal": draft.model_dump(mode="json")}
 
+    @app.post("/api/runs/{run_id}/events/token")
+    def events_token(run_id: str, actor: Principal = Depends(principal)):
+        """EventSource cannot send Authorization: it opens /events?token=<this> instead."""
+        require_run(run_id, actor)
+        return {"token": auth().issue_stream(actor.user, run_id), "expires_in": int(STREAM_TOKEN_TTL.total_seconds())}
+
+    # Sync like principal(): FastAPI runs it in the threadpool, the DB and Keycloak JWKS lookups do not block SSE.
+    def stream_principal(run_id: str, authorization: str | None = Header(None), token: str | None = Query(None)) -> Principal:
+        if token and not authorization:
+            return auth().identify_stream(token, run_id)
+        return auth().identify(authorization)
+
     @app.get("/api/runs/{run_id}/events")
-    async def events(run_id: str, last_event_id: str | None = Header(None), actor: Principal = Depends(principal)):
+    async def events(run_id: str, last_event_id: str | None = Header(None), actor: Principal = Depends(stream_principal)):
         require_run(run_id, actor)
         try:
             after = int(last_event_id or 0)
