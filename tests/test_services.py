@@ -5,6 +5,7 @@ from datetime import date, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
+import pytest
 from sqlmodel import select
 
 from backend.app import config
@@ -97,6 +98,18 @@ def test_llm_cache_and_metering(client, monkeypatch, caplog):
     second = LLM(client.app.state.runtime.db, settings)
     assert asyncio.run(second.complete([{"role": "user", "content": "Синтетический пример"}])).cached
     assert len(calls) == 1
+
+
+def test_llm_never_falls_back_to_openai(client, monkeypatch):
+    from backend.app import llm
+    monkeypatch.setattr(llm, "AsyncOpenAI", lambda **kwargs: (_ for _ in ()).throw(AssertionError("Unexpected network client")))
+    service = LLM(client.app.state.runtime.db, replace(client.settings, llm_base_url="", llm_api_key="test-key"))
+    with pytest.raises(RuntimeError, match="LLM_BASE_URL"):
+        asyncio.run(service.complete([{"role": "user", "content": "Тест"}], use_cache=False))
+    runtime = client.app.state.runtime
+    runtime.settings = replace(runtime.settings, agent_mode="real", llm_base_url="https://api.openai.com/v1")
+    with pytest.raises(ValueError, match="синтетических"):
+        runtime.guard_llm_destination(Run(title="Реальная встреча", meeting_date=date(2026, 9, 23), synthetic=False))
 
 
 def test_reminders_next_day_and_window(client_factory):

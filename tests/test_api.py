@@ -46,6 +46,7 @@ def test_demo_flow(client):
     assert sample["synthetic"] is True
     run_id = create(client)
     pending = wait_for(client, run_id, "awaiting_approval")
+    assert pending["run"]["synthetic"] is True
     assert pending["proposal"]["assignments"] == [dict(item, category=None) for item in demo_meeting()["expected"]["assignments"]]
     assert pending["files"] == {"docx": None, "pdf": None}
     assert client.get(f"/api/runs/{run_id}/protocol.docx").status_code == 409
@@ -88,6 +89,7 @@ def test_upload_and_participants(client, participants):
     assert response.status_code == 201, response.text
     run_id = response.json()["run_id"]
     pending = wait_for(client, run_id, "awaiting_approval")
+    assert pending["run"]["synthetic"] is False
     assert list(pending["proposal"]["speakers"].values()) == ["Алия", "Бек", "Дана"]
     assert [a["deadline"] for a in pending["proposal"]["assignments"]] == ["2027-10-01", "2027-09-25", "2027-09-30", "2027-10-05"]
     assert (client.settings.uploads_dir / f"{run_id}.wav").is_file()
@@ -107,6 +109,9 @@ def test_edited_approval_and_double_submit(client):
     assignments = client.get("/api/assignments").json()
     item = next(a for a in assignments if a["task"] == "Исправленное поручение")
     assert item["days_left"] is None and item["status"] == "in_progress"
+    with client.app.state.runtime.db.session() as session:
+        saved = session.get(Assignment, item["id"])
+        assert saved.source_segments == proposal["assignments"][0]["source_segments"]
     assert any("Исправленное поручение" in n["message"] for n in client.get("/api/notifications").json())
 
 

@@ -46,11 +46,11 @@ class LLM:
                     logger.info("llm model=%s cached=true tokens=0 cost_usd=0", model)
                     return Completion(content=cached.value["content"], tokens=0, cost_usd=0, cached=True)
         if self.client is None:
-            if not self.settings.llm_api_key and not self.settings.llm_base_url:
-                raise RuntimeError("Задайте LLM_API_KEY / OPENAI_API_KEY или локальный LLM_BASE_URL.")
+            if not self.settings.llm_base_url:
+                raise RuntimeError("Задайте LLM_BASE_URL для явного подключения LLM.")
             self.client = AsyncOpenAI(
                 api_key=self.settings.llm_api_key or "local",
-                base_url=self.settings.llm_base_url or "https://api.openai.com/v1",
+                base_url=self.settings.llm_base_url,
             )
         response = await self.client.chat.completions.create(**request)
         content = response.choices[0].message.content or ""

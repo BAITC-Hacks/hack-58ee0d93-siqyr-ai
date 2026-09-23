@@ -37,8 +37,8 @@ class Settings:
     replay_run_id: str = field(default_factory=lambda: _env("REPLAY_RUN_ID"))
     mock_delay: float = field(default_factory=lambda: _float("MOCK_DELAY", 1))
 
-    llm_base_url: str = field(default_factory=lambda: _env("LLM_BASE_URL"))  # пусто = OpenAI API
-    llm_api_key: str = field(default_factory=lambda: _env("LLM_API_KEY") or _env("OPENAI_API_KEY"))
+    llm_base_url: str = field(default_factory=lambda: _env("LLM_BASE_URL"))  # обязательный явный endpoint
+    llm_api_key: str = field(default_factory=lambda: _env("LLM_API_KEY"))
     model_main: str = field(default_factory=lambda: _env("MODEL_MAIN", "gpt-6-sol"))
     model_fast: str = field(default_factory=lambda: _env("MODEL_FAST", "gpt-6-luna"))
     price_in_per_1m: float = field(default_factory=lambda: _float("PRICE_IN_PER_1M", 0))

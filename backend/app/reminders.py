@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 def assignment_view(item: Assignment, run_title: str, settings: Settings) -> dict:
     days = (item.deadline - today(settings)).days if item.deadline else None
     return {
-        **item.model_dump(exclude={"done"}), "run_title": run_title,
+        **item.model_dump(exclude={"done", "source_segments"}), "run_title": run_title,
         "status": "done" if item.done else "overdue" if days is not None and days < 0 else "in_progress",
         "days_left": days,
     }

@@ -49,6 +49,7 @@ class Assignment(SQLModel, table=True):
     deadline_text: str | None = None
     priority: str = "normal"
     category: str | None = None
+    source_segments: list[int] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
     done: bool = False
 
 

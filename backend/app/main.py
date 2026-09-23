@@ -103,7 +103,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/api/health")
     def health() -> dict:
         return {"status": "ok", "agent_mode": settings.agent_mode, "stt_mode": settings.stt_mode,
-                "demo_mode": settings.demo_mode, "llm": "local" if settings.llm_base_url else "openai", "today": today(settings).isoformat()}
+                "demo_mode": settings.demo_mode, "llm": "configured" if settings.llm_base_url else "unconfigured", "today": today(settings).isoformat()}
 
     def user_view(actor: Principal) -> dict:
         return {"id": actor.user.id, "username": actor.user.username, "display_name": actor.user.display_name,
@@ -297,7 +297,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not resolved_title or len(resolved_title) > 300:
             raise HTTPException(400, "Название должно содержать от 1 до 300 символов.")
         run = Run(title=resolved_title, meeting_date=meeting_day, lang=lang, participants=names, department_id=department_id,
-                  synthetic=bool(sample or settings.stt_mode == "mock" or settings.agent_mode == "mock" or settings.demo_mode == "replay"))
+                  synthetic=bool(sample))
         path = None
         if file is not None:
             suffix = Path(file.filename or "").suffix.lower()

@@ -3,6 +3,7 @@ import importlib
 import logging
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from sqlmodel import select
 
@@ -43,6 +44,14 @@ class Runtime:
         if self.settings.agent_mode not in {"mock", "real"}:
             raise ValueError("Неизвестный режим AGENT_MODE.")
         return importlib.import_module("backend.agents.runner_mock" if self.settings.agent_mode == "mock" else "backend.agents.runner")
+
+    def guard_llm_destination(self, run: Run):
+        if self.settings.agent_mode != "real":
+            return
+        if not self.settings.llm_base_url:
+            raise ValueError("Для реальных агентов задайте LLM_BASE_URL; облачного fallback нет.")
+        if urlsplit(self.settings.llm_base_url).hostname == "api.openai.com" and not run.synthetic:
+            raise ValueError("OpenAI API разрешён только для синтетических запусков.")
 
     def get_run(self, run_id: str) -> Run:
         with self.db.session() as session:
@@ -113,9 +122,12 @@ class Runtime:
                 await self.events.emit(StepEvent(run_id=run_id, type="tool_result", agent="stt", content=f"Транскрипт готов: {len(segments)} реплик.", data={"segments": [s.model_dump(mode="json") for s in segments]}))
                 await self.events.status(run_id, "running")
                 run_input = RunInput(run_id=run_id, title=run.title, meeting_date=run.meeting_date, lang=run.lang, participants=run.participants, segments=segments)
+                self.guard_llm_destination(run)
                 proposal = Proposal.model_validate(await self.runner().propose(run_input, self.events.emit))
             if proposal.run_id != run_id:
                 raise ValueError("Агент вернул протокол другого совещания.")
+            if not proposal.segments:
+                proposal = proposal.model_copy(update={"segments": segments if self.settings.demo_mode != "replay" else run.segments})
             with self.db.session() as session:
                 stored = session.get(Run, run_id)
                 stored.proposal = proposal.model_dump(mode="json")
@@ -129,6 +141,7 @@ class Runtime:
     async def execute(self, run_id: str):
         try:
             run = self.get_run(run_id)
+            self.guard_llm_destination(run)
             proposal = Proposal.model_validate(run.proposal)
             result = Result.model_validate(await self.runner().execute(proposal, self.events.emit))
             if result.run_id != run_id:
@@ -138,7 +151,7 @@ class Runtime:
             with self.db.session() as session:
                 assignments = []
                 for draft in proposal.assignments:
-                    item = Assignment(run_id=run_id, **draft.model_dump(exclude={"source_segments"}))
+                    item = Assignment(run_id=run_id, **draft.model_dump())
                     session.add(item)
                     assignments.append(item)
                 session.flush()
@@ -153,7 +166,7 @@ class Runtime:
                 session.commit()
             await self.events.emit(StepEvent(run_id=run_id, type="final", agent="secretary", content="Протокол сохранён, поручения и выдержки подготовлены.", data={
                 "docx": f"/api/runs/{run_id}/protocol.docx", "pdf": f"/api/runs/{run_id}/protocol.pdf",
-                "assignments": [a.model_dump(mode="json") for a in assignments],
+                "assignments": [a.model_dump(mode="json", exclude={"source_segments"}) for a in assignments],
             }))
             # Terminal status must come after the durable final step.
             await self.events.status(run_id, "done")

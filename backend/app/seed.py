@@ -31,7 +31,7 @@ def seed_history(db: Database, settings: Settings):
             session.flush()
             items = []
             for draft, done in zip(drafts, (False, False, True)):
-                item = Assignment(run_id=run.id, done=done, **draft.model_dump(exclude={"source_segments"}))
+                item = Assignment(run_id=run.id, done=done, **draft.model_dump())
                 session.add(item)
                 items.append(item.id)
             for seq, kind, content, data in [
