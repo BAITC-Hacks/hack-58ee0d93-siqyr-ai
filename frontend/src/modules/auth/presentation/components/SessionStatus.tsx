@@ -12,6 +12,7 @@ export function SessionStatus() {
         <h1>{state.operation === 'sign-out' ? 'Не удалось завершить сеанс' : 'Не удалось проверить вход'}</h1>
         <p>Проверьте подключение и попробуйте ещё раз.</p>
         <Button variant="default" onClick={() => void (state.operation === 'sign-out' ? controller.signOut() : controller.restore())}>Повторить</Button>
+        {state.operation === 'restore' && <Button variant="light" onClick={() => void controller.signInWithProvider('local', '/meetings/live')}>Продолжить локально</Button>}
       </> : <><Loader color="var(--accent)" aria-label="Проверка сеанса" /><p role="status">Проверяем сеанс…</p></>}
     </div>
   </main>;

@@ -9,6 +9,7 @@ import logging
 from dataclasses import dataclass
 
 from openai import AsyncOpenAI
+import httpx
 from sqlalchemy.dialects.sqlite import insert
 
 from .config import Settings
@@ -51,6 +52,7 @@ class LLM:
             self.client = AsyncOpenAI(
                 api_key=self.settings.llm_api_key or "local",
                 base_url=self.settings.llm_base_url,
+                http_client=httpx.AsyncClient(trust_env=False, follow_redirects=False),
             )
         response = await self.client.chat.completions.create(**request)
         content = response.choices[0].message.content or ""

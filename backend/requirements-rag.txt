@@ -1,0 +1,5 @@
+# Install explicitly after backend/requirements.txt. Runtime never downloads weights.
+torch>=2.4
+numpy>=1.26
+sentence-transformers>=3.4,<6
+huggingface_hub>=0.24

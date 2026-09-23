@@ -53,6 +53,15 @@ upload / sample ─► STT + диаризация ─► propose() ─► awaiti
 | PATCH | `/api/assignments/{id}` | `{done: bool}` | поручение |
 | GET | `/api/notifications` | `?recipient=` | `[{id, kind: excerpt\|due_soon\|overdue, recipient, message, assignment_id, run_id, created_at, email: sent\|failed\|null}]` |
 | POST | `/api/reminders/run` | — | `{created, today, email: {enabled, sent, failed, unmapped: [имена без адреса], error?}}` — ручной запуск проверки сроков и отправки писем (сценарий 2), только системный администратор. `sent`/`failed` — число писем, не напоминаний |
+| POST | `/api/chat/sync` | `{meetings: BrowserMeeting[]}` | `{indexed, meetings}`; текст из IndexedDB индексируется для владельца; без моделей/AI-сервиса — 503 |
+| POST | `/api/chat/conversations` | `{title?: string}` | `201 {id,title,updated_at}` — пустая сохраняемая сессия |
+| GET | `/api/chat/conversations` | — | `[{id,title,updated_at}]` — сессии владельца |
+| GET | `/api/chat/conversations/{id}` | — | `{id,messages:[{id,role,text,sources}]}`; чужая сессия — 404 |
+| PATCH | `/api/chat/conversations/{id}` | `{title}` | `{id,title,updated_at}` |
+| DELETE | `/api/chat/conversations/{id}` | — | 204; удаляет сессию и сообщения |
+| POST | `/api/chat/messages` | `{question,conversation_id?}` | `{conversation_id,message:{id,role,text,sources}}`; embeddings/rerank/LLM через приватный Unix socket; недоступность AI — 503 |
+
+Дополнение к `GET /api/health`: `rag: {service: bool, models_present: bool, llm_local: bool}`. Это конфигурационные признаки, не smoke фактического ответа. Подробности обработки и ограничений — `docs/RAG.md`. Это расширение HTTP-контракта не меняет `backend/shared/schemas.py` и контракт агентов.
 
 Все маршруты таблицы реализованы и покрыты тестами. Реестр поручений, уведомления и напоминания (фоновая проверка каждые `REMINDER_INTERVAL_SEC`) работают на backend, но frontend их пока не вызывает. Маршруты авторизации, админки и профиля — в разделе выше.
 

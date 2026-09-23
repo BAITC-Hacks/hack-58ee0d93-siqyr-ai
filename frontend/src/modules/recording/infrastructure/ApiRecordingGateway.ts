@@ -37,10 +37,14 @@ function toStep(value: unknown): RunStep | null {
 export class ApiRecordingGateway implements RecordingGateway {
   private readonly http: HttpClient;
   private readonly baseUrl: string;
+  private readonly accessToken: () => string | null;
+  private readonly streamFetch: typeof fetch;
 
-  constructor(http: HttpClient, baseUrl: string) {
+  constructor(http: HttpClient, baseUrl: string, accessToken: () => string | null = () => null, streamFetch: typeof fetch = fetch) {
     this.http = http;
     this.baseUrl = baseUrl.replace(/\/+$/, '');
+    this.accessToken = accessToken;
+    this.streamFetch = streamFetch;
   }
 
   private runForm(input: RecordingRunInput): FormData {
@@ -99,6 +103,9 @@ export class ApiRecordingGateway implements RecordingGateway {
 
   watch(runId: string, onProgress: (progress: RunProgress) => void, onError: (message: string) => void): () => void {
     let active = true;
+    let finished = false;
+    let lastSeq = 0;
+    const abort = new AbortController();
     let progress: RunProgress = { status: 'queued', steps: [] };
     const update = (status: string | undefined, steps: RunStep[]) => {
       const known = new Set(progress.steps.map((step) => step.seq));
@@ -106,29 +113,63 @@ export class ApiRecordingGateway implements RecordingGateway {
         status: status ?? progress.status,
         steps: [...progress.steps, ...steps.filter((step) => !known.has(step.seq))].sort((a, b) => a.seq - b.seq),
       };
+      lastSeq = Math.max(lastSeq, ...progress.steps.map((step) => step.seq), 0);
+      finished = finalStatuses.has(progress.status);
       if (active) onProgress(progress);
+      if (finished) abort.abort();
     };
     const path = `/api/runs/${encodeURIComponent(runId)}`;
-    const source = new EventSource(`${this.baseUrl}${path}/events`);
-    source.addEventListener('step', (event) => {
-      const step = toStep((event as MessageEvent).data);
-      if (step) update(undefined, [step]);
-    });
-    source.addEventListener('status', (event) => {
-      const status = parse((event as MessageEvent).data)?.status;
-      if (typeof status !== 'string') return;
-      update(status, []);
-      if (finalStatuses.has(status)) source.close();
-    });
-    source.onerror = () => {
-      if (active && source.readyState === EventSource.CLOSED) onError('Связь с сервером прервана. Обновите страницу, чтобы переподключиться.');
-    };
     void this.http.request<unknown>({ method: 'GET', path }).then((detail) => {
       const run = parse(parse(detail)?.run);
       const steps = parse(detail)?.steps;
       update(typeof run?.status === 'string' ? run.status : undefined,
         Array.isArray(steps) ? steps.map(toStep).filter((step): step is RunStep => step !== null) : []);
     }).catch(() => { if (active) onError('Не удалось получить ход обработки с сервера.'); });
-    return () => { active = false; source.close(); };
+
+    const consume = async () => {
+      while (active && !finished) {
+        const token = this.accessToken();
+        const headers: Record<string, string> = { Accept: 'text/event-stream' };
+        if (token) headers.Authorization = `Bearer ${token}`;
+        if (lastSeq) headers['Last-Event-ID'] = String(lastSeq);
+        try {
+          const response = await this.streamFetch(`${this.baseUrl}${path}/events`, { headers, signal: abort.signal });
+          if (!response.ok || !response.body) {
+            onError(response.status === 401 ? 'Сессия истекла. Войдите снова, чтобы видеть обработку.' : 'Не удалось подключиться к этапам обработки.');
+            return;
+          }
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          while (active && !finished) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer = (buffer + decoder.decode(value, { stream: true })).replace(/\r\n/g, '\n');
+            let boundary = buffer.indexOf('\n\n');
+            while (boundary >= 0) {
+              const frame = buffer.slice(0, boundary);
+              buffer = buffer.slice(boundary + 2);
+              const eventType = /^event: (.+)$/m.exec(frame)?.[1];
+              const data = /^data: (.+)$/m.exec(frame)?.[1];
+              if (eventType === 'step' && data) {
+                const step = toStep(data);
+                if (step) update(undefined, [step]);
+              } else if (eventType === 'status' && data) {
+                const status = parse(data)?.status;
+                if (typeof status === 'string') update(status, []);
+              }
+              boundary = buffer.indexOf('\n\n');
+            }
+          }
+          if (active && !finished) await new Promise((resolve) => setTimeout(resolve, 1_000));
+        } catch {
+          if (!active || finished || abort.signal.aborted) return;
+          onError('Связь с обработкой прервалась. Пытаемся переподключиться.');
+          await new Promise((resolve) => setTimeout(resolve, 2_000));
+        }
+      }
+    };
+    void consume();
+    return () => { active = false; abort.abort(); };
   }
 }

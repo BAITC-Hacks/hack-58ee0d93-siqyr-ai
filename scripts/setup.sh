@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 # Однократная подготовка (нужна сеть): .venv, зависимости, .env, frontend, по желанию веса моделей.
-#   bash scripts/setup.sh [--profile laptop] [--with-stt] [--download-models] [--no-lock] [--skip-frontend]
+#   bash scripts/setup.sh [--profile laptop] [--with-stt] [--with-rag] [--download-rag-models] [--download-models] [--no-lock] [--skip-frontend]
 # --with-stt         torch (CPU) + onnxruntime + pyannote для STT_MODE=real
 # --download-models  ollama pull + веса STT/диаризации в models/ (нужен hf auth login и принятые условия pyannote)
 # После setup работа идёт без сети: scripts/run_local.sh --offline ничего не скачивает.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-WITH_STT=0; DOWNLOAD=0; USE_LOCK=1; FRONTEND=1
+WITH_STT=0; WITH_RAG=0; DOWNLOAD_RAG=0; DOWNLOAD=0; USE_LOCK=1; FRONTEND=1
 while [ $# -gt 0 ]; do
   case "$1" in
     --profile) shift ;;  # единственный профиль — laptop
     --with-stt) WITH_STT=1 ;;
     --download-models) DOWNLOAD=1; WITH_STT=1 ;;
+    --with-rag) WITH_RAG=1 ;;
+    --download-rag-models) DOWNLOAD_RAG=1; WITH_RAG=1 ;;
     --no-lock) USE_LOCK=0 ;;
     --skip-frontend) FRONTEND=0 ;;
     -h|--help) sed -n '2,7p' "$0"; exit 0 ;;
@@ -55,6 +57,11 @@ if [ "$WITH_STT" = 1 ]; then
   "$VPY" -m pip install --quiet "pyannote.audio==4.0.7" || echo "WARN: pyannote.audio не установился — диаризация недоступна." >&2
 fi
 
+if [ "$WITH_RAG" = 1 ]; then
+  step "Локальные зависимости embeddings и rerank"
+  "$VPY" -m pip install --quiet -r backend/requirements-rag.txt
+fi
+
 if [ ! -f .env ]; then
   step "Создаю .env из .env.example (секретов в нём нет)"
   cp .env.example .env
@@ -83,6 +90,11 @@ if [ "$DOWNLOAD" = 1 ]; then
     || echo "WARN: нет доступа к pyannote. Примите условия модели и выполните hf auth login, затем повторите." >&2
   step "Manifest весов"
   STT_MODE=real "$VPY" scripts/preflight.py --write-manifest || true
+fi
+
+if [ "$DOWNLOAD_RAG" = 1 ]; then
+  step "Локальные веса RAG (скачиваются только во время setup)"
+  "$VPY" -m scripts.download_rag_models
 fi
 
 step "Проверка готовности"

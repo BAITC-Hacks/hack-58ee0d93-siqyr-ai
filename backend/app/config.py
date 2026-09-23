@@ -52,6 +52,12 @@ class Settings:
     price_in_per_1m: float = field(default_factory=lambda: _float("PRICE_IN_PER_1M", 0))
     price_out_per_1m: float = field(default_factory=lambda: _float("PRICE_OUT_PER_1M", 0))
 
+    # RAG models are downloaded explicitly by scripts/download_rag_models.py.
+    rag_embedding_dir: Path = field(default_factory=lambda: _path("RAG_EMBEDDING_DIR", "models/rag/embedding"))
+    rag_reranker_dir: Path = field(default_factory=lambda: _path("RAG_RERANKER_DIR", "models/rag/reranker"))
+    rag_device: str = field(default_factory=lambda: _env("RAG_DEVICE", "cpu"))
+    rag_ai_socket: Path = field(default_factory=lambda: _path("RAG_AI_SOCKET", "data/runtime/rag-ai.sock"))
+
     # Веса скачивает scripts/setup.sh; в работе ничего не скачивается.
     stt_model_dir: Path = field(default_factory=lambda: _path("STT_MODEL_DIR", "models/stt"))
     diarization_model_dir: Path = field(default_factory=lambda: _path("DIARIZATION_MODEL_DIR", "models/diarization"))

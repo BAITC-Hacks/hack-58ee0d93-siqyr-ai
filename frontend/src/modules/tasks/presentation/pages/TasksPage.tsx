@@ -1,7 +1,7 @@
 import type { Task } from '@/modules/tasks/domain/task.types';
 import TaskEditor from '@/modules/tasks/presentation/components/TaskEditor';
 import { formatDate } from '@/shared/lib/formatDate';
-import { Alert, Badge, Button, Group, Modal, Select, Tabs, Text, TextInput, Title } from '@mantine/core';
+import { Alert, Badge, Button, Group, Modal, Select, Tabs, Text, TextInput, Title, UnstyledButton } from '@mantine/core';
 import { AlertCircle, ArrowUpRight, CalendarClock, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { type TaskGroup as GroupId } from '../../domain/TaskBoard';
@@ -73,7 +73,7 @@ export default function TasksPage() {
                   const meeting = meetingMap.get(task.meetingId);
                   return <div key={task.id} className={styles.row}>
                     <div className={styles.taskCell}>
-                      <button type="button" className={styles.taskTitle} onClick={() => openEditor(task)}>{task.title}</button>
+                      <UnstyledButton type="button" className={styles.taskTitle} onClick={() => openEditor(task)}>{task.title}</UnstyledButton>
                       {meeting ? <Link className={styles.meetingLink} to={`/meetings/${meeting.id}`}>{meeting.title}<ArrowUpRight size={12} /></Link> : <span className={styles.meetingMissing}>Встреча удалена</span>}
                     </div>
                     <div className={`${styles.field} ${styles.ownerCell}`}><span className={styles.mobileLabel}>Ответственный</span><span>{task.assignee.trim() || <span className={styles.muted}>Не назначен</span>}</span></div>
@@ -94,7 +94,7 @@ export default function TasksPage() {
           <Button variant="subtle" size="xs" onClick={() => setRemindersOpen((value) => !value)} aria-expanded={remindersOpen}>{remindersOpen ? 'Свернуть' : 'Показать'}</Button>
         </div>
         {remindersOpen && <div className={styles.reminderBody}>
-          {reminders.length === 0 ? <Text size="sm" c="dimmed">Поручений с наступившей или ближайшей точной датой нет.</Text> : reminders.map((task) => <button key={task.id} type="button" className={styles.reminderItem} onClick={() => openEditor(task)}><span className={styles.reminderText}>{task.title}</span><Badge variant="light" color={board.groupFor(task) === 'overdue' ? 'orange' : 'teal'}>{board.groupFor(task) === 'overdue' ? 'Дата прошла' : 'Скоро'}</Badge><span>{task.dueDate && formatDate(task.dueDate)}</span></button>)}
+          {reminders.length === 0 ? <Text size="sm" c="dimmed">Поручений с наступившей или ближайшей точной датой нет.</Text> : reminders.map((task) => <UnstyledButton key={task.id} type="button" className={styles.reminderItem} onClick={() => openEditor(task)}><span className={styles.reminderText}>{task.title}</span><Badge variant="light" color={board.groupFor(task) === 'overdue' ? 'orange' : 'teal'}>{board.groupFor(task) === 'overdue' ? 'Дата прошла' : 'Скоро'}</Badge><span>{task.dueDate && formatDate(task.dueDate)}</span></UnstyledButton>)}
           {missingDates.length > 0 && <div className={styles.needsDates}><AlertCircle size={15} /> {missingDates.length} {missingDates.length === 1 ? 'поручению' : 'поручениям'} с текстовым сроком нужна точная дата для напоминания.</div>}
           <Text size="xs" c="dimmed">Напоминания видны только здесь. Уведомления и сообщения не отправляются.</Text>
         </div>}

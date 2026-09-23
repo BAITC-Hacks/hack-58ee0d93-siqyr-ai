@@ -16,7 +16,7 @@ export type ProtectedPage = keyof typeof pagePolicies;
 export interface SecurityHandle { access: AccessPolicy }
 
 export const workspaceNavigation: ReadonlyArray<{ id: ProtectedPage; to: string; label: string }> = [
-  { id: 'meetings', to: '/meetings', label: 'Встречи' },
+  // { id: 'meetings', to: '/meetings', label: 'Встречи' },
   { id: 'liveMeeting', to: '/meetings/live', label: 'Разговоры' },
   { id: 'chat', to: '/chat', label: 'Чат по встречам' },
   { id: 'tasks', to: '/tasks', label: 'Поручения' },

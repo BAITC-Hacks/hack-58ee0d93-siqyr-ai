@@ -1,6 +1,6 @@
 import type { Meeting } from '@/modules/meetings/domain/meeting.types';
 import { formatDate } from '@/shared/lib/formatDate';
-import { ActionIcon, Button, Group, Menu, Modal, Select, Text, TextInput } from '@mantine/core';
+import { ActionIcon, Button, Group, Menu, Modal, Select, Text, TextInput, UnstyledButton } from '@mantine/core';
 import { Mic2, MoreHorizontal, Plus, Search, Trash2, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useMeetingsModel, type MeetingView } from '../models/useMeetingsModel';
@@ -71,7 +71,7 @@ export default function MeetingsPage() {
 
       <div className={styles.viewBar}>
         <div className={styles.views} role="group" aria-label="Фильтр по состоянию встречи">
-          {views.map(({ value, label }) => <button key={value} type="button" className={`${styles.view} ${view === value ? styles.viewActive : ''}`} onClick={() => setView(value)} aria-pressed={view === value}>{label}</button>)}
+          {views.map(({ value, label }) => <UnstyledButton key={value} type="button" className={`${styles.view} ${view === value ? styles.viewActive : ''}`} onClick={() => setView(value)} aria-pressed={view === value}>{label}</UnstyledButton>)}
         </div>
         {hasExamples && <span className={styles.exampleNote}>Примеры отмечены в списке</span>}
       </div>
