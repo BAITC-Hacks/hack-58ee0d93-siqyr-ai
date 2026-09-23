@@ -32,7 +32,7 @@ upload / sample ─► STT + диаризация ─► propose() ─► awaiti
 
 | Метод | Путь | Вход | Выход |
 |---|---|---|---|
-| GET | `/api/health` | — | `{status, agent_mode, stt_mode, demo_mode, auth_mode, llm, llm_provider, llm_model, today, ready, problems: [{name, level, detail}]}` |
+| GET | `/api/health` | — | `{status, agent_mode, stt_mode, demo_mode, auth_mode, llm, llm_provider, llm_model, today, email: configured\|unconfigured, ready, problems: [{name, level, detail}]}` |
 | GET | `/api/samples` | — | `[{id, title, description, lang, synthetic, participants}]` — пресеты для демо |
 | GET | `/api/formats` | — (без авторизации) | `{max_upload_mb, accept, extensions: [".wav", …], formats: [{id, label, extensions, mime_types}]}`; `accept` — готовое значение для `<input type="file" accept>` |
 | POST | `/api/runs` | multipart: `file` (аудио/видео) **или** `sample` (`demo`); `title`, `meeting_date` (YYYY-MM-DD, опц.), `lang` (`rukk`\|`kk`\|`ru`), `participants` (JSON-массив или имена через запятую), `department_id` (по умолчанию `default`) | `201 {run_id, status: "queued"}`; 503 если модели real-режима недоступны, 429 при полной очереди |
@@ -51,8 +51,8 @@ upload / sample ─► STT + диаризация ─► propose() ─► awaiti
 | GET | `/api/runs/{id}/jira` | — | `{configured, project, issues}` — уже созданные задачи для кнопки/ссылок |
 | GET | `/api/assignments` | `?status=in_progress\|overdue\|done&assignee=&run_id=` | `[{id, run_id, run_title, assignee, task, deadline, deadline_text, priority, category, status, days_left}]` — только из `done`-запусков |
 | PATCH | `/api/assignments/{id}` | `{done: bool}` | поручение |
-| GET | `/api/notifications` | `?recipient=` | `[{id, kind: excerpt\|due_soon\|overdue, recipient, message, assignment_id, run_id, created_at}]` |
-| POST | `/api/reminders/run` | — | `{created, today}` — ручной запуск проверки сроков (сценарий 2), только системный администратор |
+| GET | `/api/notifications` | `?recipient=` | `[{id, kind: excerpt\|due_soon\|overdue, recipient, message, assignment_id, run_id, created_at, email: sent\|failed\|null}]` |
+| POST | `/api/reminders/run` | — | `{created, today, email: {enabled, sent, failed, unmapped: [имена без адреса], error?}}` — ручной запуск проверки сроков и отправки писем (сценарий 2), только системный администратор. `sent`/`failed` — число писем, не напоминаний |
 
 Все маршруты таблицы реализованы и покрыты тестами. Реестр поручений, уведомления и напоминания (фоновая проверка каждые `REMINDER_INTERVAL_SEC`) работают на backend, но frontend их пока не вызывает. Маршруты авторизации, админки и профиля — в разделе выше.
 

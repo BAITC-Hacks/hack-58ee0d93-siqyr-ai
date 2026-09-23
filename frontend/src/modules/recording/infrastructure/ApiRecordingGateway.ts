@@ -1,8 +1,26 @@
-import type { HttpClient } from '../../../shared/application/HttpClient.ts';
-import type { RecordingGateway, RecordingRunInput, RunProgress, RunStep } from '../application/RecordingGateway.ts';
+import { HttpError, type HttpClient } from '../../../shared/application/HttpClient.ts';
+import type { RecordingGateway, RecordingRunInput, RunProgress, RunStep, UploadFormats } from '../application/RecordingGateway.ts';
 
 const serverLanguage = { ru: 'ru', kk: 'kk', mixed: 'rukk' } as const;
 const finalStatuses = new Set(['done', 'error', 'rejected']);
+// 100 МБ через медленную сеть не укладываются в общий таймаут клиента.
+const uploadTimeoutMs = 10 * 60_000;
+// The HTTP client does not pass server texts through, so upload failures are explained by the contract's status codes.
+const uploadErrors: Record<number, string> = {
+  400: 'Сервер отклонил данные встречи или пустой файл. Проверьте тему, дату и файл.',
+  401: 'Сессия истекла. Войдите снова и повторите загрузку.',
+  403: 'Нет прав создавать встречи в этом подразделении.',
+  413: 'Файл больше, чем принимает сервер. Выберите запись меньшего размера.',
+  415: 'Сервер не принял файл: это не аудио- или видеозапись поддерживаемого формата либо файл повреждён.',
+  429: 'Сервер занят обработкой других встреч. Повторите через минуту.',
+  503: 'Распознавание на сервере сейчас недоступно: модели не подготовлены.',
+};
+
+function uploadError(cause: unknown): Error {
+  const status = cause instanceof HttpError ? cause.status : undefined;
+  if (status === undefined) return new Error('Сервер недоступен. Проверьте, что бэкенд запущен, и повторите загрузку.');
+  return new Error(uploadErrors[status] ?? 'Сервер не смог принять файл. Повторите загрузку.');
+}
 
 function parse(data: unknown): Record<string, unknown> | null {
   try {
@@ -25,14 +43,41 @@ export class ApiRecordingGateway implements RecordingGateway {
     this.baseUrl = baseUrl.replace(/\/+$/, '');
   }
 
-  async create(input: RecordingRunInput): Promise<string> {
+  private runForm(input: RecordingRunInput): FormData {
     const body = new FormData();
     body.set('title', input.title);
     body.set('lang', serverLanguage[input.language]);
     if (input.date) body.set('meeting_date', input.date);
-    const created = parse(await this.http.request<unknown>({ method: 'POST', path: '/api/runs/recordings', body }));
+    return body;
+  }
+
+  async create(input: RecordingRunInput): Promise<string> {
+    const created = parse(await this.http.request<unknown>({ method: 'POST', path: '/api/runs/recordings', body: this.runForm(input) }));
     if (typeof created?.run_id !== 'string') throw new Error('Сервер не вернул идентификатор записи.');
     return created.run_id;
+  }
+
+  async upload(input: RecordingRunInput, file: File): Promise<string> {
+    const body = this.runForm(input);
+    body.set('file', file, file.name);
+    let created: Record<string, unknown> | null;
+    try {
+      created = parse(await this.http.request<unknown>({ method: 'POST', path: '/api/runs', body, timeout: uploadTimeoutMs }));
+    } catch (cause) {
+      throw uploadError(cause);
+    }
+    if (typeof created?.run_id !== 'string') throw new Error('Сервер не вернул идентификатор встречи.');
+    return created.run_id;
+  }
+
+  async formats(): Promise<UploadFormats> {
+    const body = parse(await this.http.request<unknown>({ method: 'GET', path: '/api/formats' }));
+    const extensions: unknown = body?.extensions;
+    if (typeof body?.accept !== 'string' || typeof body.max_upload_mb !== 'number' || !Array.isArray(extensions)
+      || !extensions.every((item): item is string => typeof item === 'string')) {
+      throw new Error('Сервер вернул неизвестный список форматов.');
+    }
+    return { accept: body.accept, extensions, maxBytes: body.max_upload_mb * 1024 * 1024 };
   }
 
   async sendChunk(runId: string, chunk: Blob, offset: number): Promise<number> {

@@ -90,6 +90,16 @@ class Settings:
     public_api_url: str = field(default_factory=lambda: _env("PUBLIC_API_URL", "http://localhost:8000").rstrip("/"))
     public_app_url: str = field(default_factory=lambda: _env("PUBLIC_APP_URL").rstrip("/"))  # пусто — без ссылки на карточку
 
+    # Почта для напоминаний о сроках. Пустой SMTP_HOST — отправка выключена, напоминания остаются в /api/notifications.
+    smtp_host: str = field(default_factory=lambda: _env("SMTP_HOST"))
+    smtp_port: int = field(default_factory=lambda: _int("SMTP_PORT", 587))
+    smtp_security: str = field(default_factory=lambda: _env("SMTP_SECURITY").lower())  # starttls | ssl | none; пусто — ssl для 465, иначе starttls
+    smtp_user: str = field(default_factory=lambda: _env("SMTP_USER"))
+    smtp_password: str = field(default_factory=lambda: _env("SMTP_PASSWORD"))
+    smtp_from: str = field(default_factory=lambda: _env("SMTP_FROM"))  # пусто — SMTP_USER
+    notify_emails: str = field(default_factory=lambda: _env("NOTIFY_EMAILS"))  # JSON {"имя из протокола": "email"}
+    notify_cc: str = field(default_factory=lambda: _env("NOTIFY_CC"))  # руководитель/куратор: копия каждого напоминания, через запятую
+
     pdf_font_path: str = field(default_factory=lambda: _env("PDF_FONT_PATH"))
     pdf_font_bold_path: str = field(default_factory=lambda: _env("PDF_FONT_BOLD_PATH"))
 
