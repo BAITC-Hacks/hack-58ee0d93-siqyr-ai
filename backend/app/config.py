@@ -46,6 +46,11 @@ class Settings:
     price_in_per_1m: float = field(default_factory=lambda: _float("PRICE_IN_PER_1M", 0))
     price_out_per_1m: float = field(default_factory=lambda: _float("PRICE_OUT_PER_1M", 0))
 
+    # Веса скачивает scripts/setup.sh; в работе ничего не скачивается.
+    stt_model_dir: Path = field(default_factory=lambda: _path("STT_MODEL_DIR", "models/stt"))
+    diarization_model_dir: Path = field(default_factory=lambda: _path("DIARIZATION_MODEL_DIR", "models/diarization"))
+    max_queue: int = field(default_factory=lambda: _int("MAX_QUEUE", 3))  # ожидающих запусков при одном worker
+
     data_dir: Path = field(default_factory=lambda: _path("DATA_DIR", "data/runtime"))
     cors_origins: list[str] = field(
         default_factory=lambda: [o.strip() for o in _env("CORS_ORIGINS", "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5174").split(",") if o.strip()]

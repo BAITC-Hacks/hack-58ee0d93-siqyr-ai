@@ -28,6 +28,8 @@ class Runtime:
         self.events = Events(self.db)
         self.llm = LLM(self.db, settings)
         self.tasks: set[asyncio.Task] = set()
+        # One STT/LLM job at a time on a laptop; the rest wait honestly in "queued".
+        self.worker = asyncio.Semaphore(1)
 
     def spawn(self, coroutine):
         task = asyncio.create_task(coroutine)
@@ -118,6 +120,10 @@ class Runtime:
         return Proposal.model_validate({**draft, "run_id": run.id})
 
     async def propose(self, run_id: str):
+        async with self.worker:
+            await self._propose(run_id)
+
+    async def _propose(self, run_id: str):
         try:
             run = self.get_run(run_id)
             mode = self.source_mode()

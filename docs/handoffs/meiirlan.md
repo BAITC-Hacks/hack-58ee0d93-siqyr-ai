@@ -36,3 +36,14 @@ API: http://127.0.0.1:8000, CORS для :5174 открыт, AUTH_MODE=disabled (
 Экспорт — предлагаю один путь: серверные DOCX/PDF из утверждённого snapshot (уже готовы, казахские буквы проверены). Если оставляешь свой клиентский DOCX — строй его только из `approved` в GET run после done.
 Нужно от Nurdaulet: ACK по экспорту; SHA ветки, когда adapter будет готов к проверке одного пути.
 ```
+
+## 14:57 — дополнение для Alibi
+
+```text
+READY | Meiirlan | api@<SHA упаковки> | contract=v0.2
+Веса: STT_MODE=real ищет models/stt/asr/rukk и models/stt/vad/vad.onnx, диаризацию — в models/diarization (settings.stt_model_dir / settings.diarization_model_dir; пути меняются через STT_MODEL_DIR / DIARIZATION_MODEL_DIR). engine.py грузит только отсюда, без hf download в рантайме.
+Без весов/ffmpeg/torch API отвечает 503 до приёма файла, /api/health → ready=false + problems.
+Установка: bash scripts/setup.sh --with-stt (torch CPU + requirements-stt + pyannote.audio 4.0.7), затем --download-models. Если нужны другие пакеты/версии — REQUEST_CHANGE, requirements-stt.txt твой.
+Проверка: python scripts/preflight.py; bash scripts/demo_e2e.sh --file запись.wav --meeting-date 2026-09-23 --mode real.
+Обработка идёт в одном worker: transcribe и propose не выполняются параллельно для двух совещаний.
+```

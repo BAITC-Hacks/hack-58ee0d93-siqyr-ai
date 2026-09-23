@@ -28,6 +28,7 @@ from .exports import export_protocol
 from .limits import RequestLimits
 from .models import Assignment, Department, EcpChallenge, ExternalIdentity, Membership, Notification, Organization, Run, User, utcnow
 from .pipeline import Runtime
+from .readiness import as_dicts, blocking as unready
 from .profile import register_profile_routes
 from .profile_models import bump_token_version
 from .reminders import assignment_view, check_reminders, reminder_loop
@@ -120,7 +121,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def health() -> dict:
         return {"status": "ok", "agent_mode": settings.agent_mode, "stt_mode": settings.stt_mode,
                 "demo_mode": settings.demo_mode, "auth_mode": settings.auth_mode, "llm": "configured" if settings.llm_base_url else "unconfigured",
-                "llm_provider": settings.llm_provider, "llm_model": settings.model_main, "today": today(settings).isoformat()}
+                "llm_provider": settings.llm_provider, "llm_model": settings.model_main, "today": today(settings).isoformat(),
+                "ready": not unready(settings), "problems": as_dicts(unready(settings))}
 
     def user_view(actor: Principal) -> dict:
         return {"id": actor.user.id, "username": actor.user.username, "display_name": actor.user.display_name,
@@ -297,6 +299,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         with runtime().db.session() as session:
             if session.get(Department, department_id) is None:
                 raise HTTPException(400, "Департамент не найден.")
+            queued = len(session.exec(select(Run.id).where(Run.status == "queued")).all())
+        if missing := unready(settings):
+            # Fail before accepting a file: weights are never downloaded at run time.
+            raise HTTPException(503, "Модель недоступна: " + "; ".join(c.detail for c in missing))
+        if queued >= settings.max_queue:
+            raise HTTPException(429, f"В очереди уже {queued} совещания: дождитесь обработки.", headers={"Retry-After": "30"})
         if (file is None) == (sample is None):
             raise HTTPException(400, "Загрузите файл или выберите образец demo — ровно один источник.")
         if sample is not None and sample != "demo":
