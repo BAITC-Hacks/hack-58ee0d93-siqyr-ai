@@ -1,0 +1,5 @@
+.modal{background:#fcfbf8;border:1px solid var(--line,#d8dcd7);border-radius:9px}
+.title{font-size:20px;font-weight:700;letter-spacing:-.035em;color:var(--ink,#1d292c)}
+.dateFields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,180px);gap:14px}
+.actions{border-top:1px solid var(--line,#d8dcd7);padding-top:17px;margin-top:4px}
+@media(max-width:550px){.dateFields{grid-template-columns:1fr}}
