@@ -1,0 +1,9 @@
+name = "reviewer"
+description = "Pre-merge check against CONTRACT.md and DEMO.md."
+model = "gpt-6-sol"
+model_reasoning_effort = "high"
+sandbox_mode = "read-only"
+developer_instructions = """
+Check the diff against docs/CONTRACT.md and docs/DEMO.md.
+List only blocking issues: contract breaks, demo-path breaks, crashes, leaked keys.
+"""
