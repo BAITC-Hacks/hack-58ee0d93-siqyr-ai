@@ -1,0 +1,42 @@
+{
+  "d01": {
+    "error": "ValueError: Нет содержательного резюме.",
+    "gold": 0,
+    "found": 0
+  },
+  "d02": {
+    "error": "ValueError: Нет содержательного резюме.",
+    "gold": 1,
+    "found": 0
+  },
+  "d03": {
+    "error": "ValueError: Нет содержательного резюме.",
+    "gold": 1,
+    "found": 0
+  },
+  "d04": {
+    "error": "ValueError: Исполнитель не подтверждён цитатой.",
+    "gold": 1,
+    "found": 0
+  },
+  "d05": {
+    "error": "ValueError: Нет содержательного резюме.",
+    "gold": 1,
+    "found": 0
+  },
+  "d06": {
+    "error": "ValueError: Нет содержательного резюме.",
+    "gold": 1,
+    "found": 0
+  },
+  "d07": {
+    "error": "ValueError: Нет содержательного резюме.",
+    "gold": 1,
+    "found": 0
+  },
+  "d08": {
+    "error": "ValueError: Нет содержательного резюме.",
+    "gold": 0,
+    "found": 0
+  }
+}

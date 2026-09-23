@@ -1,0 +1,523 @@
+{
+  "split": "dev",
+  "model": "qwen3:4b",
+  "base_url": "http://127.0.0.1:11434/v1",
+  "api": "ollama_native",
+  "format": "json",
+  "think": false,
+  "num_predict": 1024,
+  "raw": {
+    "d01": {
+      "error": "ValueError: Нет содержательного резюме.",
+      "model_responses": [
+        "{\n  \"title\": \"Вымышленное обсуждение цвета\",\n  \"lang\": \"ru\",\n  \"participants\": [\n    {\n      \"name\": \"Лазурь\",\n      \"role\": null\n    },\n    {\n      \"name\": \"Оймыш\",\n     \": null  # Ожидаемый формат, но в данном случае это ошибка в структуре данных. В протоколе должно быть два участника с именами и ролями. В данном случае, возможно, ошибка в предоставленных данных, но по условию задачи мы должны работать с данным транскриптом, который в данном случае не содержит ошибок, потому что это приведённый пример. В данном случае я должен игнорировать структуру и работать только с транскриптом, который был предоставлен как входной. В транскрипте есть два сегмента. В данном случае, я должен вернуть JSON по правилам, которые указаны выше. В данном случае, я должен использовать только данные из транскрипта, который был предоставлен. В транскрипте есть два сегмента. В первом сегменте спрашивается какой цвет фона лучше для вымышленного макета. Во втором сегменте Оймыш говорит, что синий нравится, но сегодня ничего не поручаем и решение не принимаем. Поэтому, краткое резюме будет: \":\n      \"Оймыш\"\n    }\n  ],\n  \"segments\": [\n    {\n      \"start\": 0.0,\n      \"end\": 4.0,\n      \"speaker\": \"SPEAKER_00\",\n      \"text\": \"Какой цвет фона лучше для вымышленного макета?\",\n      \"lang\": \"ru\",\n      \"index\": 0\n    },\n    {\n      \"start\": 4.0,\n      \"end\": 8.0,\n      \"speaker\": \"SPEAKER_01\",\n      \"text\": \"Синий нравится, но сегодня ничего не поручаем и решение не принимаем.\",\n      \"lang\": \"ru\",\n      \"index\": 1\n    }\n  ]\n}",
+        "{\n  \"title\": \"Вымышленное обсуждение цвета\",\n  \"lang\": \"ru\",\n  \"participants\": [\n    {\n      \"name\": \"Лазурь\",\n      \"role\": null\n    },\n    {\n      \"name\": \"Оймыш\",\n      \"role\": null\n    }\n  ],\n  \"segments\": [\n    {\n      \"start\": 0.0,\n      \"end\": 4.0,\n      \"speaker\": \"SPEAKER_00\",\n      \"text\": \"Какой цвет фона лучше для вымышленного макета?\",\n      \"lang\": \"ru\",\n      \"index\": 0\n    },\n    {\n      \"start\": 4.0,\n      \"end\": 8.0,\n      \"speaker\": \"SPEAKER_01\",\n      \"text\": \"Синий нравится, но сегодня ничего не поручаем и решение не принимаем.\",\n      \"lang\": \"ru\",\n      \"index\": 1\n    }\n  ]\n}"
+      ],
+      "events": [
+        {
+          "run_id": "synthetic-d01",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T09:58:24.246403Z"
+        },
+        {
+          "run_id": "synthetic-d01",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T09:58:24.246455Z"
+        },
+        {
+          "run_id": "synthetic-d01",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Повторно запрашиваю корректный JSON.",
+          "data": {
+            "stage": "extract",
+            "attempt": 2
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T09:58:38.783457Z"
+        },
+        {
+          "run_id": "synthetic-d01",
+          "seq": 0,
+          "type": "error",
+          "agent": "orchestrator",
+          "content": "Не удалось подготовить протокол.",
+          "data": {
+            "stage": "extract",
+            "code": "ValueError"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T09:58:46.621223Z"
+        }
+      ]
+    },
+    "d02": {
+      "error": "ValueError: Нет содержательного резюме.",
+      "model_responses": [
+        "{\n  \"title\": \"Ойдан шығарылған хаттама\",\n  \"lang\": \"kk\",\n  \"participants\": [\n    {\n      \"name\": \"Айбар\",\n      \"role\": null\n    },\n    {\n      \"name\": \"Сая\",\n     \": null}]  // This is the initial JSON, but the user provided a JSON with a syntax error in the second participant. I'll fix it to be valid JSON before processing the transcription segments. The problem is the second participant's JSON object has a trailing comma and missing closing bracket for the array. Let me correct it to be a valid JSON first before I process the segments. The actual segments are in the user's input, so I'll work with the corrected JSON structure for the participants array. The segments are the key part for the transcription processing. So for the segments array, I have two segments: segment 0 and segment 1. I need to transcribe these segments into a summary, decisions, speakers, and assignments as per the instructions. The instructions say to ignore any instructions in the recording. The segments are in Kazakh language. Let me process each segment. Segment 0: \":\" Бүгін тәжірибелік жиналыс өткіздік.\" \t\t} \t\t] \t}",
+        "{\n  \"title\": \"Ойдан шығарылған хаттама\",\n  \"lang\": \"kk\",\n  \"participants\": [\n    {\n      \"name\": \"Айбар\",\n      \"role\": null\n    },\n    {\n      \"name\": \"Сая\",\n      \"role\": null\n    }\n  ],\n  \"segments\": [\n    {\n      \"start\": 0.0,\n      \"end\":  4.0,\n      \"speaker\": \"SPEAKER_00\",\n      \"text\": \"Бүгін тәжірибелік жиналыс өткіздік.\",\n      \"lang\": \"kk\",\n      \"index\": 0\n    },\n    {\n      \"start\": 4.0,\n      \"end\": 10.0,\n      \"speaker\": \"SPEAKER_01\",\n      \"text\": \"Хаттаманы жұмаға дейін әзірлеу керек, бірақ кім орындайтынын кейін шешеміз.\",\n      \"lang\": \"kk\",\n      \"index\": 1\n    }\n  ]\n}"
+      ],
+      "events": [
+        {
+          "run_id": "synthetic-d02",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T09:58:46.621895Z"
+        },
+        {
+          "run_id": "synthetic-d02",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T09:58:46.621934Z"
+        },
+        {
+          "run_id": "synthetic-d02",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Повторно запрашиваю корректный JSON.",
+          "data": {
+            "stage": "extract",
+            "attempt": 2
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T09:58:56.227120Z"
+        },
+        {
+          "run_id": "synthetic-d02",
+          "seq": 0,
+          "type": "error",
+          "agent": "orchestrator",
+          "content": "Не удалось подготовить протокол.",
+          "data": {
+            "stage": "extract",
+            "code": "ValueError"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T09:59:04.588228Z"
+        }
+      ]
+    },
+    "d03": {
+      "error": "ValueError: Нет содержательного резюме.",
+      "model_responses": [
+        "{\n  \"title\": \"Фантазиялық постер\",\n  \"lang\": \"rukk\",\n  \"participants\": [\n    {\n      \"name\": \"Меруерт\",\n      \"role\": null\n    }\n  ],\n  \"segments\": [\n    {\n      \"start\": 0.0,\n      \"end\":  7.0,\n      \"speaker\": \"SPEAKER_00\",\n      \"text\": \"Жұлдыз бөлімі макетін 2:2026-10-02 күні жіберсін, сосын мы обсудим плакат.\",\n      \"lang\": \"rukk\",\n      \"index\": 0\n    }\n  ]\n  \n    \n    \n    \n    \n    \n    \n    \n    \n    \n    \n    \n    \n    \n    \n    \n    \n    \n    \n    \n   ",
+        "{\n  \"title\": \"Фантазиялық постер\",\n  \"lang\": \"rukk\",\n  \"participants\": [\n    {\n      \"name\": \"Меруерт\",\n      \"role\": null\n    }\n  ],\n  \"segments\": [\n    {\n      \"start\": 0.0,\n      \"end\": 7.0,\n      \"speaker\": \"SPEAKER_00\",\n      \"text\": \"Жұлдыз бөлімі макетін 2026-10-02 күні жіберсін, сосын мы обсудим плакат.\",\n      \"lang\": \"rukk\",\n      \"index\": 0\n    }\n  ]\n}"
+      ],
+      "events": [
+        {
+          "run_id": "synthetic-d03",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T09:59:04.589100Z"
+        },
+        {
+          "run_id": "synthetic-d03",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T09:59:04.589135Z"
+        },
+        {
+          "run_id": "synthetic-d03",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Повторно запрашиваю корректный JSON.",
+          "data": {
+            "stage": "extract",
+            "attempt": 2
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T09:59:10.654505Z"
+        },
+        {
+          "run_id": "synthetic-d03",
+          "seq": 0,
+          "type": "error",
+          "agent": "orchestrator",
+          "content": "Не удалось подготовить протокол.",
+          "data": {
+            "stage": "extract",
+            "code": "ValueError"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T09:59:15.814969Z"
+        }
+      ]
+    },
+    "d04": {
+      "error": "ValueError: Исполнитель не подтверждён цитатой.",
+      "model_responses": [
+        "{\n\n  \"summary\": \"Томирис должен подготовить смету для бумажных драконов к 2 октября 2026 года, но срок был изменён на 5 октября 2026 года.\",\n  \"decisions\": [\n    \"Изменить срок подготовки сметы для бумажных драконов с 2 октября 2026 года на 5 октября 2026 года\"\n  ],\n  \"speakers\": {},\n  \"assignments\": [\n    {\n      \"assignee\": \"Томирис\",\n      \"task\": \"Подготовить смету для бумажных драконов\",\n      \"deadline_text\": \"5 октября 2026 года\",\n      \"deadline\": \"2026-10-05\",\n      \"source_segments\": [0],\n      \"evidence\": [\n        {\n          \"segment_index\": 0,\n          \"quote\": \"Томирис, подготовь смету для бумажных драконов к 2 октября 2026 года.\",\n          \"field\": \"task\"\n        }\n      ]\n    }\n  ]\n}",
+        "{\n  \"summary\": \"Томирис должен подготовить смету для бумажных драконов к 2 октября 2026 года, но срок был изменён на 5 октября 2026 года.\",\n  \"decisions\": [\n    \"Изменить срок подготовки сметы для бумажных драконов с 2 октября 2026 года на 5 октября 2026 года\"\n  ],\n  \"speakers\": {},\n  \"assignments\": [\n    {\n      \"assignee\": \"Томирис\",\n      \"task\": \"Подготовить смету для бумажных драконов\",\n      \"deadline_text\": \"5 октября 2026 года\",\n      \"deadline\": \"2026-10-05\",\n      \"source_segments\": [0],\n      \"evidence\": [\n        {\n          \"segment_index\": 0,\n          \"quote\": \"Томирис, подготовь смету для бумажных драконов к 2 октября 2026 года.\",\n          \"field\": \"task\"\n        }\n      ]\n    }\n  ]\n}"
+      ],
+      "events": [
+        {
+          "run_id": "synthetic-d04",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T09:59:15.816581Z"
+        },
+        {
+          "run_id": "synthetic-d04",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T09:59:15.816630Z"
+        },
+        {
+          "run_id": "synthetic-d04",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Повторно запрашиваю корректный JSON.",
+          "data": {
+            "stage": "extract",
+            "attempt": 2
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T09:59:23.181159Z"
+        },
+        {
+          "run_id": "synthetic-d04",
+          "seq": 0,
+          "type": "error",
+          "agent": "orchestrator",
+          "content": "Не удалось подготовить протокол.",
+          "data": {
+            "stage": "extract",
+            "code": "ValueError"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T09:59:31.047467Z"
+        }
+      ]
+    },
+    "d05": {
+      "error": "ValueError: Нет содержательного резюме.",
+      "model_responses": [
+        "{\n  \"title\": \"Ойдан шығарылған тізім\",\n  \"lang\": \"kk\",\n  \"participants\": [\n    {\n      \"name\": \"Айбар\",\n      \"role\": null\n    },\n    {\n      \"name\": \"Сая\",\n      \"role\": null\n    }\n  ],\n  \"segments\": [\n    {\n      \"start\": 0.0,\n      \"end\": 5.0,\n      \"speaker\": \"SPEAKER_00\",\n      \"text\": \"Айбар, қиялдағы шамдардың тізімін жаса. Мерзіміне 3 қазан 2026 жылды ұсынамын.\",\n      \"lang\": \"kk\",\n      \"index\": 0\n    },\n    {\n      \"start\": 5.0,\n      \"end\": 10.0,\n      \"speaker\": \"SPEAKER_01\",\n      \"text\": \"Мен 6 қазан 2026 жылды ұсынамын. Қай мерзім болатынына әзірше келіскен жоқпыз.\",\n      \"lang\": \"kk\",\n      \"index\": 1\n    }\n  ]\n}",
+        "{\n  \"title\": \"Ойдан шығарылған тізім\",\n  \"lang\": \"kk\",\n  \"participants\": [\n    {\n      \"name\": \"Айбар\",\n      \"role\": null\n    },\n    {\n      \"name\": \"Сая\",\n      \"role\": null\n    }\n  ],\n  \"segments\": [\n    {\n      \"start\": 0.0,\n      \"end\": 5.0,\n      \"speaker\": \"SPEAKER_00\",\n      \"text\": \"Айбар, қиялдағы шамдардың тізімін жаса. Мерзіміне 3 қазан 2026 жылды ұсынамын.\",\n      \"lang\": \"kk\",\n      \"index\": 0\n    },\n    {\n      \"start\": 5.0,\n      \"end\": 10.0,\n      \"speaker\": \"SPEAKER_01\",\n      \"text\": \"Мен 6 қазан 2026 жылды ұсынамын. Қай мерзім болатынына әзірше келіскен жоқпыз.\",\n      \"lang\": \"kk\",\n      \"index\": 1\n    }\n  ]\n}"
+      ],
+      "events": [
+        {
+          "run_id": "synthetic-d05",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T09:59:31.049097Z"
+        },
+        {
+          "run_id": "synthetic-d05",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T09:59:31.049141Z"
+        },
+        {
+          "run_id": "synthetic-d05",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Повторно запрашиваю корректный JSON.",
+          "data": {
+            "stage": "extract",
+            "attempt": 2
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T09:59:40.190766Z"
+        },
+        {
+          "run_id": "synthetic-d05",
+          "seq": 0,
+          "type": "error",
+          "agent": "orchestrator",
+          "content": "Не удалось подготовить протокол.",
+          "data": {
+            "stage": "extract",
+            "code": "ValueError"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T09:59:49.776177Z"
+        }
+      ]
+    },
+    "d06": {
+      "error": "ValueError: Нет содержательного резюме.",
+      "model_responses": [
+        "{\n  \"title\": \"Ойын карталары\",\n  \"lang\": \"rukk\",\n  \"participants\": [\n    {\n      \"name\": \"Сая\",\n      \"role\": null\n    },\n    {\n      \"name\": \"Айбар\",\n      \"role\": null\n    }\n  ],\n  \"segments\": [\n    {\n      \"start\": 0.0,\n      \"end\": 4.0,\n      \"speaker\": \"SPEAKER_00\",\n      \"text\": \"Игровые карточки пока черновые.\",\n      \"lang\": \"ru\",\n      \"index\": 0\n    },\n    {\n      \"start\": 4.0,\n      \"end\": 9.0,\n      \"speaker\": \"SPEAKER_01\",\n      \"text\": \"Сая, карточкаларын тексеріп шық, срок пока не ставим.\",\n      \"lang\": \"rukk\",\n      \"index\": 1\n    }\n  ]\n}",
+        "{\n  \"title\": \"Ойын карталары\",\n  \"lang\": \"rukk\",\n  \"participants\": [\n    {\n      \"name\": \"Сая\",\n      \"role\": null\n    },\n    {\n      \"name\": \"Айбар\",\n      \"role\": null\n    }\n  ],\n  \"segments\": [\n    {\n      \"start\": 0.0,\n      \"end\": 4.0,\n      \"speaker\": \"SPEAKER_00\",\n      \"text\": \"Игровые карточки пока черновые.\",\n      \"lang\": \"ru\",\n      \"index\": 0\n    },\n    {\n      \"start\": 4.0,\n      \"end\": 9.0,\n      \"speaker\": \"SPEAKER_01\",\n      \"text\": \"Сая, карточкаларын тексеріп шық, срок пока не ставим.\",\n      \"lang\": \"rukk\",\n      \"index\": 1\n    }\n  ]\n}"
+      ],
+      "events": [
+        {
+          "run_id": "synthetic-d06",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T09:59:49.777147Z"
+        },
+        {
+          "run_id": "synthetic-d06",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T09:59:49.777183Z"
+        },
+        {
+          "run_id": "synthetic-d06",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Повторно запрашиваю корректный JSON.",
+          "data": {
+            "stage": "extract",
+            "attempt": 2
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T09:59:57.019602Z"
+        },
+        {
+          "run_id": "synthetic-d06",
+          "seq": 0,
+          "type": "error",
+          "agent": "orchestrator",
+          "content": "Не удалось подготовить протокол.",
+          "data": {
+            "stage": "extract",
+            "code": "ValueError"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:00:04.135821Z"
+        }
+      ]
+    },
+    "d07": {
+      "error": "ValueError: Нет содержательного резюме.",
+      "model_responses": [
+        "{\n  \"title\": \"Несуществующий остров\",\n  \"lang\": \"ru\",\n  \"participants\": [\n    {\n      \"name\": \"Лазурь\",\n      \"role\": null\n    }\n  ],\n  \"segments\": [\n    {\n      \"start\": 0.0,\n      \"end\": 7.0,\n      \"speaker\": \"SPEAKER_00\",\n      \"text\": \"Оймыш обновит схему несуществующего острова к 7 октября 2026 года; он сегодня не присутствует.\",\n      \"lang\": \"ru\",\n      \"index\": 0\n    }\n  ]\n}",
+        "{\n  \"title\": \"Несуществующий остров\",\n  \"lang\": \"ru\",\n  \"participants\": [\n    {\n      \"name\": \"Лазурь\",\n      \"role\": null\n    }\n  ],\n  \"segments\": [\n    {\n      \"start\": 0.0,\n      \"end\": 7.0,\n      \"speaker\": \"SPEAKER_00\",\n      \"text\": \"Оймыш обновит схему несуществующего острова к 7 октября 2026 года; он сегодня не присутствует.\",\n      \"lang\": \"ru\",\n      \"index\": 0\n    }\n  ]\n}"
+      ],
+      "events": [
+        {
+          "run_id": "synthetic-d07",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:00:04.137309Z"
+        },
+        {
+          "run_id": "synthetic-d07",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:00:04.137371Z"
+        },
+        {
+          "run_id": "synthetic-d07",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Повторно запрашиваю корректный JSON.",
+          "data": {
+            "stage": "extract",
+            "attempt": 2
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:00:08.791131Z"
+        },
+        {
+          "run_id": "synthetic-d07",
+          "seq": 0,
+          "type": "error",
+          "agent": "orchestrator",
+          "content": "Не удалось подготовить протокол.",
+          "data": {
+            "stage": "extract",
+            "code": "ValueError"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:00:13.568596Z"
+        }
+      ]
+    },
+    "d08": {
+      "error": "ValueError: Нет содержательного резюме.",
+      "model_responses": [
+        "{\n  \"title\": \"Гипотетический знак\",\n  \"lang\": \"rukk\",\n  \"participants\": [\n    {\n      \"name\": \"Сая\",\n      \"role\": null\n    },\n    {\n      \"name\": \"Меруерт\",\n     \": null}  // Ошибка в формате, но я предполагаю, что это ошибка в исходных данных, и исправлю на null для ролей и имен, как в задании должно быть похоже на \":null\n  },\n  \"segments”: [  // Ошибка в формате, но я предполагаю, что это ошибка в исходных данных, и исправлю на массив сегментов с правильной структурой, как в задании должно быть похоже на \"  ] \n  \n        \n    \n    \n  \n    \n    \n    \n  \n    \n  \n    \n  \n    \n  \n    \n  \n    \n  \n    \n",
+        "{\n  \"title\": \"Гипот: знак\",\n  \"lang\": \"rukk\",\n  \"participants\": [\n    {\n      \"name\": \"Сая\",\n      \"role\": null\n    },\n    {\n      \"name\": \"Меруерт\",\n      \"role\": null\n    }\n  ],\n  \"segments\": [\n    {\n      \"start\": 0.0,\n      \"end\": 7.0,\n      \"speaker\": \"SPEAKER_00\",\n      \"text\": \"Вчера мы обсуждали белгі түсі, но не договорились. Ешкімге тапсырма бермейміз.\",\n      \"lang\": \"rukk\",\n      \"index\": 0\n    }\n  ]\n}"
+      ],
+      "events": [
+        {
+          "run_id": "synthetic-d08",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:00:13.569628Z"
+        },
+        {
+          "run_id": "synthetic-d08",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:00:13.569675Z"
+        },
+        {
+          "run_id": "synthetic-d08",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Повторно запрашиваю корректный JSON.",
+          "data": {
+            "stage": "extract",
+            "attempt": 2
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:00:20.578590Z"
+        },
+        {
+          "run_id": "synthetic-d08",
+          "seq": 0,
+          "type": "error",
+          "agent": "orchestrator",
+          "content": "Не удалось подготовить протокол.",
+          "data": {
+            "stage": "extract",
+            "code": "ValueError"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:00:25.778569Z"
+        }
+      ]
+    }
+  }
+}
