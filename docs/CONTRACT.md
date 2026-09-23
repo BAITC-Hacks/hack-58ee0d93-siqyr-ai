@@ -1,8 +1,8 @@
 # CONTRACT — Meiirlan владеет файлом
 
-Это план контракта v0.2 на базе существующего v0.1. Пользователь запросил его составление; продуктовый код не менялся. Meiirlan переносит согласованные с Alibi дополнения в backend/shared/schemas.py первой задачей. До этого schemas.py содержит только v0.1. Ниже сохраняются пути и сигнатуры каркаса; уточнения v0.2 и JSON Schema в конце имеют приоритет для реализации. Изменения перечислены явно в DECISIONS.md.
+**Состояние на 15:05.** Контракт v0.2 реализован в `backend/shared/schemas.py` и API на ветке `api` (2e59cfa — v0.2, cc4d99b — 503/429 и упаковка) и покрыт тестами на mock STT/агентах; в `main` (b6be380) его ещё нет. Фактическое поведение — раздел «Статус реализации v0.2» ниже; таблица маршрутов приведена к коду. Разделы «Семантика», «StepEvent v0.2», JSON Schema и «Проверки сверх JSON Schema» — целевое описание: где код расходится, это перечислено в «Не реализовано». Изменения фиксируются в DECISIONS.md.
 
-**Согласование перед реализацией:** это проект, не уже согласованный transport contract. Сверить текущие ветки всех участников и один fixture. В main 7bae7c2 frontend уже имеет клиентский DOCX/печать PDF; COORDINATION.md предлагает переиспользовать их с server approved snapshot. Это решение ещё требует ACK Meiirlan/Nurdaulet; перечисленные ниже серверные file endpoints описывают прежний вариант и не поручаются второму участнику параллельно. После выбора владелец обновит routes, files/final payload и export-stage вместе; схема данных здесь не меняется.
+**Согласовано / ждёт ACK:** реальные модули `backend/stt/engine.py` и `backend/agents/runner.py` в репозитории ещё отсутствуют (ни в `api`, ни в `main`) — ждём ветку/SHA Alibi и ACK по полям. Экспорт: по DECISIONS [14:46] основной путь — серверные DOCX/PDF из утверждённого snapshot (готовы); клиентский экспорт фронта допустим только из `approved` того же run. Ждёт ACK Nurdaulet. Frontend пока к API не подключён (данные только в IndexedDB).
 
 ## Поток
 ```
@@ -32,23 +32,30 @@ upload / sample ─► STT + диаризация ─► propose() ─► awaiti
 
 | Метод | Путь | Вход | Выход |
 |---|---|---|---|
-| GET | `/api/health` | — | `{status, agent_mode, stt_mode, demo_mode, llm, today}` |
+| GET | `/api/health` | — | `{status, agent_mode, stt_mode, demo_mode, auth_mode, llm, llm_provider, llm_model, today, ready, problems: [{name, level, detail}]}` |
 | GET | `/api/samples` | — | `[{id, title, description, lang, synthetic, participants}]` — пресеты для демо |
-| POST | `/api/runs` | multipart: `file` (аудио/видео) **или** `sample` (`demo`); `title`, `meeting_date` (YYYY-MM-DD), `lang` (`rukk`\|`kk`\|`ru`), `participants` (JSON-массив или имена через запятую) | `201 {run_id, status}` |
-| GET | `/api/runs` | — | список запусков `{id, title, meeting_date, status, synthetic, assignments_count, created_at}` |
-| GET | `/api/runs/{id}` | — | `{run, steps: StepEvent[], proposal, result, files: {docx, pdf}}` |
+| POST | `/api/runs` | multipart: `file` (аудио/видео) **или** `sample` (`demo`); `title`, `meeting_date` (YYYY-MM-DD, опц.), `lang` (`rukk`\|`kk`\|`ru`), `participants` (JSON-массив или имена через запятую), `department_id` (по умолчанию `default`) | `201 {run_id, status: "queued"}`; 503 если модели real-режима недоступны, 429 при полной очереди |
+| POST | `/api/runs/recordings` | multipart: `title`, `meeting_date` (опц.), `lang`, `department_id` (опц.) | `201 {run_id, status: "recording"}` |
+| POST | `/api/runs/{id}/chunks` | raw WebM bytes, `X-Chunk-Offset` = число уже подтверждённых байт | `{offset}`; последовательная запись на диск, повтор идентичного чанка идемпотентен; 409 при неверном смещении, 413 при превышении 5 МБ на чанк или MAX_UPLOAD_MB всего |
+| POST | `/api/runs/{id}/finish` | — | `{run_id, status: "queued"}`; пустая запись → 400, повтор → 409; после ответа запускается STT/propose и SSE |
+| GET | `/api/runs` | — | список запусков `{id, department_id, title, meeting_date, meeting_date_verified, status, synthetic, source_mode, assignments_count, created_at}` |
+| GET | `/api/runs/{id}` | — | `{run, steps: StepEvent[], proposal, result, files: {docx, pdf}, revision, approved, approved_at, transcript: {source_mode, segments}, audio}`; `files.*` = null до `done` |
+| GET | `/api/runs/{id}/audio` | заголовок `Range` (опц.) | исходный файл, 206 для Range; 404 у `sample` |
 | GET | `/api/runs/{id}/events` | заголовок `Last-Event-ID` (опц.) | SSE, см. ниже |
-| POST | `/api/runs/{id}/approve` | `{approved: bool, comment?: str, proposal?: Proposal}` — секретарь может прислать отредактированный черновик | `{status}` |
-| GET | `/api/runs/{id}/protocol.docx` | — | файл |
-| GET | `/api/runs/{id}/protocol.pdf` | — | файл |
-| GET | `/api/assignments` | `?status=in_progress\|overdue\|done&assignee=&run_id=` | `[{id, run_id, run_title, assignee, task, deadline, deadline_text, priority, category, status, days_left}]` |
+| PUT | `/api/runs/{id}/proposal` | `{expected_revision: int, proposal: Proposal}` | `{revision, proposal}`; 409 чужая редакция/статус, 422 ссылка или цитата не из транскрипта |
+| POST | `/api/runs/{id}/approve` | `{approved: bool, expected_revision?: int, comment?: str, proposal?: Proposal}` | `{status, revision}`; 409 `code=review_required` + `assignments` |
+| GET | `/api/runs/{id}/protocol.docx` | — | файл из утверждённого snapshot; 409 до `done` |
+| GET | `/api/runs/{id}/protocol.pdf` | — | файл из утверждённого snapshot; 409 до `done` |
+| POST | `/api/runs/{id}/jira` | — | `{project, created: [key], sprint, issues: [{position, key, url, assigned}]}`; задачи Jira из approved snapshot, `excluded` пропускаются, повтор не дублирует; 409 до утверждения, 503 Jira не настроена/Cloud без `JIRA_ALLOW_CLOUD=1`, 502 ошибка Jira |
+| GET | `/api/runs/{id}/jira` | — | `{configured, project, issues}` — уже созданные задачи для кнопки/ссылок |
+| GET | `/api/assignments` | `?status=in_progress\|overdue\|done&assignee=&run_id=` | `[{id, run_id, run_title, assignee, task, deadline, deadline_text, priority, category, status, days_left}]` — только из `done`-запусков |
 | PATCH | `/api/assignments/{id}` | `{done: bool}` | поручение |
-| GET | `/api/notifications` | `?recipient=` | `[{id, kind: excerpt\|due_soon\|overdue, recipient, message, assignment_id, created_at}]` |
-| POST | `/api/reminders/run` | — | `{created, today}` — ручной запуск проверки сроков (сценарий 2) |
+| GET | `/api/notifications` | `?recipient=` | `[{id, kind: excerpt\|due_soon\|overdue, recipient, message, assignment_id, run_id, created_at}]` |
+| POST | `/api/reminders/run` | — | `{created, today}` — ручной запуск проверки сроков (сценарий 2), только системный администратор |
 
-MVP реализует health, samples, POST/GET runs, GET run, events, approve и оба protocol-файла. Остальные assignments/notifications/reminders маршруты — отложенные, UI их не вызывает до реализации. Добавления v0.2: GET `/api/runs/{id}/audio` для исходного аудио с Range; PUT `/api/runs/{id}/proposal` для сохранения проверяемого черновика с `{expected_revision, proposal}`.
+Все маршруты таблицы реализованы и покрыты тестами. Реестр поручений, уведомления и напоминания (фоновая проверка каждые `REMINDER_INTERVAL_SEC`) работают на backend, но frontend их пока не вызывает. Маршруты авторизации, админки и профиля — в разделе выше.
 
-### Статус реализации v0.2 (ветка api, Meiirlan, 14:46)
+### Статус реализации v0.2 (ветка api, Meiirlan, 14:46; дополнено 15:05)
 
 Реализовано и покрыто тестами (`tests/test_contract_v02.py`, mock STT/агенты):
 - `backend/shared/schemas.py` v0.2 **только добавлением полей с умолчаниями**: ответы v0.1 остаются валидными. Segment: `speaker` nullable, `speaker_candidates`, `corrected_text`, `review_reasons`. Participant: `kind`, `present`. RunInput: `meeting_date` nullable, `meeting_date_verified`. AssignmentDraft: `assignee` nullable, `deadline_candidates`, `evidence[]`, `review_status`, `review_reasons`, `review_note`, `confidence=null`. Proposal: `revision`, `source_mode`, `speaker_records`. Новые типы `Evidence`, `Speaker`.
@@ -62,9 +69,19 @@ MVP реализует health, samples, POST/GET runs, GET run, events, approve 
 - SSE `data.stage`: `transcribe`, `validate`, `review` (needs_approval и каждое сохранение), `approve`, `export`, `complete`; `duration_ms` у transcribe/validate/export. Этапы внутри раннера (`map_speakers`, `extract`, `summarize`) проставляет раннер Alibi.
 - `LLM_PROVIDER=local|dev_openai` (по умолчанию local, `MODEL_MAIN=qwen3:4b`, `MODEL_FAST=qwen3:1.7b`). local принимает loopback или явно перечисленные `LLM_ALLOWED_HOSTS`; dev_openai допускается только для синтетических запусков. Неподходящий адрес останавливает real-run. `/api/health` отдаёт `llm_provider`, `llm_model`.
 
-Не реализовано: audit log с автором правки отдельной таблицей (сейчас шаг SSE `stage=review` с `user_id`), speaker mapping как отдельный маршрут (правится через `speakers`/`speaker_records` в PUT), 429 при занятом worker, 503 при отсутствии модели, `usage_available`.
+- [cc4d99b] Fail closed до приёма файла: если для `STT_MODE=real`/`AGENT_MODE=real` нет весов (`models/stt/asr/rukk`, `models/stt/vad/vad.onnx`, `models/diarization`), ffmpeg, torch/onnxruntime/soundfile или `LLM_BASE_URL` → `POST /api/runs` 503 с перечнем причин, файл не сохраняется, ничего не скачивается. `/api/health` отдаёт `ready` и `problems`. Не-loopback `LLM_BASE_URL` — предупреждение в `scripts/preflight.py`, не блок; в `problems` попадают только блокирующие причины. Пути весов: `STT_MODEL_DIR`, `DIARIZATION_MODEL_DIR`.
+- [cc4d99b] Один worker: STT+propose выполняются по одному, остальные ждут в `queued`. Если в `queued` уже `MAX_QUEUE` (3) запуска → 429 с `Retry-After: 30`. `execute`/экспорт идут вне этой очереди.
+- Перезапуск сервера помечает незавершённые запуски (`queued/transcribing/running/executing`) как `error` с шагом-объяснением.
 
-Ошибки: `{detail: "текст для пользователя"}`. 400 — неверный ввод, 404 — нет запуска, 409 — не тот статус, 413 — файл больше MAX_UPLOAD_MB, 415 — формат, 429 — rate limit.
+Не реализовано:
+- audit log с автором правки отдельной таблицей (сейчас шаг SSE `stage=review`/`approve` с `user_id`); speaker mapping как отдельный маршрут (правится через `speakers`/`speaker_records` в PUT); `usage_available` в StepEvent.
+- Лимит длительности 10 минут не проверяется — только размер `MAX_UPLOAD_MB` (100). Форматы шире, чем MP3/WAV: см. список расширений в 415.
+- SSE `error` без `code`/`retryable`; этапы `ingest`, `normalize_audio`, `vad`, `diarize` backend не эмитит (сейчас только `transcribe` целиком) — их может добавить engine Alibi через свой шаг, если нужно.
+- Реальные `backend/stt/engine.py`, `backend/agents/runner.py` — отсутствуют. Если readiness пройдена, а модуля нет, запуск уходит в `error` с текстом «Модуль реального режима ещё не установлен».
+
+Известная ошибка (не исправлена на 15:05): при утверждении поручения с `assignee=null` («не указан», разрешено контрактом) `runner_mock.execute` создаёт `Excerpt(recipient=None)` → `ValidationError`, запуск уходит в `error` после approve. Там же выдержки готовятся и для `review_status=excluded`. Раннер Alibi должен учитывать оба случая; backend добавит защиту в `pipeline.execute`.
+
+Ошибки: `{detail: "текст для пользователя"}`, у 409 review — ещё `code` и `assignments`. 400 — неверный ввод, 403 — нет прав в департаменте, 404 — нет запуска/нет доступа, 409 — не тот статус или устаревшая редакция, 413 — файл больше MAX_UPLOAD_MB, 415 — формат, 422 — ссылка/цитата не из транскрипта в PUT/approve, 429 — rate limit (`RATE_LIMIT_PER_MIN` на POST runs/login, `Retry-After: 60`) или полная очередь (`Retry-After: 30`), 503 — модель/веса/LLM недоступны (или ЭЦП не настроена).
 
 ### SSE `/api/runs/{id}/events`
 - Сначала отдаются уже сохранённые шаги, затем новые в реальном времени.
@@ -107,6 +124,8 @@ def transcribe(audio_path: Path, lang: str = "rukk") -> list[Segment]
 
 ## Проверка расхождений с кодом и минимальная миграция
 
+Миграция ниже выполнена в 2e59cfa (поля добавлены с умолчаниями, v0.1-ответы валидны) и cc4d99b (fail closed local profile, health с `llm_provider` и `problems`, loopback-проверка в `scripts/preflight.py`). Таблица оставлена как запись причин.
+
 | Место v0.1 | Проблема | Изменение v0.2 и владелец |
 |---|---|---|
 | Segment.speaker обязателен | При overlap/сбое нельзя честно выбрать один голос | Nullable speaker, speaker_candidates/review_reasons; Meiirlan + Alibi. |
@@ -121,7 +140,7 @@ def transcribe(audio_path: Path, lang: str = "rukk") -> list[Segment]
 
 ## Семантика запросов и утверждения
 
-- POST runs: ровно file или sample; принимаем MP3/WAV до 100 MB и 10 минут. lang — пожелание пользователя, не доказательство языка. meeting_date обязателен для нового демо, но исходные файлы без известной даты помечаются `meeting_date_verified=false`: нормализация относительных сроков отключена. Не подставлять сегодняшнюю дату молча.
+- POST runs: ровно file или sample; принимаем аудио/видео (WAV, MP3, M4A, OGG, FLAC, MP4, WEBM и др.) до `MAX_UPLOAD_MB`=100; целевой лимит 10 минут пока не проверяется. lang — пожелание пользователя, не доказательство языка. meeting_date в API необязателен; для нового демо его нужно передавать. Файлы без известной даты помечаются `meeting_date_verified=false`: нормализация относительных сроков отключена. Не подставлять сегодняшнюю дату молча.
 - participants принимаем JSON-массив Participant; строковый список каркаса можно поддержать как удобный ввод. Не определяет число акустических голосов автоматически: присутствующий может молчать.
 - POST возвращает 201 после сохранения, обработка идёт в background, один worker. Полная очередь → 429. Синхронный STT через thread/process вне event loop. Отмена/перезапуск не обязательны в MVP.
 - GET run возвращает raw Transcript, proposal, result, шаги, ревизию, source_mode и ссылки. Raw аудио и транскрипт сохраняются отдельно от правок. Files до done — null.

@@ -78,6 +78,18 @@ class Settings:
     keycloak_audience: str = field(default_factory=lambda: _env("KEYCLOAK_AUDIENCE"))
     ecp_verify_url: str = field(default_factory=lambda: _env("ECP_VERIFY_URL"))
 
+    # Jira: секретарь явно отправляет утверждённые поручения. DC — JIRA_TOKEN как PAT; Cloud — JIRA_EMAIL + API token.
+    jira_url: str = field(default_factory=lambda: _env("JIRA_URL").rstrip("/"))
+    jira_email: str = field(default_factory=lambda: _env("JIRA_EMAIL"))
+    jira_token: str = field(default_factory=lambda: _env("JIRA_TOKEN"))
+    jira_project: str = field(default_factory=lambda: _env("JIRA_PROJECT"))
+    jira_issue_type: str = field(default_factory=lambda: _env("JIRA_ISSUE_TYPE", "Task"))
+    jira_board_id: str = field(default_factory=lambda: _env("JIRA_BOARD_ID"))  # задачи попадают в активный спринт доски
+    jira_users: str = field(default_factory=lambda: _env("JIRA_USERS"))  # JSON {"имя из протокола": "email/логин в Jira"}
+    jira_allow_cloud: bool = field(default_factory=lambda: _env("JIRA_ALLOW_CLOUD") == "1")  # только сценарные записи
+    public_api_url: str = field(default_factory=lambda: _env("PUBLIC_API_URL", "http://localhost:8000").rstrip("/"))
+    public_app_url: str = field(default_factory=lambda: _env("PUBLIC_APP_URL").rstrip("/"))  # пусто — без ссылки на карточку
+
     pdf_font_path: str = field(default_factory=lambda: _env("PDF_FONT_PATH"))
     pdf_font_bold_path: str = field(default_factory=lambda: _env("PDF_FONT_BOLD_PATH"))
 

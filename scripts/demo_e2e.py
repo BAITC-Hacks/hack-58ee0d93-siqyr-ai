@@ -46,6 +46,7 @@ def main():
     parser.add_argument("--lang", default="rukk")
     parser.add_argument("--sample", default="demo")
     parser.add_argument("--mode", help="expected source_mode: real | mock | replay")
+    parser.add_argument("--jira", action="store_true", help="after export, create Jira issues (POST /api/runs/{id}/jira)")
     args = parser.parse_args()
     base_url = os.environ.get("API_URL", "http://localhost:8000").rstrip("/")
     with httpx.Client(base_url=base_url, timeout=120, trust_env=False) as client:
@@ -91,6 +92,14 @@ def main():
             destination = output / f"protocol-{run_id}.{kind}"
             destination.write_bytes(document.content)
             print(f"OK: {destination}")
+        if args.jira:
+            pushed = client.post(f"/api/runs/{run_id}/jira")
+            if pushed.status_code >= 400:
+                raise RuntimeError(f"Jira {pushed.status_code}: {pushed.json().get('detail')}")
+            body = pushed.json()
+            print(f"Jira {body['project']}: создано {len(body['created'])}, спринт {body['sprint'] or '—'}")
+            for issue in body["issues"]:
+                print(f"  - {issue['url']}{'' if issue['assigned'] else '  (исполнитель не сопоставлен)'}")
 
 
 if __name__ == "__main__":

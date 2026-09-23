@@ -58,6 +58,17 @@ class Assignment(SQLModel, table=True):
     done: bool = False
 
 
+class JiraIssue(SQLModel, table=True):
+    """Задача Jira, созданная из поручения утверждённого snapshot; повторная отправка её не дублирует."""
+    __tablename__ = "jira_issues"
+    run_id: str = Field(primary_key=True, foreign_key="runs.id")
+    position: int = Field(primary_key=True)  # номер поручения в approved.assignments
+    key: str
+    url: str
+    assignee: str | None = None  # accountId (Cloud) / username (DC); None — не сопоставлен
+    created_at: datetime = Field(default_factory=utcnow)
+
+
 class Notification(SQLModel, table=True):
     __tablename__ = "notifications"
     __table_args__ = (UniqueConstraint("assignment_id", "kind", "day"),)
