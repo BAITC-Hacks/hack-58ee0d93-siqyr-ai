@@ -2,8 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 type RecorderStatus = 'idle' | 'requesting' | 'recording' | 'paused' | 'finishing' | 'complete';
 
-const MAX_RECORDING_BYTES = 100 * 1024 * 1024;
-
 function broadcastRecording(active: boolean) {
   window.dispatchEvent(new CustomEvent('recorder-state', { detail: { active } }));
 }
@@ -14,15 +12,15 @@ function stopTracks(stream: MediaStream | null) {
 
 export function useRecorder() {
   const [status, setStatus] = useState<RecorderStatus>('idle');
-  const [blob, setBlob] = useState<Blob | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [error, setError] = useState('');
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
+  const uploadRef = useRef<Promise<void>>(Promise.resolve());
+  const uploadErrorRef = useRef<unknown>(null);
+  const stoppedRef = useRef<Promise<void>>(Promise.resolve());
   const startedAtRef = useRef(0);
   const recordedMsRef = useRef(0);
-  const discardRef = useRef(false);
   const mountedRef = useRef(true);
   const requestRef = useRef(0);
 
@@ -34,7 +32,6 @@ export function useRecorder() {
 
   const discard = useCallback(() => {
     requestRef.current += 1;
-    discardRef.current = true;
     const recorder = recorderRef.current;
     recorderRef.current = null;
     if (recorder) {
@@ -44,67 +41,58 @@ export function useRecorder() {
       if (recorder.state !== 'inactive') recorder.stop();
     }
     release();
-    chunksRef.current = [];
+    uploadRef.current = Promise.resolve();
+    uploadErrorRef.current = null;
     recordedMsRef.current = 0;
-    startedAtRef.current = 0;
     if (mountedRef.current) {
-      setBlob(null);
       setElapsedMs(0);
       setError('');
       setStatus('idle');
     }
   }, [release]);
 
-  const start = useCallback(async () => {
+  const start = useCallback(async (onChunk: (chunk: Blob, offset: number) => Promise<number>) => {
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
       setError('Запись с микрофона не поддерживается в этом браузере. Загрузите готовый файл.');
-      return;
+      return false;
     }
     discard();
-    discardRef.current = false;
     setStatus('requesting');
     const requestId = requestRef.current;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       if (!mountedRef.current || requestId !== requestRef.current) {
         stopTracks(stream);
-        return;
+        return false;
       }
       streamRef.current = stream;
-      const preferredType = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm']
+      const preferredType = ['audio/webm;codecs=opus', 'audio/webm']
         .find((type) => MediaRecorder.isTypeSupported(type));
-      const recorder = preferredType
-        ? new MediaRecorder(stream, { mimeType: preferredType })
-        : new MediaRecorder(stream);
+      if (!preferredType) throw new Error('WebM недоступен в этом браузере. Загрузите готовый файл.');
+      const recorder = new MediaRecorder(stream, { mimeType: preferredType });
       recorderRef.current = recorder;
-      chunksRef.current = [];
+      let offset = 0;
+      uploadRef.current = Promise.resolve();
+      uploadErrorRef.current = null;
+      stoppedRef.current = new Promise<void>((resolve) => { recorder.onstop = () => { recorderRef.current = null; release(); resolve(); }; });
       recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) chunksRef.current.push(event.data);
+        if (!event.data.size || uploadErrorRef.current) return;
+        uploadRef.current = uploadRef.current.then(async () => {
+          if (uploadErrorRef.current) return;
+          offset = await onChunk(event.data, offset);
+        }).catch((cause: unknown) => {
+          uploadErrorRef.current = cause;
+          if (recorder.state !== 'inactive') recorder.stop();
+          if (mountedRef.current) {
+            setStatus('idle');
+            setError(cause instanceof Error ? cause.message : 'Не удалось отправить звук на сервер.');
+          }
+        });
       };
       recorder.onerror = () => {
-        discardRef.current = true;
-        release();
-        if (mountedRef.current) {
-          setStatus('idle');
-          setError('Не удалось записать звук. Проверьте микрофон и попробуйте снова.');
-        }
-      };
-      recorder.onstop = () => {
-        const captured = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
-        chunksRef.current = [];
-        recorderRef.current = null;
-        release();
-        if (!mountedRef.current || discardRef.current) return;
-        if (captured.size === 0) {
-          setStatus('idle');
-          setError('Запись пуста. Запишите звук ещё раз.');
-        } else if (captured.size > MAX_RECORDING_BYTES) {
-          setStatus('idle');
-          setError('Запись превышает 100 МБ. Сделайте запись короче.');
-        } else {
-          setBlob(captured);
-          setStatus('complete');
-        }
+        uploadErrorRef.current = new Error('Не удалось записать звук. Проверьте микрофон.');
+        if (recorder.state !== 'inactive') recorder.stop();
+        if (mountedRef.current) setError('Не удалось записать звук. Проверьте микрофон.');
       };
       recorder.start(1000);
       startedAtRef.current = Date.now();
@@ -112,16 +100,17 @@ export function useRecorder() {
       setElapsedMs(0);
       setStatus('recording');
       broadcastRecording(true);
+      return true;
     } catch (cause) {
       release();
-      if (!mountedRef.current || requestId !== requestRef.current) return;
+      if (!mountedRef.current || requestId !== requestRef.current) return false;
       setStatus('idle');
       const name = cause instanceof DOMException ? cause.name : '';
       setError(name === 'NotAllowedError' || name === 'PermissionDeniedError'
         ? 'Доступ к микрофону отклонён. Разрешите его в браузере или загрузите файл.'
-        : name === 'NotFoundError'
-          ? 'Микрофон не найден. Подключите устройство или загрузите файл.'
-          : 'Не удалось начать запись. Проверьте микрофон и попробуйте снова.');
+        : name === 'NotFoundError' ? 'Микрофон не найден. Подключите устройство или загрузите файл.'
+          : cause instanceof Error ? cause.message : 'Не удалось начать запись.');
+      return false;
     }
   }, [discard, release]);
 
@@ -142,21 +131,22 @@ export function useRecorder() {
     setStatus('recording');
   }, []);
 
-  const stop = useCallback(() => {
+  const stop = useCallback(async () => {
     const recorder = recorderRef.current;
-    if (!recorder || recorder.state === 'inactive') return;
+    if (!recorder || recorder.state === 'inactive') throw new Error('Запись уже остановлена.');
     if (recorder.state === 'recording') recordedMsRef.current += Date.now() - startedAtRef.current;
     setElapsedMs(recordedMsRef.current);
-    recorder.stop();
     setStatus('finishing');
-    release();
-  }, [release]);
+    recorder.stop();
+    await stoppedRef.current;
+    await uploadRef.current;
+    if (uploadErrorRef.current) throw uploadErrorRef.current;
+    if (mountedRef.current) setStatus('complete');
+  }, []);
 
   useEffect(() => {
     if (status !== 'recording') return;
-    const interval = window.setInterval(() => {
-      setElapsedMs(recordedMsRef.current + Date.now() - startedAtRef.current);
-    }, 250);
+    const interval = window.setInterval(() => setElapsedMs(recordedMsRef.current + Date.now() - startedAtRef.current), 250);
     return () => window.clearInterval(interval);
   }, [status]);
 
@@ -165,12 +155,11 @@ export function useRecorder() {
     return () => {
       mountedRef.current = false;
       requestRef.current += 1;
-      discardRef.current = true;
       const recorder = recorderRef.current;
       if (recorder && recorder.state !== 'inactive') recorder.stop();
       release();
     };
   }, [release]);
 
-  return { status, blob, elapsedMs, error, start, pause, resume, stop, discard };
+  return { status, elapsedMs, error, start, pause, resume, stop, discard };
 }

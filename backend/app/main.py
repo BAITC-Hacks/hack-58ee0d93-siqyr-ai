@@ -360,6 +360,84 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         runtime().spawn(runtime().propose(run.id))
         return {"run_id": run.id, "status": "queued"}
 
+    @app.post("/api/runs/recordings", status_code=201)
+    async def create_recording(title: str = Form(...), meeting_date: str | None = Form(None),
+                               lang: str = Form("rukk"), department_id: str = Form("default"),
+                               actor: Principal = Depends(principal)):
+        actor.require(department_id, "write")
+        if missing := unready(settings):
+            raise HTTPException(503, "Модель недоступна: " + "; ".join(c.detail for c in missing))
+        if lang not in {"rukk", "kk", "ru"}:
+            raise HTTPException(400, "Язык должен быть ru, kk или rukk.")
+        if not title.strip() or len(title.strip()) > 300:
+            raise HTTPException(400, "Название должно содержать от 1 до 300 символов.")
+        try:
+            meeting_day = date.fromisoformat(meeting_date) if meeting_date else None
+        except ValueError:
+            raise HTTPException(400, "Дата совещания должна быть в формате ГГГГ-ММ-ДД.") from None
+        with runtime().db.session() as session:
+            if session.get(Department, department_id) is None:
+                raise HTTPException(400, "Департамент не найден.")
+            run = Run(title=title.strip(), meeting_date=meeting_day, meeting_date_verified=meeting_day is not None,
+                      lang=lang, department_id=department_id, status="recording", synthetic=False)
+            run.audio_path = str(settings.uploads_dir / f"{run.id}.webm")
+            session.add(run)
+            session.commit()
+        Path(run.audio_path).touch()
+        return {"run_id": run.id, "status": "recording"}
+
+    @app.post("/api/runs/{run_id}/chunks")
+    async def append_recording_chunk(run_id: str, request: Request, offset: int = Header(..., alias="X-Chunk-Offset"),
+                                     actor: Principal = Depends(principal)):
+        run = require_run(run_id, actor)
+        actor.require(run.department_id, "write")
+        if offset < 0:
+            raise HTTPException(400, "Смещение чанка должно быть неотрицательным.")
+        payload = bytearray()
+        async for part in request.stream():
+            payload.extend(part)
+            if len(payload) > 5 * 1024 * 1024:
+                raise HTTPException(413, "Один чанк записи превышает 5 МБ.")
+        if not payload:
+            raise HTTPException(400, "Пустой чанк.")
+        async with runtime().events.lock:
+            with runtime().db.session() as session:
+                current = session.get(Run, run_id)
+                if current.status != "recording":
+                    raise HTTPException(409, "Запись уже завершена.")
+                path = Path(current.audio_path)
+                size = path.stat().st_size
+                if offset < size and offset + len(payload) <= size:
+                    with path.open("rb") as source:
+                        source.seek(offset)
+                        if source.read(len(payload)) == payload:
+                            return {"offset": offset + len(payload)}
+                if offset != size:
+                    raise HTTPException(409, f"Ожидалось смещение {size} байт.")
+                if size + len(payload) > settings.max_upload_mb * 1024 * 1024:
+                    raise HTTPException(413, f"Запись превышает {settings.max_upload_mb} МБ.")
+                with path.open("ab") as target:
+                    target.write(payload)
+        return {"offset": size + len(payload)}
+
+    @app.post("/api/runs/{run_id}/finish")
+    async def finish_recording(run_id: str, actor: Principal = Depends(principal)):
+        run = require_run(run_id, actor)
+        actor.require(run.department_id, "write")
+        async with runtime().events.lock:
+            with runtime().db.session() as session:
+                current = session.get(Run, run_id)
+                if current.status != "recording":
+                    raise HTTPException(409, "Запись уже завершена.")
+                if not Path(current.audio_path).is_file() or Path(current.audio_path).stat().st_size == 0:
+                    raise HTTPException(400, "Запись пуста.")
+                current.status = "queued"
+                session.add(current)
+                session.commit()
+            runtime().events.publish(run_id, "status", {"status": "queued"})
+        runtime().spawn(runtime().propose(run_id))
+        return {"run_id": run_id, "status": "queued"}
+
     @app.get("/api/runs")
     def runs(actor: Principal = Depends(principal)):
         with runtime().db.session() as session:

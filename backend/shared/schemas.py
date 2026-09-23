@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 Lang = Literal["rukk", "kk", "ru"]
 RunStatus = Literal[
-    "queued", "transcribing", "running", "awaiting_approval", "executing", "done", "rejected", "error"
+    "recording", "queued", "transcribing", "running", "awaiting_approval", "executing", "done", "rejected", "error"
 ]
 EventType = Literal["agent_start", "tool_call", "tool_result", "handoff", "needs_approval", "final", "error"]
 Priority = Literal["high", "normal", "low"]

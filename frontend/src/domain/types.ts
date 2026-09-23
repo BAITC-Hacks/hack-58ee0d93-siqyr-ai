@@ -25,6 +25,7 @@ export interface Meeting {
   transcript: Segment[];
   createdAt: string;
   number?: number;
+  backendRunId?: string;
   source?: {
     name: string;
     size: number;

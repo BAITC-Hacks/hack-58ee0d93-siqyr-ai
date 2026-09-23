@@ -5,6 +5,7 @@ import { ArrowLeft, CircleAlert, FileAudio2, Mic2, Pause, Play, Square, Trash2, 
 import { Link, useNavigate } from 'react-router-dom';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { useRecorder } from '../hooks/useRecorder';
+import { createRecording, finishRecording, sendRecordingChunk } from '../lib/recordingApi';
 import type { Meeting } from '../domain/types';
 import styles from './NewMeetingPage.module.css';
 
@@ -39,6 +40,7 @@ export default function NewMeetingPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const initializedRef = useRef(false);
+  const recordingIdRef = useRef<string | null>(null);
   const form = useForm({
     initialValues: {
       title: '',
@@ -61,7 +63,7 @@ export default function NewMeetingPage() {
   }, [loading, settings.organization, settings.defaultLanguage]);
 
   useEffect(() => {
-    const source = mode === 'upload' ? file : mode === 'record' ? recorder.blob : null;
+    const source = mode === 'upload' ? file : null;
     if (!source) {
       setPreviewUrl(null);
       return;
@@ -69,7 +71,7 @@ export default function NewMeetingPage() {
     const url = URL.createObjectURL(source);
     setPreviewUrl(url);
     return () => URL.revokeObjectURL(url);
-  }, [mode, file, recorder.blob]);
+  }, [mode, file]);
 
   useEffect(() => {
     if (recorder.status !== 'recording' && recorder.status !== 'paused' && recorder.status !== 'requesting' && recorder.status !== 'finishing') return;
@@ -114,15 +116,58 @@ export default function NewMeetingPage() {
     setMode(value as IntakeMode);
   }
 
+  async function beginRecording() {
+    if (!consent) { setSubmitError('Сначала подтвердите, что участники уведомлены о записи.'); return; }
+    if (form.validate().hasErrors) return;
+    setSubmitError('');
+    setSaving(true);
+    try {
+      const runId = await createRecording({
+        title: form.values.title.trim(), date: form.values.date || null, language: form.values.language,
+      });
+      recordingIdRef.current = runId;
+      const started = await recorder.start((chunk, offset) => sendRecordingChunk(runId, chunk, offset));
+      if (!started) setSubmitError('Сессия создана, но микрофон не запустился. Попробуйте новую запись.');
+    } catch (cause) {
+      setSubmitError(cause instanceof Error ? cause.message : 'Не удалось создать сессию записи.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function endRecording() {
+    const runId = recordingIdRef.current;
+    if (!runId) return;
+    setSaving(true);
+    setSubmitError('');
+    try {
+      await recorder.stop();
+      await finishRecording(runId);
+      const id = await createMeeting({
+        title: form.values.title.trim(), organization: form.values.organization.trim(),
+        date: form.values.date || null, language: form.values.language,
+        kind: 'local', status: 'pending', summary: '', participants: [], transcript: [],
+        backendRunId: runId,
+        source: { name: 'Запись в системе.webm', size: 0, type: 'audio/webm' },
+      });
+      recordingIdRef.current = null;
+      navigate(`/meetings/${id}`);
+    } catch (cause) {
+      setSubmitError(cause instanceof Error ? cause.message : 'Не удалось завершить запись.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function onSave(values: typeof form.values) {
     setSubmitError('');
-    const source = mode === 'upload' ? file : mode === 'record' ? recorder.blob : null;
+    const source = mode === 'upload' ? file : null;
     if (mode === 'upload' && !file) {
       setFileError('Выберите файл или переключитесь на черновик без записи.');
       return;
     }
-    if (mode === 'record' && !recorder.blob) {
-      setSubmitError('Сначала запишите и остановите звук или создайте черновик без записи.');
+    if (mode === 'record') {
+      setSubmitError('В режиме записи нажмите «Начать запись», затем «Завершить».');
       return;
     }
     if (source && !consent) {
@@ -131,9 +176,7 @@ export default function NewMeetingPage() {
     }
     setSaving(true);
     try {
-      const sourceName = mode === 'record'
-        ? `Запись ${new Date().toLocaleString('ru-RU')}.${recorder.blob?.type.includes('mp4') ? 'm4a' : 'webm'}`
-        : file?.name || '';
+      const sourceName = file?.name || '';
       const id = await createMeeting({
         title: values.title.trim(),
         organization: values.organization.trim(),
@@ -154,7 +197,7 @@ export default function NewMeetingPage() {
   }
 
   const activeRecording = recorder.status === 'recording' || recorder.status === 'paused';
-  const sourceForPreview = mode === 'upload' ? file : recorder.blob;
+  const sourceForPreview = mode === 'upload' ? file : null;
   const showConsent = mode !== 'draft';
 
   return (
@@ -164,7 +207,7 @@ export default function NewMeetingPage() {
         <div>
           <p className={styles.eyebrow}>НОВАЯ ВСТРЕЧА</p>
           <h1>Добавить встречу</h1>
-          <p>Укажите контекст и добавьте источник. Данные сохраняются только в этом браузере.</p>
+          <p>Укажите контекст и добавьте источник. Запись в системе передаётся на локальный сервер.</p>
         </div>
       </div>
 
@@ -182,7 +225,7 @@ export default function NewMeetingPage() {
         </section>
 
         <section className={styles.section} aria-labelledby="meeting-source">
-          <div className={styles.sectionHeader}><span className={styles.index}>02</span><div><h2 id="meeting-source">Источник встречи</h2><p>Выберите один способ. Файл и запись останутся в браузере на этом устройстве.</p></div></div>
+          <div className={styles.sectionHeader}><span className={styles.index}>02</span><div><h2 id="meeting-source">Источник встречи</h2><p>Выберите один способ. Запись отправляется на локальный сервер.</p></div></div>
           <div className={styles.sourceBody}>
             <SegmentedControl className={styles.modeSwitch} fullWidth value={mode} onChange={changeMode} disabled={activeRecording || recorder.status === 'requesting' || recorder.status === 'finishing'} data={[{ label: 'Загрузить файл', value: 'upload' }, { label: 'Записать звук', value: 'record' }, { label: 'Без записи', value: 'draft' }]} />
             {mode === 'upload' && <div className={styles.sourcePanel}>
@@ -194,11 +237,10 @@ export default function NewMeetingPage() {
               <div className={styles.recorderLine}>
                 <div className={styles.recordStatus}><span className={activeRecording ? styles.liveDot : styles.quietDot} /> <strong>{recorder.status === 'requesting' ? 'Ожидание микрофона…' : recorder.status === 'finishing' ? 'Завершение записи…' : recorder.status === 'recording' ? 'Идёт запись' : recorder.status === 'paused' ? 'На паузе' : recorder.status === 'complete' ? 'Запись готова' : 'Микрофон готов к записи'}</strong><span className={styles.timer}>{formatDuration(recorder.elapsedMs)}</span></div>
                 <div className={styles.recordActions}>
-                  {(recorder.status === 'idle' || recorder.status === 'complete') && <Button type="button" leftSection={<Mic2 size={16} />} variant="light" onClick={() => { if (!consent) { setSubmitError('Сначала подтвердите, что участники уведомлены о записи.'); return; } setSubmitError(''); void recorder.start(); }}>Начать запись</Button>}
+                  {(recorder.status === 'idle' || recorder.status === 'complete') && <Button type="button" leftSection={<Mic2 size={16} />} variant="light" loading={saving} onClick={() => void beginRecording()}>Начать запись</Button>}
                   {recorder.status === 'recording' && <Button type="button" variant="default" leftSection={<Pause size={15} />} onClick={recorder.pause}>Пауза</Button>}
                   {recorder.status === 'paused' && <Button type="button" variant="default" leftSection={<Play size={15} />} onClick={recorder.resume}>Продолжить</Button>}
-                  {activeRecording && <Button type="button" variant="default" leftSection={<Square size={14} />} onClick={recorder.stop}>Завершить</Button>}
-                  {(activeRecording || recorder.status === 'complete') && <Button type="button" variant="subtle" color="gray" onClick={recorder.discard}>Удалить</Button>}
+                  {activeRecording && <Button type="button" variant="default" leftSection={<Square size={14} />} loading={saving} onClick={() => void endRecording()}>Завершить</Button>}
                 </div>
               </div>
               {recorder.error && <p className={styles.error} role="alert">{recorder.error}</p>}
@@ -211,13 +253,13 @@ export default function NewMeetingPage() {
 
         {showConsent && <section className={styles.consentSection}>
           <Checkbox checked={consent} disabled={activeRecording || recorder.status === 'requesting' || recorder.status === 'finishing'} onChange={(event) => { setConsent(event.currentTarget.checked); setSubmitError(''); }} label="Участники уведомлены о записи и согласны на её сохранение" />
-          <p>{activeRecording ? 'Чтобы изменить подтверждение, сначала завершите или удалите запись.' : 'Подтвердите это до включения микрофона или сохранения файла встречи.'}</p>
+          <p>{activeRecording ? 'Чтобы изменить подтверждение, сначала завершите запись.' : 'Подтвердите это до включения микрофона или сохранения файла встречи.'}</p>
         </section>}
 
         <div className={styles.footer}>
-          <div className={styles.saveText}><CircleAlert size={16} /><span>{mode === 'draft' ? 'Черновик будет доступен для ручного заполнения.' : 'Распознавание и ИИ-обработка пока не подключены. Источник сохранится со статусом ожидания.'}</span></div>
+          <div className={styles.saveText}><CircleAlert size={16} /><span>{mode === 'draft' ? 'Черновик будет доступен для ручного заполнения.' : mode === 'record' ? 'После завершения запись будет обработана на локальном сервере. Этапы появятся на странице встречи.' : 'Распознавание и ИИ-обработка пока не подключены. Источник сохранится со статусом ожидания.'}</span></div>
           {submitError && <Alert color="red" title="Проверьте данные" className={styles.submitError}>{submitError}</Alert>}
-          <div className={styles.footerActions}><Button component={Link} to="/meetings" variant="default">Отмена</Button><Button type="submit" loading={saving} disabled={activeRecording || recorder.status === 'requesting' || recorder.status === 'finishing'}>{mode === 'draft' ? 'Создать черновик' : 'Сохранить встречу'}</Button></div>
+          <div className={styles.footerActions}><Button component={Link} to="/meetings" variant="default">Отмена</Button>{mode !== 'record' && <Button type="submit" loading={saving} disabled={activeRecording || recorder.status === 'requesting' || recorder.status === 'finishing'}>{mode === 'draft' ? 'Создать черновик' : 'Сохранить встречу'}</Button>}</div>
         </div>
       </form>
     </div>

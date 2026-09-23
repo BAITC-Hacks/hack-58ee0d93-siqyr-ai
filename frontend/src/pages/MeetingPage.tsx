@@ -6,6 +6,7 @@ import TaskEditor from '../components/TaskEditor';
 import type { Meeting, Person, Segment, Task } from '../domain/types';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { exportMeetingDocx, printMeeting } from '../lib/export';
+import { getRecordingRun, recordingEventsUrl } from '../lib/recordingApi';
 import styles from './MeetingPage.module.css';
 
 type Tab = 'summary' | 'transcript' | 'protocol' | 'tasks';
@@ -17,6 +18,42 @@ const tabs: { id: Tab; label: string; detail: string }[] = [
 ];
 const languageOptions = [{ value: 'ru', label: 'Русский' }, { value: 'kk', label: 'Қазақша' }, { value: 'mixed', label: 'Смешанный' }];
 const statusLabel = { todo: 'К выполнению', 'in-progress': 'В работе', done: 'Выполнено' };
+
+function RecordingProgress({ runId }: { runId: string }) {
+  const [status, setStatus] = useState('queued');
+  const [stages, setStages] = useState<{ seq: number; content: string }[]>([]);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let active = true;
+    const source = new EventSource(recordingEventsUrl(runId));
+    void getRecordingRun(runId).then((detail) => {
+      if (!active) return;
+      setStatus(detail.run.status);
+      setStages(detail.steps.map((step) => ({ seq: step.seq, content: step.content })));
+    }).catch((cause: unknown) => { if (active) setError(cause instanceof Error ? cause.message : 'Не удалось получить ход обработки.'); });
+    source.addEventListener('step', (event) => {
+      const step = JSON.parse((event as MessageEvent).data) as { seq: number; content: string };
+      setStages((current) => current.some((item) => item.seq === step.seq)
+        ? current : [...current, { seq: step.seq, content: step.content }].sort((a, b) => a.seq - b.seq));
+    });
+    source.addEventListener('status', (event) => {
+      const next = JSON.parse((event as MessageEvent).data) as { status: string };
+      setStatus(next.status);
+      if (['done', 'error', 'rejected'].includes(next.status)) source.close();
+    });
+    source.onerror = () => { if (active) setError('Связь с сервером прервана. Обновите страницу для повторного подключения.'); };
+    return () => { active = false; source.close(); };
+  }, [runId]);
+  const label: Record<string, string> = {
+    queued: 'В очереди', transcribing: 'Распознавание речи', running: 'Подготовка протокола',
+    awaiting_approval: 'Черновик готов к проверке', executing: 'Формирование файлов',
+    done: 'Обработка завершена', error: 'Ошибка обработки', rejected: 'Отклонено',
+  };
+  return <Alert color={status === 'error' ? 'red' : 'teal'} title={label[status] || status} className={styles.alert}>
+    {error && <p role="alert">{error}</p>}
+    <ol aria-label="Этапы обработки">{stages.map((step) => <li key={step.seq}>{step.content}</li>)}</ol>
+  </Alert>;
+}
 
 function formatDate(value: string | null) {
   if (!value) return 'Дата не указана';
@@ -134,11 +171,13 @@ export default function MeetingPage() {
     <div className={styles.backline}><Link to="/meetings"><ArrowLeft size={15} /> Все встречи</Link><span><ChevronRight size={13} /> {meeting.number ? `Встреча ${String(meeting.number).padStart(2, '0')}` : 'Встреча'}</span></div>
     <header className={styles.header}>
       <div className={styles.heading}><div className={styles.eyebrow}>{meeting.kind === 'example' ? 'ПРИМЕР · ' : 'ЛОКАЛЬНАЯ ЗАПИСЬ · '} {meeting.number ? `№ ${String(meeting.number).padStart(2, '0')}` : 'РАБОЧИЙ ДОКУМЕНТ'}</div><h1>{meeting.title}</h1><div className={styles.metadata}><span>{meeting.organization || 'Организация не указана'}</span><span className={styles.metaDot}>·</span><span>{formatDate(meeting.date)}</span><button type="button" onClick={() => setMetadataOpen(true)} aria-label="Изменить реквизиты встречи"><Pencil size={13} /> Изменить</button></div></div>
-      <div className={styles.headerActions}><Button variant="default" leftSection={<Download size={16} />} onClick={() => setExportOpen(true)}>Экспорт</Button><Button onClick={() => { setEditingTask(undefined); setTaskOpen(true); }} leftSection={<Plus size={16} />}>Поручение</Button></div>
+      {!meeting.backendRunId && <div className={styles.headerActions}><Button variant="default" leftSection={<Download size={16} />} onClick={() => setExportOpen(true)}>Экспорт</Button><Button onClick={() => { setEditingTask(undefined); setTaskOpen(true); }} leftSection={<Plus size={16} />}>Поручение</Button></div>}
     </header>
 
+    {meeting.backendRunId && <RecordingProgress runId={meeting.backendRunId} />}
+
     {(error || localError) && <Alert color="red" className={styles.alert} withCloseButton onClose={() => setLocalError('')}>{localError || error}</Alert>}
-    {pending && <div className={styles.pending}><FileAudio size={17} /><div><strong>Запись сохранена в этом браузере.</strong><span>Расшифровка появится после подключения обработки. Сводку и поручения можно заполнить вручную.</span></div></div>}
+    {pending && !meeting.backendRunId && <div className={styles.pending}><FileAudio size={17} /><div><strong>Запись сохранена в этом браузере.</strong><span>Расшифровка появится после подключения обработки. Сводку и поручения можно заполнить вручную.</span></div></div>}
 
     <div className={styles.workspace}>
       <aside className={styles.outline} aria-label="Разделы встречи"><div className={styles.railTitle}>ДОКУМЕНТ</div><nav>{tabs.map((item, index) => <button type="button" key={item.id} className={`${styles.outlineItem} ${tab === item.id ? styles.active : ''}`} onClick={() => selectTab(item.id)}><span className={styles.outlineNumber}>{String(index + 1).padStart(2, '0')}</span><span><strong>{item.label}</strong><small>{item.detail}</small></span></button>)}</nav><div className={styles.outlineFoot}>{meeting.transcript.length} реплик · {meetingTasks.length} поручений</div></aside>
