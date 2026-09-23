@@ -29,6 +29,11 @@ def _path(name: str, default: str) -> Path:
     return p if p.is_absolute() else ROOT / p
 
 
+def _resend() -> bool:
+    """RESEND_API_KEY без SMTP_HOST: почта идёт через SMTP-шлюз Resend, остальные SMTP_* — умолчания Resend."""
+    return not _env("SMTP_HOST") and bool(_env("RESEND_API_KEY"))
+
+
 @dataclass(frozen=True)
 class Settings:
     agent_mode: str = field(default_factory=lambda: _env("AGENT_MODE", "mock"))  # mock | real
@@ -91,12 +96,14 @@ class Settings:
     public_app_url: str = field(default_factory=lambda: _env("PUBLIC_APP_URL").rstrip("/"))  # пусто — без ссылки на карточку
 
     # Почта для напоминаний о сроках. Пустой SMTP_HOST — отправка выключена, напоминания остаются в /api/notifications.
-    smtp_host: str = field(default_factory=lambda: _env("SMTP_HOST"))
-    smtp_port: int = field(default_factory=lambda: _int("SMTP_PORT", 587))
+    # Быстрая проверка: только RESEND_API_KEY — SMTP-шлюз Resend (внешний сервис, только сценарные записи; без своего домена
+    # Resend шлёт с onboarding@resend.dev и только на адрес владельца аккаунта).
+    smtp_host: str = field(default_factory=lambda: _env("SMTP_HOST") or ("smtp.resend.com" if _resend() else ""))
+    smtp_port: int = field(default_factory=lambda: _int("SMTP_PORT", 465 if _resend() else 587))
     smtp_security: str = field(default_factory=lambda: _env("SMTP_SECURITY").lower())  # starttls | ssl | none; пусто — ssl для 465, иначе starttls
-    smtp_user: str = field(default_factory=lambda: _env("SMTP_USER"))
-    smtp_password: str = field(default_factory=lambda: _env("SMTP_PASSWORD"))
-    smtp_from: str = field(default_factory=lambda: _env("SMTP_FROM"))  # пусто — SMTP_USER
+    smtp_user: str = field(default_factory=lambda: _env("SMTP_USER") or ("resend" if _resend() else ""))
+    smtp_password: str = field(default_factory=lambda: _env("SMTP_PASSWORD") or (_env("RESEND_API_KEY") if _resend() else ""))
+    smtp_from: str = field(default_factory=lambda: _env("SMTP_FROM") or ("onboarding@resend.dev" if _resend() else ""))  # пусто — SMTP_USER
     notify_emails: str = field(default_factory=lambda: _env("NOTIFY_EMAILS"))  # JSON {"имя из протокола": "email"}
     notify_cc: str = field(default_factory=lambda: _env("NOTIFY_CC"))  # руководитель/куратор: копия каждого напоминания, через запятую
 

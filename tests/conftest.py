@@ -17,7 +17,8 @@ def client_factory(tmp_path, monkeypatch):
     # .env разработчика может указывать на живую Jira: тесты ходят только в httpx.MockTransport.
     # То же для почты: письма в тестах уходят только на локальный SMTP из test_mailer.py.
     for key in ("JIRA_URL", "JIRA_EMAIL", "JIRA_TOKEN", "JIRA_PROJECT", "JIRA_BOARD_ID", "JIRA_USERS", "JIRA_ALLOW_CLOUD", "PUBLIC_APP_URL",
-                "SMTP_HOST", "SMTP_PORT", "SMTP_SECURITY", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM", "NOTIFY_EMAILS", "NOTIFY_CC"):
+                "SMTP_HOST", "SMTP_PORT", "SMTP_SECURITY", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM", "NOTIFY_EMAILS", "NOTIFY_CC",
+                "RESEND_API_KEY"):
         monkeypatch.setenv(key, "")
     monkeypatch.setenv("AUTH_MODE", "disabled")
     with ExitStack() as stack:

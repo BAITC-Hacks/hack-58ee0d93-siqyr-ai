@@ -8,7 +8,8 @@ from email import message_from_bytes, policy
 import pytest
 from sqlmodel import select
 
-from backend.app.mailer import days_word, send_due
+from backend.app import config
+from backend.app.mailer import days_word, security, send_due
 from backend.app.models import EmailDelivery
 from backend.app.reminders import check_reminders
 
@@ -121,7 +122,7 @@ def test_refused_recipient_is_retried_then_given_up(client_factory, sink):
     sink.reject = {"erlan@example.test"}
     client = client_factory(**mail_settings(sink, notify_emails=json.dumps({"Ерлан Демов": "erlan@example.test"})))
     first = client.post("/api/reminders/run").json()["email"]
-    assert first["failed"] == 1 and "erlan@example.test" in first["error"]
+    assert first["failed"] == 1 and "erlan@example.test (550 no such user)" in first["error"]
     assert first["unmapped"] == ["Дана Примерова"]  # без NOTIFY_CC письмо без адреса не уходит никому
     for _ in range(3):
         client.post("/api/reminders/run")
@@ -156,6 +157,20 @@ def test_configuration_errors_are_explained(client_factory, sink):
 def test_disabled_without_smtp_host(client):
     assert client.post("/api/reminders/run").json()["email"] == {"enabled": False, "sent": 0, "failed": 0, "unmapped": []}
     assert client.get("/api/health").json()["email"] == "unconfigured"
+
+
+def test_resend_key_alone_uses_resend_smtp_gateway(monkeypatch):
+    for key in ("SMTP_HOST", "SMTP_PORT", "SMTP_SECURITY", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM"):
+        monkeypatch.setenv(key, "")
+    monkeypatch.setenv("RESEND_API_KEY", "re_test")
+    resend = config.Settings()
+    assert (resend.smtp_host, resend.smtp_port, resend.smtp_user, resend.smtp_password, resend.smtp_from) == (
+        "smtp.resend.com", 465, "resend", "re_test", "onboarding@resend.dev")
+    assert security(resend) == "ssl"
+    # Свой SMTP_HOST (relay заказчика) важнее ключа Resend: ничего из Resend не подставляется.
+    monkeypatch.setenv("SMTP_HOST", "relay.company.kz")
+    relay = config.Settings()
+    assert (relay.smtp_host, relay.smtp_port, relay.smtp_user, relay.smtp_password, relay.smtp_from) == ("relay.company.kz", 587, "", "", "")
 
 
 def test_days_word():
