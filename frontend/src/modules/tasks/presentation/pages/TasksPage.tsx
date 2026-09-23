@@ -6,8 +6,8 @@ import { AlertCircle, ArrowUpRight, CalendarClock, Pencil, Plus, Search, Trash2 
 import { Link } from 'react-router-dom';
 import { type TaskGroup as GroupId } from '../../domain/TaskBoard';
 import { isTaskStatus } from '../../domain/task.types';
+import { useServerSync } from '@/modules/runs/presentation/useServerSync';
 import { useTasksModel } from '../models/useTasksModel';
-import { ServerAssignmentsPanel } from '../../../protocol/presentation/ServerAssignmentsPanel.tsx';
 import styles from './TasksPage.module.css';
 
 
@@ -26,6 +26,8 @@ const groupLabels: Record<GroupId, string> = {
 };
 
 export default function TasksPage() {
+  const server = useServerSync();
+  const serverConnected = server.enabled;
   const { meetings, tasks, loading, error, query, setQuery, status, setStatus, owner, setOwner, meetingId, setMeetingId, editing, editorOpen, setEditorOpen, deleting, setDeleting, busyId, actionError, setActionError, remindersOpen, setRemindersOpen, reminderDays, board, meetingMap, owners, counts, reminders, missingDates, filtered, groups, openEditor, resetFilters, changeStatus, confirmDelete } = useTasksModel();
 
   return (
@@ -39,9 +41,8 @@ export default function TasksPage() {
         <Button leftSection={<Plus size={17} />} onClick={() => openEditor()} disabled={meetings.length === 0}>Добавить поручение</Button>
       </header>
 
-      <ServerAssignmentsPanel className={styles.serverRegistry} />
-
       {error && <Alert color="red" title="Не удалось загрузить данные" mb="md">{error}</Alert>}
+      {server.error && <Alert color="orange" title="Поручения с сервера не обновились" mb="md">{server.error}</Alert>}
       {actionError && <Alert color="red" title="Не удалось выполнить действие" mb="md" withCloseButton onClose={() => setActionError('')}>{actionError}</Alert>}
 
       <section className={styles.register} aria-label="Реестр поручений">
@@ -78,11 +79,12 @@ export default function TasksPage() {
                     <div className={styles.taskCell}>
                       <UnstyledButton type="button" className={styles.taskTitle} onClick={() => openEditor(task)}>{task.title}</UnstyledButton>
                       {meeting ? <Link className={styles.meetingLink} to={`/meetings/${meeting.id}`}>{meeting.title}<ArrowUpRight size={12} /></Link> : <span className={styles.meetingMissing}>Встреча удалена</span>}
+                      {task.serverId && <span className={styles.protocolTag} title="Из утверждённого протокола на сервере">Утверждённый протокол</span>}
                     </div>
                     <div className={`${styles.field} ${styles.ownerCell}`}><span className={styles.mobileLabel}>Ответственный</span><span>{task.assignee.trim() || <span className={styles.muted}>Не назначен</span>}</span></div>
                     <div className={`${styles.field} ${styles.deadlineCell}`}><span className={styles.mobileLabel}>Срок</span>{task.dueDate ? <div className={styles.deadline}><strong>{formatDate(task.dueDate)}</strong>{task.deadlineText && task.deadlineText !== formatDate(task.dueDate) && <span title="Срок в протоколе">{task.deadlineText}</span>}</div> : <div className={styles.deadline}><strong className={!task.deadlineText ? styles.muted : undefined}>{task.deadlineText || 'Срок не указан'}</strong></div>}</div>
                     <div className={`${styles.field} ${styles.statusCell}`}><span className={styles.mobileLabel}>Статус</span><Select aria-label={`Статус: ${task.title}`} className={styles.rowSelect} size="xs" data={Object.entries(statusLabels).map(([value, label]) => ({ value, label }))} value={task.status} onChange={(value) => void changeStatus(task, value)} disabled={busyId === task.id} allowDeselect={false} /></div>
-                    <Group gap={3} className={styles.rowActions} wrap="nowrap"><Button variant="subtle" size="compact-sm" aria-label={`Редактировать: ${task.title}`} title="Редактировать" onClick={() => openEditor(task)}><Pencil size={15} /></Button><Button variant="subtle" color="red" size="compact-sm" aria-label={`Удалить: ${task.title}`} title="Удалить" onClick={() => setDeleting(task)}><Trash2 size={15} /></Button></Group>
+                    <Group gap={3} className={styles.rowActions} wrap="nowrap"><Button variant="subtle" size="compact-sm" aria-label={`Редактировать: ${task.title}`} title="Редактировать" onClick={() => openEditor(task)}><Pencil size={15} /></Button>{!task.serverId && <Button variant="subtle" color="red" size="compact-sm" aria-label={`Удалить: ${task.title}`} title="Удалить" onClick={() => setDeleting(task)}><Trash2 size={15} /></Button>}</Group>
                   </div>;
                 })}
               </section>
@@ -99,7 +101,7 @@ export default function TasksPage() {
         {remindersOpen && <div className={styles.reminderBody}>
           {reminders.length === 0 ? <Text size="sm" c="dimmed">Поручений с наступившей или ближайшей точной датой нет.</Text> : reminders.map((task) => <UnstyledButton key={task.id} type="button" className={styles.reminderItem} onClick={() => openEditor(task)}><span className={styles.reminderText}>{task.title}</span><Badge variant="light" color={board.groupFor(task) === 'overdue' ? 'orange' : 'teal'}>{board.groupFor(task) === 'overdue' ? 'Дата прошла' : 'Скоро'}</Badge><span>{task.dueDate && formatDate(task.dueDate)}</span></UnstyledButton>)}
           {missingDates.length > 0 && <div className={styles.needsDates}><AlertCircle size={15} /> {missingDates.length} {missingDates.length === 1 ? 'поручению' : 'поручениям'} с текстовым сроком нужна точная дата для напоминания.</div>}
-          <Text size="xs" c="dimmed">Напоминания видны только здесь. Уведомления и сообщения не отправляются.</Text>
+          <Text size="xs" c="dimmed">{serverConnected ? 'По поручениям утверждённых протоколов сервер сам напоминает ответственным о сроках, если на нём настроена почта.' : 'Напоминания видны только здесь. Уведомления и сообщения не отправляются.'}</Text>
         </div>}
       </section>
 

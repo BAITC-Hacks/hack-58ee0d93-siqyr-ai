@@ -132,7 +132,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         with runtime().db.session() as session:
             count = len(session.exec(select(Assignment.id).where(Assignment.run_id == run.id)).all())
         return {"id": run.id, "department_id": run.department_id, "title": run.title, "meeting_date": run.meeting_date,
-                "meeting_date_verified": run.meeting_date_verified, "status": run.status, "synthetic": run.synthetic,
+                "meeting_date_verified": run.meeting_date_verified, "lang": run.lang, "status": run.status, "synthetic": run.synthetic,
                 "source_mode": run.source_mode, "assignments_count": count, "created_at": run.created_at}
 
     def raw_segments(run: Run) -> list[Segment]:
@@ -517,7 +517,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         files = {kind: f"/api/runs/{run_id}/protocol.{kind}" if run.status == "done" else None for kind in ("docx", "pdf")}
         return {"run": run_view(run), "steps": runtime().events.steps(run_id), "proposal": run.proposal, "result": run.result, "files": files,
                 "revision": (run.proposal or {}).get("revision"), "approved": run.approved, "approved_at": run.approved_at,
-                "transcript": {"source_mode": run.source_mode, "segments": run.segments},
+                "transcript": {"source_mode": run.source_mode, "segments": run.segments}, "participants": run.participants,
                 "audio": f"/api/runs/{run_id}/audio" if run.audio_path else None}
 
     @app.get("/api/runs/{run_id}/audio")

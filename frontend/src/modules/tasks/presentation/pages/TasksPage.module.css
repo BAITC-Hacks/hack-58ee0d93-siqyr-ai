@@ -46,4 +46,4 @@
 @media(max-width:530px){.heading{flex-direction:column;gap:16px}.title{font-size:27px}.heading>button{width:100%}.statusBar{gap:20px}.filters{display:grid;grid-template-columns:1fr 1fr}.search{grid-column:1/-1;min-width:0}.filterSelect{width:100%;min-width:0}.filters>button{grid-column:1/-1}.reminderHeader{padding-left:15px;padding-right:15px}.reminderBody{padding-left:15px;padding-right:15px}.reminderItem{flex-wrap:wrap}.reminderText{flex-basis:100%}}
 @media(max-width:360px){.filters{grid-template-columns:1fr}.search,.filterSelect,.filters>button{grid-column:1;min-width:0}.statusBar{flex-wrap:nowrap!important;gap:17px}}
 
-.serverRegistry { margin-bottom: 24px; }
+.protocolTag{display:inline-block;margin-top:4px;font-size:10.5px;font-weight:650;color:var(--accent);background:var(--active-bg);border-radius:4px;padding:1px 6px;width:fit-content}

@@ -1,3 +1,5 @@
+import type { RunStatus } from '../../runs/domain/run.types.ts';
+
 export type MeetingLanguage = 'ru' | 'kk' | 'mixed';
 export type MeetingKind = 'example' | 'local';
 export type MeetingStatus = 'draft' | 'ready' | 'pending';
@@ -42,6 +44,8 @@ export interface Meeting {
   readonly backendRunId?: string;
   /** Captured from the live conversation screen, including browser-only recordings. */
   readonly captureKind?: 'conversation';
+  /** Last server status seen by the sync; status above is its local register projection. */
+  runStatus?: RunStatus;
 }
 
 export type CreateMeetingInput = Pick<Meeting, 'title' | 'organization' | 'date' | 'language' | 'source' | 'backendRunId' | 'captureKind'>

@@ -4,10 +4,11 @@ import { demoRecords } from '@/infrastructure/persistence/demo/createDemoRecords
 import { MeetingService } from '@/modules/meetings/application/MeetingService';
 import { BrowserMeetingExporter } from '@/modules/meetings/infrastructure/BrowserMeetingExporter';
 import { ApiRecordingGateway } from '@/modules/recording/infrastructure/ApiRecordingGateway';
-import { ApiProtocolGateway } from '@/modules/protocol/infrastructure/ApiProtocolGateway';
 import { LOCAL_WORKSPACE_ID } from '@/modules/auth/domain/auth.types';
 import { storedAccessToken } from '@/modules/auth/infrastructure/ApiAuthGateway';
 import { BrowserRecorder } from '@/modules/recording/infrastructure/BrowserRecorder';
+import { RunSync } from '@/modules/runs/application/RunSync';
+import { ApiRunGateway } from '@/modules/runs/infrastructure/ApiRunGateway';
 import { SettingsService } from '@/modules/settings/application/SettingsService';
 import { TaskService } from '@/modules/tasks/application/TaskService';
 import type { WorkspaceServices } from '@/modules/workspace/application/WorkspaceServices';
@@ -26,16 +27,18 @@ export function createServices(principalId: string): WorkspaceServices & { close
   const localApi = host === 'localhost' || host === '127.0.0.1' || host === '::1';
   const serverBacked = localApi && principalId !== LOCAL_WORKSPACE_ID;
   const accessToken = () => storedAccessToken(window.sessionStorage);
+  const runs = serverBacked ? new ApiRunGateway(createHttpClient()) : null;
   return {
     close: () => database.close({ disableAutoOpen: false }),
     workspace: repository,
     meetings: new MeetingService(repository, identity),
-    tasks: new TaskService(repository, identity),
+    tasks: new TaskService(repository, identity, runs),
     settings: new SettingsService(repository),
     recorder: new BrowserRecorder(),
-    recordings: serverBacked ? new ApiRecordingGateway(createHttpClient(), apiUrl, accessToken) : null,
+    recordings: serverBacked && apiUrl ? new ApiRecordingGateway(createHttpClient(), apiUrl, accessToken) : null,
     chat: serverBacked ? new ApiChatGateway(createHttpClient()) : null,
-    protocols: serverBacked && apiUrl ? new ApiProtocolGateway(apiUrl, accessToken) : null,
+    runs,
+    sync: runs ? new RunSync(runs, repository) : null,
     exporter: new BrowserMeetingExporter(),
   };
 }

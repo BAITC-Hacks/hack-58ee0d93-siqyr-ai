@@ -1,6 +1,7 @@
 import { isMeetingLanguage } from '@/modules/meetings/domain/meeting.types';
 import { RecordingProgress } from '@/modules/recording/presentation/RecordingProgress';
-import { ServerProtocolPanel } from '@/modules/protocol/presentation/ServerProtocolPanel';
+import RunMeetingPage from '@/modules/runs/presentation/RunMeetingPage';
+import { useServices } from '@/modules/workspace/presentation/WorkspaceProvider';
 import TaskEditor from '@/modules/tasks/presentation/components/TaskEditor';
 import { formatDate } from '@/shared/lib/formatDate';
 import { ActionIcon, Alert, Button, Checkbox, Loader, Modal, Select, Textarea, TextInput, UnstyledButton, Table } from '@mantine/core';
@@ -26,9 +27,12 @@ function countText(count: number, forms: [string, string, string]) {
 
 export default function MeetingPage() {
   const { meeting, meetingTasks, loading, error, tab, metadataOpen, setMetadataOpen, participantsOpen, setParticipantsOpen, exportOpen, setExportOpen, includeTranscript, setIncludeTranscript, taskOpen, setTaskOpen, editingTask, setEditingTask, editingSegment, setEditingSegment, transcriptQuery, setTranscriptQuery, summaryDraft, setSummaryDraft, summaryEditing, setSummaryEditing, metadata, setMetadata, peopleDraft, setPeopleDraft, segmentDraft, setSegmentDraft, busy, localError, setLocalError, sourceUrl, selectTab, saveMeeting, startSegment, saveSegment, saveParticipants, downloadDocx, printProtocol } = useMeetingModel();
+  const { runs } = useServices();
 
   if (loading) return <div className={styles.loading}><Loader size="sm" /><span>Открываем встречу…</span></div>;
   if (!meeting) return <div className={styles.missing}><FileText size={27} /><h1>Встреча не найдена</h1><p>Запись могла быть удалена или ссылка устарела.</p><Button component={Link} to="/meetings" variant="light">К списку встреч</Button></div>;
+  // Transcript, draft and assignments of an uploaded recording live on the server.
+  if (meeting.backendRunId && runs) return <RunMeetingPage key={meeting.id} meeting={meeting} />;
 
   const filteredSegments = meeting.transcript.filter((segment) => `${segment.speaker} ${segment.role} ${segment.section || ''} ${segment.text}`.toLowerCase().includes(transcriptQuery.trim().toLowerCase()));
   const sections = [...new Set(meeting.transcript.map((segment) => segment.section).filter(Boolean))];
@@ -43,7 +47,6 @@ export default function MeetingPage() {
     </header>
 
     {meeting.backendRunId && <RecordingProgress runId={meeting.backendRunId} className={styles.alert} />}
-    {meeting.backendRunId && <ServerProtocolPanel runId={meeting.backendRunId} className={styles.alert} />}
     {(error || localError) && <Alert color="red" className={styles.alert} withCloseButton onClose={() => setLocalError('')}>{localError || error}</Alert>}
     {pending && !meeting.backendRunId && <div className={styles.pending}><FileAudio size={17} /><div><strong>Запись сохранена в этом браузере.</strong><span>Расшифровка появится после подключения обработки. Сводку и поручения можно заполнить вручную.</span></div></div>}
 

@@ -9,9 +9,11 @@ export interface Task {
   dueDate: string | null;
   status: TaskStatus;
   note: string;
+  /** Assignment of an approved server protocol: its text is fixed, only the status travels back. */
+  readonly serverId?: string;
 }
 
-export type CreateTaskInput = Omit<Task, 'id'>;
+export type CreateTaskInput = Omit<Task, 'id' | 'serverId'>;
 export type TaskChanges = Partial<CreateTaskInput>;
 
 export function isTaskStatus(value: unknown): value is TaskStatus {

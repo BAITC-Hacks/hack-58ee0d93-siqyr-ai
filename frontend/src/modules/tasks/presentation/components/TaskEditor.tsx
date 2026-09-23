@@ -63,6 +63,7 @@ export default function TaskEditor({ opened, onClose, task, meetingId }: TaskEdi
   }, [opened, task?.id, meetingId, meetings[0]?.id]);
 
   const meetingOptions = meetings.map((meeting) => ({ value: meeting.id, label: meeting.title }));
+  const fromProtocol = Boolean(task?.serverId);
 
   async function submit(values: TaskFields) {
     setSaving(true);
@@ -78,7 +79,9 @@ export default function TaskEditor({ opened, onClose, task, meetingId }: TaskEdi
       note: values.note.trim(),
     };
     try {
-      if (task) await updateTask(task.id, payload);
+      // An approved server assignment keeps its protocol wording: only status and note change here.
+      if (task?.serverId) await updateTask(task.id, { status: payload.status, note: payload.note });
+      else if (task) await updateTask(task.id, payload);
       else await createTask(payload);
       onClose();
     } catch (error) {
@@ -93,12 +96,13 @@ export default function TaskEditor({ opened, onClose, task, meetingId }: TaskEdi
       <form onSubmit={form.onSubmit(submit)}>
         <Stack gap="md">
           {saveError && <Alert color="red" title="Не удалось сохранить">{saveError}</Alert>}
-          <TextInput label="Поручение" placeholder="Что нужно сделать" required autoFocus {...form.getInputProps('title')} />
-          <Select label="Встреча" data={meetingOptions} searchable nothingFoundMessage="Встречи не найдены" required {...form.getInputProps('meetingId')} />
-          <TextInput label="Ответственный" placeholder="Можно указать позже" description="Оставьте пустым, если ответственный не назначен" {...form.getInputProps('assignee')} />
+          {fromProtocol && <Alert color="indigo" variant="light">Поручение из утверждённого протокола: текст, ответственный и срок зафиксированы. Статус «Готово» сохраняется на сервере и останавливает напоминания.</Alert>}
+          <TextInput label="Поручение" placeholder="Что нужно сделать" required autoFocus={!fromProtocol} disabled={fromProtocol} {...form.getInputProps('title')} />
+          <Select label="Встреча" data={meetingOptions} searchable nothingFoundMessage="Встречи не найдены" required disabled={fromProtocol} {...form.getInputProps('meetingId')} />
+          <TextInput label="Ответственный" placeholder="Можно указать позже" description={fromProtocol ? undefined : 'Оставьте пустым, если ответственный не назначен'} disabled={fromProtocol} {...form.getInputProps('assignee')} />
           <div className={styles.dateFields}>
-            <TextInput label="Срок из протокола" placeholder="Например: до 15 октября или к пятнице" description="Исходная формулировка сохраняется без изменений" {...form.getInputProps('deadlineText')} />
-            <DatePickerInput label="Точная дата" description="Для сортировки и напоминаний" placeholder="Выберите дату" locale="ru" valueFormat="DD.MM.YYYY" clearable value={form.values.dueDate || null} onChange={(value) => form.setFieldValue('dueDate', value || '')} />
+            <TextInput label="Срок из протокола" placeholder="Например: до 15 октября или к пятнице" description="Исходная формулировка сохраняется без изменений" disabled={fromProtocol} {...form.getInputProps('deadlineText')} />
+            <DatePickerInput label="Точная дата" description="Для сортировки и напоминаний" placeholder="Выберите дату" locale="ru" valueFormat="DD.MM.YYYY" clearable disabled={fromProtocol} value={form.values.dueDate || null} onChange={(value) => form.setFieldValue('dueDate', value || '')} />
           </div>
           <Select label="Статус" data={statusOptions} allowDeselect={false} {...form.getInputProps('status')} />
           <Textarea label="Примечание" placeholder="Детали, ссылка или ход работы" minRows={3} autosize {...form.getInputProps('note')} />

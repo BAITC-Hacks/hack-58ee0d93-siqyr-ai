@@ -40,8 +40,8 @@ upload / sample ─► STT + диаризация ─► propose() ─► awaiti
 | PATCH | `/api/runs/{id}/participants` | JSON `{participants: Participant[]}` — весь список целиком | `{run_id, participants}`; только пока `status=recording`, иначе 409; пустое имя или лишние поля → 400 |
 | POST | `/api/runs/{id}/chunks` | raw WebM bytes, `X-Chunk-Offset` = число уже подтверждённых байт | `{offset}`; последовательная запись на диск, повтор идентичного чанка идемпотентен; 409 при неверном смещении, 413 при превышении 5 МБ на чанк или MAX_UPLOAD_MB всего |
 | POST | `/api/runs/{id}/finish` | — | `{run_id, status: "queued"}`; пустая запись → 400, повтор → 409; после ответа запускается STT/propose и SSE |
-| GET | `/api/runs` | — | список запусков `{id, department_id, title, meeting_date, meeting_date_verified, status, synthetic, source_mode, assignments_count, created_at}` |
-| GET | `/api/runs/{id}` | — | `{run, steps: StepEvent[], proposal, result, files: {docx, pdf}, revision, approved, approved_at, transcript: {source_mode, segments}, audio}`; `files.*` = null до `done` |
+| GET | `/api/runs` | — | список запусков `{id, department_id, title, meeting_date, meeting_date_verified, lang, status, synthetic, source_mode, assignments_count, created_at}` |
+| GET | `/api/runs/{id}` | — | `{run, steps: StepEvent[], proposal, result, files: {docx, pdf}, revision, approved, approved_at, transcript: {source_mode, segments}, participants: Participant[], audio}`; `files.*` = null до `done` |
 | GET | `/api/runs/{id}/audio` | заголовок `Range` (опц.) | исходный файл, 206 для Range; 404 у `sample` |
 | POST | `/api/runs/{id}/events/token` | Bearer | `{token, expires_in}` — токен для `?token=` в `/events` на 5 минут, только для этого совещания; 404 без доступа к департаменту |
 | GET | `/api/runs/{id}/events` | заголовок `Authorization` **или** `?token=` из `/events/token`; `Last-Event-ID` (опц.) | SSE, см. ниже; 401 для токена чужого совещания, истёкшего, отозванного или обычного access token в `?token=` |
