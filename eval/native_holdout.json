@@ -1,0 +1,267 @@
+{
+  "split": "holdout",
+  "model": "qwen3:4b",
+  "base_url": "http://127.0.0.1:11434/v1",
+  "api": "ollama_native",
+  "format": "json",
+  "think": false,
+  "num_predict": 1024,
+  "raw": {
+    "h01": {
+      "error": "ValueError: Нет содержательного резюме.",
+      "model_responses": [
+        "{\n  \"title\": \"Ойдан шығарылған көрме\",\n  \"lang\": \"kk\",\n  \"participants\": [\n    {\n      \"name\": \"Меруерт\",\n      \"role\": null\n    }\n  ],\n  \"segments\": [\n    {\n      \"start\":  \n      \"0.0\",\n      \"end\": \n      \"6.0\",\n      \"speaker\": \"SPEAKER_00\",\n      \"text\": \"Көрменің атауы туралы ойландық, бірақ әзірше шешім де, тапсырма да жоқ.\",\n      \"lang\": \"kk\",\n      \"index\": 0\n    }\n  ]\n}",
+        "{\n  \"title\": \"Ойдан шығарылған көрме\",\n  \"lang\": \"kk\",\n  \"participants\": [\n    {\n      \"name\": \"Меру:Р\",\n      \"role\": null\n    }\n  ],\n  \"segments\": [\n    {\n      \"start\": \"0.0\",\n      \"end\": \"6.0\",\n      \"speaker\": \"SPEAKER_00\",\n      \"text\": \"Көрменің атауы туралы ойландық, бірақ әзірше шешім де, тапсырма да жоқ.\",\n      \"lang\": \"kk\",\n      \"index\": 0\n  }\n]\n}"
+      ],
+      "events": [
+        {
+          "run_id": "synthetic-h01",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:00:33.628449Z"
+        },
+        {
+          "run_id": "synthetic-h01",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:00:33.628507Z"
+        },
+        {
+          "run_id": "synthetic-h01",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Повторно запрашиваю корректный JSON.",
+          "data": {
+            "stage": "extract",
+            "attempt": 2
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:00:38.579593Z"
+        },
+        {
+          "run_id": "synthetic-h01",
+          "seq": 0,
+          "type": "error",
+          "agent": "orchestrator",
+          "content": "Не удалось подготовить протокол.",
+          "data": {
+            "stage": "extract",
+            "code": "ValueError"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:00:43.638205Z"
+        }
+      ]
+    },
+    "h02": {
+      "error": "ValueError: Нет содержательного резюме.",
+      "model_responses": [
+        "{\n  \"title\": \"Вымышленная таблица\",\n  \"lang\": \"ru\",\n  \"participants\": [\n    {\n      \"name\": \"Лазурь\",\n      \"role\": null\n    }\n  ],\n  \"segments\": [\n    {\n      \"start\": 0.0,\n      \"end\": 5.0,\n      \"speaker\": \"SPEAKER_00\",\n      \"text\": \"Лазурь, сверь таблицу сказочных птиц. Срок предлагаю 4 октября 2026 года.\",\n      \"lang\": \"ru\",\n      \"index\": 0\n    },\n    {\n      \"start\": 5.0,\n      \"end\": 10.0,\n      \"speaker\": \"SPEAKER_00\",\n      \"text\": \"Мне кажется, лучше 8 октября 2026 года, но окончательно срок не согласован.\",\n      \"lang\": \"ru\",\n      \"index\": 1\n    }\n  ]\n}",
+        "{\n  \"title\": \"Вымышленная таблица\",\n  \"lang\": \"ru\",\n  \"participants\": [\n    {\n      \"name\": \"Лазурь\",\n      \"role\": null\n    }\n  ],\n  \"segments\": [\n    {\n      \"start\": 0.0,\n      \"end\": 5.0,\n      \"speaker\": \"SPEAKER_00\",\n      \"text\": \"Лазурь, сверь таблицу сказочных птиц. Срок предлагаю 4 октября 2026 года.\",\n      \"lang\": \"ru\",\n      \"index\": 0\n    },\n    {\n      \"start\": 5.0,\n      \"end\": 10.0,\n      \"speaker\": \"SPEAKER_00\",\n      \"text\": \"Мне кажется, лучше 8 октября 2026 года, но окончательно срок не согласован.\",\n      \"lang\": \"ru\",\n      \"index\": 1\n    }\n  ]\n}"
+      ],
+      "events": [
+        {
+          "run_id": "synthetic-h02",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:00:43.638853Z"
+        },
+        {
+          "run_id": "synthetic-h02",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:00:43.638907Z"
+        },
+        {
+          "run_id": "synthetic-h02",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Повторно запрашиваю корректный JSON.",
+          "data": {
+            "stage": "extract",
+            "attempt": 2
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:00:50.143101Z"
+        },
+        {
+          "run_id": "synthetic-h02",
+          "seq": 0,
+          "type": "error",
+          "agent": "orchestrator",
+          "content": "Не удалось подготовить протокол.",
+          "data": {
+            "stage": "extract",
+            "code": "ValueError"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:00:57.041387Z"
+        }
+      ]
+    },
+    "h03": {
+      "error": "ValueError: Нет содержательного резюме.",
+      "model_responses": [
+        "{\n  \"title\": \"Қиялдағы экран\",\n  \"lang\": \"rukk\",\n  \"participants\": [\n    {\n      \"name\": \"Меруерт\",\n      \"role\": null\n    },\n    {\n      \"name\": \"Айбар\",\n      \"role\": null\n    }\n  ],\n  \"segments\": [\n    {\n      \"start\": 0.0,\n      \"end\": 5.0,\n      \"speaker\": \"SPEAKER_00\",\n      \"text\": \"Меруерт, экранның скриншоттарын 2026-10-06 дейін жина.\",\n      \"lang\": \"rukk\",\n      \"index\": 0\n    },\n    {\n      \"start\": 5.0,\n      \"end\": 10.0,\n      \"speaker\": \"SPEAKER_01\",\n      \"text\": \"Срок меняем на 2026-10-09, келісілді.\",\n      \"lang\": \"rukk\",\n      \"index\": 1\n    }\n  ]\n}",
+        "{\n  \"title\": \"Қиялдағы экран\",\n  \"lang\": \"rukk\",\n  \"participants\": [\n    {\n      \"name\": \"Меруерт\",\n      \"role\": null\n    },\n    {\n      \"name\": \"Айбар\",\n      \"role\": null\n    }\n  ],\n  \"segments\": [\n    {\n      \"start\": 0.0,\n      \"end\": 5.0,\n      \"speaker\": \"SPEAKER_00\",\n      \"text\": \"Меруерт, экранның скриншоттарын 2026-10-06 дейін жина.\",\n      \"lang\": \"rukk\",\n      \"index\": 0\n    },\n    {\n      \"start\": 5.0,\n      \"end\": 10.0,\n      \"speaker\": \"SPEAKER_01\",\n      \"text\": \"Срок меняем на 2026-10-09, келісілді.\",\n      \"lang\": \"rukk\",\n      \"index\": 1\n    }\n  ]\n}"
+      ],
+      "events": [
+        {
+          "run_id": "synthetic-h03",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:00:57.042185Z"
+        },
+        {
+          "run_id": "synthetic-h03",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:00:57.042242Z"
+        },
+        {
+          "run_id": "synthetic-h03",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Повторно запрашиваю корректный JSON.",
+          "data": {
+            "stage": "extract",
+            "attempt": 2
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:01:04.310893Z"
+        },
+        {
+          "run_id": "synthetic-h03",
+          "seq": 0,
+          "type": "error",
+          "agent": "orchestrator",
+          "content": "Не удалось подготовить протокол.",
+          "data": {
+            "stage": "extract",
+            "code": "ValueError"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:01:11.964533Z"
+        }
+      ]
+    },
+    "h04": {
+      "error": "ValueError: Нет содержательного резюме.",
+      "model_responses": [
+        "{\n  \"title\": \"Ертегі зертханасы\",\n  \"lang\": \"kk\",\n  \"participants\": [\n    {\n      \"name\": \"Айбар\",\n      \"role\": null\n    }\n  ],\n  \"segments\": [\n    {\n      \"start\":  0.0,\n      \"end\": 7.0,\n      \"speaker\": \"SPEAKER_00\",\n      \"text\": \"Қиял зертханасы ертегі шамының сызбасын жіберсін. Олардың өкілі жиналысқа қатыспайды.\",\n      \"lang\": \"kk\",\n      \"index\": 0\n    }\n  ]\n}",
+        "{\n  \"title\": \"Ертегі зертханасы\",\n  \"lang\": \"kk\",\n  \"participants\": [\n    {\n      \"name\": \"Айбар\",\n      \"role\": null\n    }\n  ],\n  \"segments\": [\n    {\n      \"start\": 0.0,\n      \"end\": 7.0,\n      \"speaker\": \"SPEAKER_00\",\n      \"text\": \"Қиял зертханасы ертегі шамының сызбасын жіберсін. Олардың өкілі жиналысқа қатыспайды.\",\n      \"lang\": \"kk\",\n      \"index\": 0\n    }\n  ]\n}"
+      ],
+      "events": [
+        {
+          "run_id": "synthetic-h04",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:01:11.965650Z"
+        },
+        {
+          "run_id": "synthetic-h04",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:01:11.965685Z"
+        },
+        {
+          "run_id": "synthetic-h04",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Повторно запрашиваю корректный JSON.",
+          "data": {
+            "stage": "extract",
+            "attempt": 2
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:01:17.083127Z"
+        },
+        {
+          "run_id": "synthetic-h04",
+          "seq": 0,
+          "type": "error",
+          "agent": "orchestrator",
+          "content": "Не удалось подготовить протокол.",
+          "data": {
+            "stage": "extract",
+            "code": "ValueError"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:01:22.469116Z"
+        }
+      ]
+    }
+  }
+}

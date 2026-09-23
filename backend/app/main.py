@@ -34,7 +34,7 @@ from .jira import register_jira_routes
 from .profile import register_profile_routes
 from .profile_models import bump_token_version
 from .reminders import assignment_view, check_reminders, reminder_loop
-from .review import ProposalError, blocking, check_proposal, confirm_reviewed, unconfirmed_speakers
+from .review import ProposalError, blocking, check_proposal, confirm_reviewed, preserve_review_metadata, unconfirmed_speakers
 from .schemas import Approval, AssignmentUpdate, DepartmentCreate, IdentityLink, Login, MembershipCreate, ProposalSave, UserCreate, UserUpdate, EcpSignature
 from .seed import seed_history
 
@@ -114,6 +114,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def edited(run: Run, draft: Proposal, current: Proposal) -> Proposal:
         """Validate a human edit against the raw transcript and bump the server revision."""
         try:
+            draft = preserve_review_metadata(draft, current)
             checked = check_proposal(draft, raw_segments(run), strict=True, date_verified=run.meeting_date_verified)
         except ProposalError as exc:
             raise HTTPException(422, str(exc)) from None

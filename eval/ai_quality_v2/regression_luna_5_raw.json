@@ -1,0 +1,809 @@
+{
+  "synthetic_only": true,
+  "model": "gpt-6-luna",
+  "provider": "openai",
+  "calls": 6,
+  "selected_cases": [
+    "ru_blurry_name",
+    "ru_same_first_name",
+    "unapproved_move",
+    "mixed_unknown_owner",
+    "two_tasks_one_segment"
+  ],
+  "input_sha256": "d1139b7308374d2edcfccc43690e9a5d8c6738e574966b4f72fd18afbbc0d27a",
+  "raw": {
+    "ru_blurry_name": {
+      "proposal": {
+        "run_id": "synthetic-v2-ru-blurry",
+        "summary": "Обсуждалась подготовка атласа облаков.",
+        "decisions": [],
+        "speakers": {},
+        "segments": [
+          {
+            "start": 0.0,
+            "end": 5.0,
+            "speaker": "SPEAKER_00",
+            "text": "я айда или айгу неразборчиво подготовлю атлас облаков к 4 октября 2026 года",
+            "lang": "ru",
+            "speaker_candidates": [],
+            "corrected_text": null,
+            "review_reasons": []
+          }
+        ],
+        "assignments": [
+          {
+            "assignee": null,
+            "task": "подготовлю атлас облаков",
+            "deadline": "2026-10-04",
+            "deadline_text": "к 4 октября 2026 года",
+            "priority": "normal",
+            "category": null,
+            "source_segments": [
+              0
+            ],
+            "deadline_candidates": [],
+            "evidence": [
+              {
+                "segment_index": 0,
+                "quote": "подготовлю атлас облаков",
+                "start": 0.0,
+                "end": 5.0,
+                "field": "task",
+                "kind": "raw_transcript"
+              },
+              {
+                "segment_index": 0,
+                "quote": "к 4 октября 2026 года",
+                "start": 0.0,
+                "end": 5.0,
+                "field": "deadline",
+                "kind": "raw_transcript"
+              },
+              {
+                "segment_index": 0,
+                "quote": "я айда",
+                "start": 0.0,
+                "end": 5.0,
+                "field": "context",
+                "kind": "raw_transcript"
+              }
+            ],
+            "review_status": "unreviewed",
+            "review_reasons": [
+              "owner_uncertain",
+              "speaker_uncertain"
+            ],
+            "review_note": null,
+            "confidence": null,
+            "assignee_candidates": [
+              "Айдана Облачная"
+            ]
+          }
+        ],
+        "revision": 1,
+        "source_mode": "mock",
+        "speaker_records": [
+          {
+            "label": "SPEAKER_00",
+            "participant_name": null,
+            "mapping_status": "unmapped",
+            "source_segments": [
+              0
+            ],
+            "candidate_names": [
+              "Айдана Облачная"
+            ],
+            "evidence": [
+              {
+                "segment_index": 0,
+                "quote": "я айда",
+                "start": 0.0,
+                "end": 5.0,
+                "field": "context",
+                "kind": "raw_transcript"
+              }
+            ],
+            "review_reasons": [
+              "speaker_uncertain"
+            ],
+            "confidence": null
+          }
+        ]
+      },
+      "events": [
+        {
+          "run_id": "synthetic-v2-ru-blurry",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:26:40.275368Z"
+        },
+        {
+          "run_id": "synthetic-v2-ru-blurry",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:26:40.275396Z"
+        },
+        {
+          "run_id": "synthetic-v2-ru-blurry",
+          "seq": 0,
+          "type": "tool_result",
+          "agent": "orchestrator",
+          "content": "Черновик проверен по исходным репликам.",
+          "data": {
+            "stage": "validate",
+            "assignments": 1,
+            "usage_available": true
+          },
+          "tokens": 1586,
+          "cost_usd": 0.0002078,
+          "ts": "2026-09-23T11:26:42.728127Z"
+        }
+      ]
+    },
+    "ru_same_first_name": {
+      "proposal": {
+        "run_id": "synthetic-v2-ru-same",
+        "summary": "Дана подготовит рисунок компаса к 5 октября 2026 года.",
+        "decisions": [],
+        "speakers": {},
+        "segments": [
+          {
+            "start": 0.0,
+            "end": 5.0,
+            "speaker": "SPEAKER_00",
+            "text": "я Дана подготовлю рисунок компаса к 5 октября 2026 года",
+            "lang": "ru",
+            "speaker_candidates": [],
+            "corrected_text": null,
+            "review_reasons": []
+          }
+        ],
+        "assignments": [
+          {
+            "assignee": null,
+            "task": "Подготовить рисунок компаса",
+            "deadline": "2026-10-05",
+            "deadline_text": "к 5 октября 2026 года",
+            "priority": "normal",
+            "category": null,
+            "source_segments": [
+              0
+            ],
+            "deadline_candidates": [],
+            "evidence": [
+              {
+                "segment_index": 0,
+                "quote": "подготовлю рисунок компаса",
+                "start": 0.0,
+                "end": 5.0,
+                "field": "task",
+                "kind": "raw_transcript"
+              },
+              {
+                "segment_index": 0,
+                "quote": "к 5 октября 2026 года",
+                "start": 0.0,
+                "end": 5.0,
+                "field": "deadline",
+                "kind": "raw_transcript"
+              },
+              {
+                "segment_index": 0,
+                "quote": "я Дана",
+                "start": 0.0,
+                "end": 5.0,
+                "field": "context",
+                "kind": "raw_transcript"
+              }
+            ],
+            "review_status": "unreviewed",
+            "review_reasons": [
+              "owner_uncertain",
+              "speaker_uncertain"
+            ],
+            "review_note": null,
+            "confidence": null,
+            "assignee_candidates": [
+              "Дана Северова",
+              "Дана Южная"
+            ]
+          }
+        ],
+        "revision": 1,
+        "source_mode": "mock",
+        "speaker_records": [
+          {
+            "label": "SPEAKER_00",
+            "participant_name": null,
+            "mapping_status": "unmapped",
+            "source_segments": [
+              0
+            ],
+            "candidate_names": [
+              "Дана Северова",
+              "Дана Южная"
+            ],
+            "evidence": [
+              {
+                "segment_index": 0,
+                "quote": "я Дана",
+                "start": 0.0,
+                "end": 5.0,
+                "field": "context",
+                "kind": "raw_transcript"
+              }
+            ],
+            "review_reasons": [
+              "speaker_uncertain"
+            ],
+            "confidence": null
+          }
+        ]
+      },
+      "events": [
+        {
+          "run_id": "synthetic-v2-ru-same",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:26:42.729254Z"
+        },
+        {
+          "run_id": "synthetic-v2-ru-same",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:26:42.729278Z"
+        },
+        {
+          "run_id": "synthetic-v2-ru-same",
+          "seq": 0,
+          "type": "tool_result",
+          "agent": "orchestrator",
+          "content": "Черновик проверен по исходным репликам.",
+          "data": {
+            "stage": "validate",
+            "assignments": 1,
+            "usage_available": true
+          },
+          "tokens": 1576,
+          "cost_usd": 0.0002084,
+          "ts": "2026-09-23T11:26:44.696884Z"
+        }
+      ]
+    },
+    "unapproved_move": {
+      "proposal": {
+        "run_id": "synthetic-v2-unapproved",
+        "summary": "Согласовано подготовить модель машины дождя к 16 октября 2026 года. Предложено перенести срок на 19 октября 2026 года, но решение по переносу не принято.",
+        "decisions": [
+          "Согласовано, что Лина Капельная подготовит модель машины дождя к 16 октября 2026 года."
+        ],
+        "speakers": {},
+        "segments": [
+          {
+            "start": 0.0,
+            "end": 5.0,
+            "speaker": "SPEAKER_00",
+            "text": "согласовано Лина Капельная подготовит модель машины дождя к 16 октября 2026 года",
+            "lang": "ru",
+            "speaker_candidates": [],
+            "corrected_text": null,
+            "review_reasons": []
+          },
+          {
+            "start": 5.0,
+            "end": 10.0,
+            "speaker": "SPEAKER_01",
+            "text": "предлагаю перенести срок той же модели машины дождя на 19 октября 2026 года решение по переносу не принято",
+            "lang": "ru",
+            "speaker_candidates": [],
+            "corrected_text": null,
+            "review_reasons": []
+          }
+        ],
+        "assignments": [
+          {
+            "assignee": "Лина Капельная",
+            "task": "подготовит модель машины дождя",
+            "deadline": "2026-10-16",
+            "deadline_text": "к 16 октября 2026 года; предлагаю перенести срок той же модели машины дождя на 19 октября 2026 года",
+            "priority": "normal",
+            "category": null,
+            "source_segments": [
+              0,
+              1
+            ],
+            "deadline_candidates": [
+              "к 16 октября 2026 года",
+              "предлагаю перенести срок той же модели машины дождя на 19 октября 2026 года"
+            ],
+            "evidence": [
+              {
+                "segment_index": 0,
+                "quote": "подготовит модель машины дождя",
+                "start": 0.0,
+                "end": 5.0,
+                "field": "task",
+                "kind": "raw_transcript"
+              },
+              {
+                "segment_index": 0,
+                "quote": "Лина Капельная",
+                "start": 0.0,
+                "end": 5.0,
+                "field": "assignee",
+                "kind": "raw_transcript"
+              },
+              {
+                "segment_index": 0,
+                "quote": "к 16 октября 2026 года",
+                "start": 0.0,
+                "end": 5.0,
+                "field": "deadline",
+                "kind": "raw_transcript"
+              },
+              {
+                "segment_index": 1,
+                "quote": "той же модели машины дождя",
+                "start": 5.0,
+                "end": 10.0,
+                "field": "context",
+                "kind": "raw_transcript"
+              },
+              {
+                "segment_index": 1,
+                "quote": "предлагаю перенести срок той же модели машины дождя на 19 октября 2026 года",
+                "start": 5.0,
+                "end": 10.0,
+                "field": "deadline",
+                "kind": "raw_transcript"
+              },
+              {
+                "segment_index": 1,
+                "quote": "решение по переносу не принято",
+                "start": 5.0,
+                "end": 10.0,
+                "field": "context",
+                "kind": "raw_transcript"
+              }
+            ],
+            "review_status": "unreviewed",
+            "review_reasons": [
+              "deadline_conflict"
+            ],
+            "review_note": null,
+            "confidence": null,
+            "assignee_candidates": []
+          }
+        ],
+        "revision": 1,
+        "source_mode": "mock",
+        "speaker_records": [
+          {
+            "label": "SPEAKER_00",
+            "participant_name": null,
+            "mapping_status": "unmapped",
+            "source_segments": [
+              0
+            ],
+            "candidate_names": [],
+            "evidence": [],
+            "review_reasons": [
+              "speaker_uncertain"
+            ],
+            "confidence": null
+          },
+          {
+            "label": "SPEAKER_01",
+            "participant_name": null,
+            "mapping_status": "unmapped",
+            "source_segments": [
+              1
+            ],
+            "candidate_names": [],
+            "evidence": [],
+            "review_reasons": [
+              "speaker_uncertain"
+            ],
+            "confidence": null
+          }
+        ]
+      },
+      "events": [
+        {
+          "run_id": "synthetic-v2-unapproved",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:26:44.697984Z"
+        },
+        {
+          "run_id": "synthetic-v2-unapproved",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:26:44.698025Z"
+        },
+        {
+          "run_id": "synthetic-v2-unapproved",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Повторно запрашиваю корректный JSON.",
+          "data": {
+            "stage": "extract",
+            "attempt": 2
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:26:47.736984Z"
+        },
+        {
+          "run_id": "synthetic-v2-unapproved",
+          "seq": 0,
+          "type": "tool_result",
+          "agent": "orchestrator",
+          "content": "Черновик проверен по исходным репликам.",
+          "data": {
+            "stage": "validate",
+            "assignments": 1,
+            "usage_available": true
+          },
+          "tokens": 2125,
+          "cost_usd": 0.0003273,
+          "ts": "2026-09-23T11:26:51.008875Z"
+        }
+      ]
+    },
+    "mixed_unknown_owner": {
+      "proposal": {
+        "run_id": "synthetic-v2-mixed-unknown",
+        "summary": "Нужно подготовить список звезд библиотеки; ответственного определят позже.",
+        "decisions": [],
+        "speakers": {},
+        "segments": [
+          {
+            "start": 0.0,
+            "end": 6.0,
+            "speaker": null,
+            "text": "кітапхана жұлдыздарының тізімін дайындау керек до пятницы ответственного кейін анықтаймыз",
+            "lang": "rukk",
+            "speaker_candidates": [],
+            "corrected_text": null,
+            "review_reasons": []
+          }
+        ],
+        "assignments": [
+          {
+            "assignee": null,
+            "task": "дайындау керек",
+            "deadline": null,
+            "deadline_text": "до пятницы",
+            "priority": "normal",
+            "category": null,
+            "source_segments": [
+              0
+            ],
+            "deadline_candidates": [],
+            "evidence": [
+              {
+                "segment_index": 0,
+                "quote": "тізімін дайындау керек",
+                "start": 0.0,
+                "end": 6.0,
+                "field": "task",
+                "kind": "raw_transcript"
+              },
+              {
+                "segment_index": 0,
+                "quote": "до пятницы",
+                "start": 0.0,
+                "end": 6.0,
+                "field": "deadline",
+                "kind": "raw_transcript"
+              },
+              {
+                "segment_index": 0,
+                "quote": "кітапхана жұлдыздарының тізімін",
+                "start": 0.0,
+                "end": 6.0,
+                "field": "context",
+                "kind": "raw_transcript"
+              },
+              {
+                "segment_index": 0,
+                "quote": "кітапхана жұлдыздарының тізімін дайындау керек до пятницы ответственного кейін анықтаймыз",
+                "start": 0.0,
+                "end": 6.0,
+                "field": "context",
+                "kind": "raw_transcript"
+              }
+            ],
+            "review_status": "unreviewed",
+            "review_reasons": [
+              "owner_uncertain",
+              "scope_incomplete",
+              "deadline_unknown",
+              "speaker_uncertain"
+            ],
+            "review_note": null,
+            "confidence": null,
+            "assignee_candidates": []
+          }
+        ],
+        "revision": 1,
+        "source_mode": "mock",
+        "speaker_records": []
+      },
+      "events": [
+        {
+          "run_id": "synthetic-v2-mixed-unknown",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:26:51.009584Z"
+        },
+        {
+          "run_id": "synthetic-v2-mixed-unknown",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:26:51.009598Z"
+        },
+        {
+          "run_id": "synthetic-v2-mixed-unknown",
+          "seq": 0,
+          "type": "tool_result",
+          "agent": "orchestrator",
+          "content": "Черновик проверен по исходным репликам.",
+          "data": {
+            "stage": "validate",
+            "assignments": 1,
+            "usage_available": true
+          },
+          "tokens": 1584,
+          "cost_usd": 0.0002112,
+          "ts": "2026-09-23T11:26:53.210951Z"
+        }
+      ]
+    },
+    "two_tasks_one_segment": {
+      "proposal": {
+        "run_id": "synthetic-v2-two-tasks",
+        "summary": "Обсудили подготовку каталога бумажных драконов и афиши выставки.",
+        "decisions": [],
+        "speakers": {
+          "SPEAKER_00": "Ина Чернильная"
+        },
+        "segments": [
+          {
+            "start": 0.0,
+            "end": 16.0,
+            "speaker": "SPEAKER_00",
+            "text": "я Ина Чернильная подготовлю каталог бумажных драконов к 10 октября 2026 года а Олеся Перова нарисует афишу выставки к 12 октября 2026 года это две отдельные задачи",
+            "lang": "ru",
+            "speaker_candidates": [],
+            "corrected_text": null,
+            "review_reasons": []
+          }
+        ],
+        "assignments": [
+          {
+            "assignee": "Ина Чернильная",
+            "task": "подготовлю каталог бумажных драконов",
+            "deadline": "2026-10-10",
+            "deadline_text": "к 10 октября 2026 года",
+            "priority": "normal",
+            "category": null,
+            "source_segments": [
+              0
+            ],
+            "deadline_candidates": [],
+            "evidence": [
+              {
+                "segment_index": 0,
+                "quote": "подготовлю каталог бумажных драконов",
+                "start": 0.0,
+                "end": 16.0,
+                "field": "task",
+                "kind": "raw_transcript"
+              },
+              {
+                "segment_index": 0,
+                "quote": "Ина Чернильная",
+                "start": 0.0,
+                "end": 16.0,
+                "field": "assignee",
+                "kind": "raw_transcript"
+              },
+              {
+                "segment_index": 0,
+                "quote": "к 10 октября 2026 года",
+                "start": 0.0,
+                "end": 16.0,
+                "field": "deadline",
+                "kind": "raw_transcript"
+              }
+            ],
+            "review_status": "unreviewed",
+            "review_reasons": [],
+            "review_note": null,
+            "confidence": null,
+            "assignee_candidates": []
+          },
+          {
+            "assignee": "Олеся Перова",
+            "task": "нарисует афишу выставки",
+            "deadline": "2026-10-12",
+            "deadline_text": "к 12 октября 2026 года",
+            "priority": "normal",
+            "category": null,
+            "source_segments": [
+              0
+            ],
+            "deadline_candidates": [],
+            "evidence": [
+              {
+                "segment_index": 0,
+                "quote": "нарисует афишу выставки",
+                "start": 0.0,
+                "end": 16.0,
+                "field": "task",
+                "kind": "raw_transcript"
+              },
+              {
+                "segment_index": 0,
+                "quote": "Олеся Перова",
+                "start": 0.0,
+                "end": 16.0,
+                "field": "assignee",
+                "kind": "raw_transcript"
+              },
+              {
+                "segment_index": 0,
+                "quote": "к 12 октября 2026 года",
+                "start": 0.0,
+                "end": 16.0,
+                "field": "deadline",
+                "kind": "raw_transcript"
+              }
+            ],
+            "review_status": "unreviewed",
+            "review_reasons": [],
+            "review_note": null,
+            "confidence": null,
+            "assignee_candidates": []
+          }
+        ],
+        "revision": 1,
+        "source_mode": "mock",
+        "speaker_records": [
+          {
+            "label": "SPEAKER_00",
+            "participant_name": "Ина Чернильная",
+            "mapping_status": "suggested",
+            "source_segments": [
+              0
+            ],
+            "candidate_names": [
+              "Ина Чернильная"
+            ],
+            "evidence": [
+              {
+                "segment_index": 0,
+                "quote": "я Ина Чернильная",
+                "start": 0.0,
+                "end": 16.0,
+                "field": "context",
+                "kind": "raw_transcript"
+              }
+            ],
+            "review_reasons": [
+              "speaker_uncertain"
+            ],
+            "confidence": null
+          }
+        ]
+      },
+      "events": [
+        {
+          "run_id": "synthetic-v2-two-tasks",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:26:53.211812Z"
+        },
+        {
+          "run_id": "synthetic-v2-two-tasks",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:26:53.211835Z"
+        },
+        {
+          "run_id": "synthetic-v2-two-tasks",
+          "seq": 0,
+          "type": "tool_result",
+          "agent": "orchestrator",
+          "content": "Черновик проверен по исходным репликам.",
+          "data": {
+            "stage": "validate",
+            "assignments": 2,
+            "usage_available": true
+          },
+          "tokens": 1759,
+          "cost_usd": 0.00028389999999999996,
+          "ts": "2026-09-23T11:26:56.505906Z"
+        }
+      ]
+    }
+  }
+}

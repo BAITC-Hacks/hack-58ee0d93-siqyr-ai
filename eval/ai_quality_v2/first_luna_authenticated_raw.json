@@ -1,0 +1,561 @@
+{
+  "synthetic_only": true,
+  "model": "gpt-6-luna",
+  "provider": "openai",
+  "calls": 12,
+  "input_sha256": "d1139b7308374d2edcfccc43690e9a5d8c6738e574966b4f72fd18afbbc0d27a",
+  "raw": {
+    "ru_self": {
+      "error": "BadRequestError: Error code: 400 - {'error': {'message': \"Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead.\", 'type': 'invalid_request_error', 'param': 'max_tokens', 'code': 'unsupported_parameter'}}",
+      "events": [
+        {
+          "run_id": "synthetic-v2-ru-self",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:27.434289Z"
+        },
+        {
+          "run_id": "synthetic-v2-ru-self",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:27.434320Z"
+        },
+        {
+          "run_id": "synthetic-v2-ru-self",
+          "seq": 0,
+          "type": "error",
+          "agent": "orchestrator",
+          "content": "Не удалось подготовить протокол.",
+          "data": {
+            "stage": "extract",
+            "code": "BadRequestError"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:32.064775Z"
+        }
+      ]
+    },
+    "ru_other_mention": {
+      "error": "BadRequestError: Error code: 400 - {'error': {'message': \"Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead.\", 'type': 'invalid_request_error', 'param': 'max_tokens', 'code': 'unsupported_parameter'}}",
+      "events": [
+        {
+          "run_id": "synthetic-v2-ru-other",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:32.065941Z"
+        },
+        {
+          "run_id": "synthetic-v2-ru-other",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:32.065981Z"
+        },
+        {
+          "run_id": "synthetic-v2-ru-other",
+          "seq": 0,
+          "type": "error",
+          "agent": "orchestrator",
+          "content": "Не удалось подготовить протокол.",
+          "data": {
+            "stage": "extract",
+            "code": "BadRequestError"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:32.635437Z"
+        }
+      ]
+    },
+    "ru_blurry_name": {
+      "error": "BadRequestError: Error code: 400 - {'error': {'message': \"Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead.\", 'type': 'invalid_request_error', 'param': 'max_tokens', 'code': 'unsupported_parameter'}}",
+      "events": [
+        {
+          "run_id": "synthetic-v2-ru-blurry",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:32.636340Z"
+        },
+        {
+          "run_id": "synthetic-v2-ru-blurry",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:32.636374Z"
+        },
+        {
+          "run_id": "synthetic-v2-ru-blurry",
+          "seq": 0,
+          "type": "error",
+          "agent": "orchestrator",
+          "content": "Не удалось подготовить протокол.",
+          "data": {
+            "stage": "extract",
+            "code": "BadRequestError"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:33.176638Z"
+        }
+      ]
+    },
+    "ru_same_first_name": {
+      "error": "BadRequestError: Error code: 400 - {'error': {'message': \"Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead.\", 'type': 'invalid_request_error', 'param': 'max_tokens', 'code': 'unsupported_parameter'}}",
+      "events": [
+        {
+          "run_id": "synthetic-v2-ru-same",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:33.177816Z"
+        },
+        {
+          "run_id": "synthetic-v2-ru-same",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:33.177874Z"
+        },
+        {
+          "run_id": "synthetic-v2-ru-same",
+          "seq": 0,
+          "type": "error",
+          "agent": "orchestrator",
+          "content": "Не удалось подготовить протокол.",
+          "data": {
+            "stage": "extract",
+            "code": "BadRequestError"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:33.694172Z"
+        }
+      ]
+    },
+    "kk_self": {
+      "error": "BadRequestError: Error code: 400 - {'error': {'message': \"Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead.\", 'type': 'invalid_request_error', 'param': 'max_tokens', 'code': 'unsupported_parameter'}}",
+      "events": [
+        {
+          "run_id": "synthetic-v2-kk-self",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:33.695592Z"
+        },
+        {
+          "run_id": "synthetic-v2-kk-self",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:33.695640Z"
+        },
+        {
+          "run_id": "synthetic-v2-kk-self",
+          "seq": 0,
+          "type": "error",
+          "agent": "orchestrator",
+          "content": "Не удалось подготовить протокол.",
+          "data": {
+            "stage": "extract",
+            "code": "BadRequestError"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:34.240993Z"
+        }
+      ]
+    },
+    "kk_other": {
+      "error": "BadRequestError: Error code: 400 - {'error': {'message': \"Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead.\", 'type': 'invalid_request_error', 'param': 'max_tokens', 'code': 'unsupported_parameter'}}",
+      "events": [
+        {
+          "run_id": "synthetic-v2-kk-other",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:34.242636Z"
+        },
+        {
+          "run_id": "synthetic-v2-kk-other",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:34.242695Z"
+        },
+        {
+          "run_id": "synthetic-v2-kk-other",
+          "seq": 0,
+          "type": "error",
+          "agent": "orchestrator",
+          "content": "Не удалось подготовить протокол.",
+          "data": {
+            "stage": "extract",
+            "code": "BadRequestError"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:34.523927Z"
+        }
+      ]
+    },
+    "mixed_external": {
+      "error": "BadRequestError: Error code: 400 - {'error': {'message': \"Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead.\", 'type': 'invalid_request_error', 'param': 'max_tokens', 'code': 'unsupported_parameter'}}",
+      "events": [
+        {
+          "run_id": "synthetic-v2-mixed-external",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:34.525523Z"
+        },
+        {
+          "run_id": "synthetic-v2-mixed-external",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:34.525593Z"
+        },
+        {
+          "run_id": "synthetic-v2-mixed-external",
+          "seq": 0,
+          "type": "error",
+          "agent": "orchestrator",
+          "content": "Не удалось подготовить протокол.",
+          "data": {
+            "stage": "extract",
+            "code": "BadRequestError"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:34.816549Z"
+        }
+      ]
+    },
+    "unknown_overlap": {
+      "error": "BadRequestError: Error code: 400 - {'error': {'message': \"Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead.\", 'type': 'invalid_request_error', 'param': 'max_tokens', 'code': 'unsupported_parameter'}}",
+      "events": [
+        {
+          "run_id": "synthetic-v2-overlap",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:34.817991Z"
+        },
+        {
+          "run_id": "synthetic-v2-overlap",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:34.818024Z"
+        },
+        {
+          "run_id": "synthetic-v2-overlap",
+          "seq": 0,
+          "type": "error",
+          "agent": "orchestrator",
+          "content": "Не удалось подготовить протокол.",
+          "data": {
+            "stage": "extract",
+            "code": "BadRequestError"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:35.101326Z"
+        }
+      ]
+    },
+    "two_tasks_one_segment": {
+      "error": "BadRequestError: Error code: 400 - {'error': {'message': \"Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead.\", 'type': 'invalid_request_error', 'param': 'max_tokens', 'code': 'unsupported_parameter'}}",
+      "events": [
+        {
+          "run_id": "synthetic-v2-two-tasks",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:35.103331Z"
+        },
+        {
+          "run_id": "synthetic-v2-two-tasks",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:35.103380Z"
+        },
+        {
+          "run_id": "synthetic-v2-two-tasks",
+          "seq": 0,
+          "type": "error",
+          "agent": "orchestrator",
+          "content": "Не удалось подготовить протокол.",
+          "data": {
+            "stage": "extract",
+            "code": "BadRequestError"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:35.398646Z"
+        }
+      ]
+    },
+    "true_deadline_conflict": {
+      "error": "BadRequestError: Error code: 400 - {'error': {'message': \"Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead.\", 'type': 'invalid_request_error', 'param': 'max_tokens', 'code': 'unsupported_parameter'}}",
+      "events": [
+        {
+          "run_id": "synthetic-v2-conflict",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:35.400130Z"
+        },
+        {
+          "run_id": "synthetic-v2-conflict",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:35.400161Z"
+        },
+        {
+          "run_id": "synthetic-v2-conflict",
+          "seq": 0,
+          "type": "error",
+          "agent": "orchestrator",
+          "content": "Не удалось подготовить протокол.",
+          "data": {
+            "stage": "extract",
+            "code": "BadRequestError"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:35.683693Z"
+        }
+      ]
+    },
+    "unapproved_move": {
+      "error": "BadRequestError: Error code: 400 - {'error': {'message': \"Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead.\", 'type': 'invalid_request_error', 'param': 'max_tokens', 'code': 'unsupported_parameter'}}",
+      "events": [
+        {
+          "run_id": "synthetic-v2-unapproved",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:35.685788Z"
+        },
+        {
+          "run_id": "synthetic-v2-unapproved",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:35.685839Z"
+        },
+        {
+          "run_id": "synthetic-v2-unapproved",
+          "seq": 0,
+          "type": "error",
+          "agent": "orchestrator",
+          "content": "Не удалось подготовить протокол.",
+          "data": {
+            "stage": "extract",
+            "code": "BadRequestError"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:35.963789Z"
+        }
+      ]
+    },
+    "mixed_unknown_owner": {
+      "error": "BadRequestError: Error code: 400 - {'error': {'message': \"Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead.\", 'type': 'invalid_request_error', 'param': 'max_tokens', 'code': 'unsupported_parameter'}}",
+      "events": [
+        {
+          "run_id": "synthetic-v2-mixed-unknown",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:35.965589Z"
+        },
+        {
+          "run_id": "synthetic-v2-mixed-unknown",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:35.965655Z"
+        },
+        {
+          "run_id": "synthetic-v2-mixed-unknown",
+          "seq": 0,
+          "type": "error",
+          "agent": "orchestrator",
+          "content": "Не удалось подготовить протокол.",
+          "data": {
+            "stage": "extract",
+            "code": "BadRequestError"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T11:21:36.298679Z"
+        }
+      ]
+    }
+  }
+}

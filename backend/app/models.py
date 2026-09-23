@@ -55,6 +55,12 @@ class Assignment(SQLModel, table=True):
     priority: str = "normal"
     category: str | None = None
     source_segments: list[int] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    evidence: list[dict] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    review_reasons: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    assignee_candidates: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    deadline_candidates: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    review_status: str = "unreviewed"
+    review_note: str | None = None
     done: bool = False
 
 

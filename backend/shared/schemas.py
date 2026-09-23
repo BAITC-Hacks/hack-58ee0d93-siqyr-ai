@@ -82,6 +82,7 @@ class AssignmentDraft(BaseModel):
     review_reasons: list[ReviewReason] = []
     review_note: str | None = None
     confidence: None = None  # калиброванной вероятности нет; показываем review_reasons
+    assignee_candidates: list[str] = Field(default_factory=list)
 
 
 class Speaker(BaseModel):
@@ -89,6 +90,10 @@ class Speaker(BaseModel):
     participant_name: str | None = None
     mapping_status: Literal["unmapped", "suggested", "confirmed"] = "suggested"
     source_segments: list[int] = []
+    candidate_names: list[str] = Field(default_factory=list)
+    evidence: list[Evidence] = Field(default_factory=list)
+    review_reasons: list[str] = Field(default_factory=list)
+    confidence: None = None
 
 
 class Proposal(BaseModel):
