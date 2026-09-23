@@ -15,8 +15,10 @@ from .models import Run
 def pdf_font(settings: Settings) -> Path:
     candidates = [Path(settings.pdf_font_path)] if settings.pdf_font_path else []
     candidates += [Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
-                   Path("/usr/local/share/fonts/DejaVuSans.ttf"), Path("C:/Windows/Fonts/DejaVuSans.ttf"),
-                   Path("C:/Windows/Fonts/arial.ttf")]
+                   Path("/usr/local/share/fonts/DejaVuSans.ttf"),
+                   Path("/System/Library/Fonts/Supplemental/Georgia.ttf"),
+                   Path("/System/Library/Fonts/Supplemental/Arial Unicode.ttf"),
+                   Path("C:/Windows/Fonts/DejaVuSans.ttf"), Path("C:/Windows/Fonts/arial.ttf")]
     required = set(map(ord, "әғқңөұүһіӘҒҚҢӨҰҮҺІ"))
     for path in candidates:
         if path.is_file():
