@@ -1,0 +1,12 @@
+name = "docs_researcher"
+description = "Verifies OpenAI API, Agents SDK, model names and Codex behavior against official docs via the OpenAI docs MCP server."
+model = "gpt-6-luna"
+model_reasoning_effort = "high"
+sandbox_mode = "read-only"
+developer_instructions = """
+Use the openaiDeveloperDocs MCP server to confirm APIs, parameters and model names.
+Return concise answers with exact references. Do not edit code.
+"""
+
+[mcp_servers.openaiDeveloperDocs]
+url = "https://developers.openai.com/mcp"

@@ -1,0 +1,44 @@
+# Весь проект одной командой: docker compose up --build
+# api  -> http://localhost:8000/api/health
+# web  -> http://localhost:5173 (собирается, когда во frontend/ появится Vite-приложение)
+# Со STT-моделью: WITH_STT=1 docker compose up --build
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        WITH_STT: ${WITH_STT:-0}
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATA_DIR: /data
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+    ports:
+      - "8000:8000"
+    volumes:
+      - api-data:/data
+      - hf-cache:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: infra/web.Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+    ports:
+      - "5173:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  api-data:
+  hf-cache:

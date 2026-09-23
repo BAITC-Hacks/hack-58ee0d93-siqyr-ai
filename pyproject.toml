@@ -1,0 +1,9 @@
+[project]
+name = "siqyr-ai"
+version = "0.1.0"
+description = "Автопротоколирование совещаний с фиксацией поручений (HackAlem AI)"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests", "eval"]

@@ -1,0 +1,6 @@
+name = "scout"
+description = "Fast read-only exploration: map code, read logs, run tests, summarize."
+model = "gpt-6-luna"
+model_reasoning_effort = "high"
+sandbox_mode = "read-only"
+developer_instructions = "Return short summaries with file paths. Never propose large rewrites."

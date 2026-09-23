@@ -1,0 +1,14 @@
+name = "ui_tester"
+description = "Walks the demo path in a real browser with Playwright and reports what the UI actually does."
+model = "gpt-6-sol"
+model_reasoning_effort = "medium"
+sandbox_mode = "workspace-write"
+developer_instructions = """
+Follow docs/DEMO.md step by step against the URL you are given.
+Report exact failures and console errors, and save screenshots under tmp/screens/.
+Do not edit application code.
+"""
+
+[mcp_servers.playwright]
+command = "npx"
+args = ["@playwright/mcp@latest"]
