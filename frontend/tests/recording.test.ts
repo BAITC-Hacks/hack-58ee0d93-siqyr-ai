@@ -83,3 +83,29 @@ test('pause time is excluded, stop produces a blob, and cleanup permits reuse', 
     assert.equal(recorder.getSnapshot().status, 'recording');
   } finally { recorder.discard(); }
 });
+
+test('streaming sends chunks in order, drain waits for the last one, and a failed chunk stops recording', async () => {
+  const media = stream();
+  const captured = fakeRecorder();
+  const platform: RecorderPlatform = { supported: () => true, requestStream: async () => media.value, createRecorder: () => captured as unknown as MediaRecorder, now: () => 0 };
+  const recorder = new BrowserRecorder(platform);
+  const sent: string[] = [];
+  try {
+    await recorder.start(async (chunk) => { await Promise.resolve(); sent.push(await chunk.text()); });
+    captured.ondataavailable?.({ data: new Blob(['one']) });
+    captured.ondataavailable?.({ data: new Blob(['two']) });
+    recorder.stop();
+    await recorder.drain();
+    assert.deepEqual(sent, ['one', 'two', 'audio']);
+    assert.equal(await recorder.getSnapshot().blob?.text(), 'onetwoaudio');
+
+    const failing = fakeRecorder();
+    const broken = new BrowserRecorder({ ...platform, createRecorder: () => failing as unknown as MediaRecorder });
+    await broken.start(async () => { throw new Error('offline'); });
+    failing.ondataavailable?.({ data: new Blob(['lost']) });
+    await assert.rejects(broken.drain(), /offline/);
+    assert.equal(failing.state, 'inactive');
+    assert.match(broken.getSnapshot().error, /сервер/);
+    broken.discard();
+  } finally { recorder.discard(); }
+});

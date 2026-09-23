@@ -37,9 +37,11 @@ export interface Meeting {
   readonly createdAt: string;
   readonly number?: number;
   source?: MeetingSource;
+  /** Server run that transcribes the recording streamed from this browser. */
+  readonly backendRunId?: string;
 }
 
-export type CreateMeetingInput = Pick<Meeting, 'title' | 'organization' | 'date' | 'language' | 'source'>;
+export type CreateMeetingInput = Pick<Meeting, 'title' | 'organization' | 'date' | 'language' | 'source' | 'backendRunId'>;
 export type MeetingChanges = Partial<Pick<Meeting, 'title' | 'organization' | 'date' | 'language' | 'summary'>>;
 export type SegmentInput = Omit<Segment, 'id'> & { id?: string };
 

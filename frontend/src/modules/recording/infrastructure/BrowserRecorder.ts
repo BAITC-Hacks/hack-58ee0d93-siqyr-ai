@@ -1,4 +1,4 @@
-import type { Recorder, RecorderSnapshot } from '../application/Recorder.ts';
+import type { Recorder, RecorderSnapshot, RecordingSink } from '../application/Recorder.ts';
 
 const MAX_RECORDING_BYTES = 100 * 1024 * 1024;
 const emptySnapshot = (): RecorderSnapshot => ({ status: 'idle', blob: null, elapsedMs: 0, error: '' });
@@ -31,6 +31,10 @@ export class BrowserRecorder implements Recorder {
   private recordedMs = 0;
   private requestId = 0;
   private timer: ReturnType<typeof setInterval> | undefined;
+  private uploads: Promise<void> = Promise.resolve();
+  private uploadError: unknown = null;
+  private stopped: Promise<void> = Promise.resolve();
+  private markStopped: () => void = () => {};
 
   constructor(platform: RecorderPlatform = browserPlatform) { this.platform = platform; }
 
@@ -41,7 +45,7 @@ export class BrowserRecorder implements Recorder {
     return () => { this.listeners.delete(listener); };
   };
 
-  start = async (): Promise<void> => {
+  start = async (sink?: RecordingSink): Promise<void> => {
     this.discard();
     if (!this.platform.supported()) {
       this.publish({ error: 'Запись с микрофона не поддерживается в этом браузере. Загрузите готовый файл.' });
@@ -55,8 +59,11 @@ export class BrowserRecorder implements Recorder {
       this.stream = stream;
       const recorder = this.platform.createRecorder(stream);
       this.recorder = recorder;
+      this.stopped = new Promise<void>((resolve) => { this.markStopped = resolve; });
       recorder.ondataavailable = (event) => {
-        if (requestId === this.requestId && event.data.size > 0) this.chunks.push(event.data);
+        if (requestId !== this.requestId || event.data.size === 0) return;
+        this.chunks.push(event.data);
+        if (sink) this.upload(sink, event.data, requestId);
       };
       recorder.onerror = () => {
         if (requestId !== this.requestId) return;
@@ -69,7 +76,9 @@ export class BrowserRecorder implements Recorder {
         this.chunks = [];
         this.recorder = null;
         this.release();
-        if (blob.size === 0) this.publish({ status: 'idle', error: 'Запись пуста. Запишите звук ещё раз.' });
+        this.markStopped();
+        if (this.uploadError) this.publish({ status: 'idle', blob, error: 'Не удалось отправить звук на сервер. Проверьте, что бэкенд запущен, и запишите снова.' });
+        else if (blob.size === 0) this.publish({ status: 'idle', error: 'Запись пуста. Запишите звук ещё раз.' });
         else if (blob.size > MAX_RECORDING_BYTES) this.publish({ status: 'idle', error: 'Запись превышает 100 МБ. Сделайте запись короче.' });
         else this.publish({ status: 'complete', blob });
       };
@@ -113,8 +122,18 @@ export class BrowserRecorder implements Recorder {
     this.release();
   };
 
+  drain = async (): Promise<void> => {
+    await this.stopped;
+    await this.uploads;
+    if (this.uploadError) throw this.uploadError instanceof Error ? this.uploadError : new Error('Не удалось отправить звук на сервер.');
+  };
+
   discard = (): void => {
     this.requestId += 1;
+    this.markStopped();
+    this.stopped = Promise.resolve();
+    this.uploads = Promise.resolve();
+    this.uploadError = null;
     const recorder = this.recorder;
     this.recorder = null;
     if (recorder) {
@@ -130,6 +149,15 @@ export class BrowserRecorder implements Recorder {
     this.snapshot = emptySnapshot();
     this.listeners.forEach((listener) => listener());
   };
+
+  private upload(sink: RecordingSink, chunk: Blob, requestId: number): void {
+    // Chunks go one after another: the server appends them at the offset it confirmed last.
+    this.uploads = this.uploads.then(() => this.uploadError || requestId !== this.requestId ? undefined : sink(chunk)).catch((cause: unknown) => {
+      if (requestId !== this.requestId || this.uploadError) return;
+      this.uploadError = cause;
+      this.stop();
+    });
+  }
 
   private publish(patch: Partial<RecorderSnapshot>): void {
     this.snapshot = { ...this.snapshot, ...patch };

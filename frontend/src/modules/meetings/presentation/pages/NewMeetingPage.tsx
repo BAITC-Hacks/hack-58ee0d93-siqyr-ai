@@ -14,7 +14,7 @@ function formatDuration(ms: number) {
 }
 
 export default function NewMeetingPage() {
-  const { recorder, mode, file, fileError, consent, setConsent, submitError, setSubmitError, saving, previewUrl, fileInputRef, form, onFileChange, changeMode, onSave, activeRecording, sourceForPreview, showConsent } = useNewMeetingModel();
+  const { recorder, streaming, beginRecording, finishRecording, mode, file, fileError, consent, setConsent, submitError, setSubmitError, saving, previewUrl, fileInputRef, form, onFileChange, changeMode, onSave, activeRecording, sourceForPreview, showConsent } = useNewMeetingModel();
 
   return (
     <div className={styles.page}>
@@ -53,10 +53,10 @@ export default function NewMeetingPage() {
               <div className={styles.recorderLine}>
                 <div className={styles.recordStatus}><span className={activeRecording ? styles.liveDot : styles.quietDot} /> <strong>{recorder.status === 'requesting' ? 'Ожидание микрофона…' : recorder.status === 'finishing' ? 'Завершение записи…' : recorder.status === 'recording' ? 'Идёт запись' : recorder.status === 'paused' ? 'На паузе' : recorder.status === 'complete' ? 'Запись готова' : 'Микрофон готов к записи'}</strong><span className={styles.timer}>{formatDuration(recorder.elapsedMs)}</span></div>
                 <div className={styles.recordActions}>
-                  {(recorder.status === 'idle' || recorder.status === 'complete') && <Button type="button" leftSection={<Mic2 size={16} />} variant="light" onClick={() => { if (!consent) { setSubmitError('Сначала подтвердите, что участники уведомлены о записи.'); return; } setSubmitError(''); void recorder.start(); }}>Начать запись</Button>}
+                  {(recorder.status === 'idle' || recorder.status === 'complete') && <Button type="button" leftSection={<Mic2 size={16} />} variant="light" loading={saving} onClick={() => void beginRecording()}>Начать запись</Button>}
                   {recorder.status === 'recording' && <Button type="button" variant="default" leftSection={<Pause size={15} />} onClick={recorder.pause}>Пауза</Button>}
                   {recorder.status === 'paused' && <Button type="button" variant="default" leftSection={<Play size={15} />} onClick={recorder.resume}>Продолжить</Button>}
-                  {activeRecording && <Button type="button" variant="default" leftSection={<Square size={14} />} onClick={recorder.stop}>Завершить</Button>}
+                  {activeRecording && <Button type="button" variant="default" leftSection={<Square size={14} />} loading={saving} onClick={() => void finishRecording()}>Завершить</Button>}
                   {(activeRecording || recorder.status === 'complete') && <Button type="button" variant="subtle" color="gray" onClick={recorder.discard}>Удалить</Button>}
                 </div>
               </div>
@@ -74,9 +74,9 @@ export default function NewMeetingPage() {
         </section>}
 
         <div className={styles.footer}>
-          <div className={styles.saveText}><CircleAlert size={16} /><span>{mode === 'draft' ? 'Черновик будет доступен для ручного заполнения.' : 'Распознавание и ИИ-обработка пока не подключены. Источник сохранится со статусом ожидания.'}</span></div>
+          <div className={styles.saveText}><CircleAlert size={16} /><span>{mode === 'draft' ? 'Черновик будет доступен для ручного заполнения.' : mode === 'record' && streaming ? 'Звук уходит на локальный сервер во время записи. После «Завершить» начнётся распознавание, этапы появятся на странице встречи.' : 'Распознавание и ИИ-обработка пока не подключены. Источник сохранится со статусом ожидания.'}</span></div>
           {submitError && <Alert color="red" title="Проверьте данные" className={styles.submitError}>{submitError}</Alert>}
-          <div className={styles.footerActions}><Button component={Link} to="/meetings" variant="default">Отмена</Button><Button type="submit" loading={saving} disabled={activeRecording || recorder.status === 'requesting' || recorder.status === 'finishing'}>{mode === 'draft' ? 'Создать черновик' : 'Сохранить встречу'}</Button></div>
+          <div className={styles.footerActions}><Button component={Link} to="/meetings" variant="default">Отмена</Button>{!(mode === 'record' && streaming) && <Button type="submit" loading={saving} disabled={activeRecording || recorder.status === 'requesting' || recorder.status === 'finishing'}>{mode === 'draft' ? 'Создать черновик' : 'Сохранить встречу'}</Button>}</div>
         </div>
       </form>
     </div>

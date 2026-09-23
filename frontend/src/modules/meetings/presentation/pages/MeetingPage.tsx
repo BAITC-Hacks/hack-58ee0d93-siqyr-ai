@@ -1,4 +1,5 @@
 import { isMeetingLanguage } from '@/modules/meetings/domain/meeting.types';
+import { RecordingProgress } from '@/modules/recording/presentation/RecordingProgress';
 import TaskEditor from '@/modules/tasks/presentation/components/TaskEditor';
 import { formatDate } from '@/shared/lib/formatDate';
 import { Alert, Button, Checkbox, Loader, Modal, Select, Textarea, TextInput } from '@mantine/core';
@@ -33,8 +34,9 @@ export default function MeetingPage() {
       <div className={styles.headerActions}><Button variant="default" leftSection={<Download size={16} />} onClick={() => setExportOpen(true)}>Экспорт</Button><Button onClick={() => { setEditingTask(undefined); setTaskOpen(true); }} leftSection={<Plus size={16} />}>Поручение</Button></div>
     </header>
 
+    {meeting.backendRunId && <RecordingProgress runId={meeting.backendRunId} className={styles.alert} />}
     {(error || localError) && <Alert color="red" className={styles.alert} withCloseButton onClose={() => setLocalError('')}>{localError || error}</Alert>}
-    {pending && <div className={styles.pending}><FileAudio size={17} /><div><strong>Запись сохранена в этом браузере.</strong><span>Расшифровка появится после подключения обработки. Сводку и поручения можно заполнить вручную.</span></div></div>}
+    {pending && !meeting.backendRunId && <div className={styles.pending}><FileAudio size={17} /><div><strong>Запись сохранена в этом браузере.</strong><span>Расшифровка появится после подключения обработки. Сводку и поручения можно заполнить вручную.</span></div></div>}
 
     <div className={styles.workspace}>
       <aside className={styles.outline} aria-label="Разделы встречи"><div className={styles.railTitle}>ДОКУМЕНТ</div><nav>{tabs.map((item, index) => <button type="button" key={item.id} className={`${styles.outlineItem} ${tab === item.id ? styles.active : ''}`} onClick={() => selectTab(item.id)}><span className={styles.outlineNumber}>{String(index + 1).padStart(2, '0')}</span><span><strong>{item.label}</strong><small>{item.detail}</small></span></button>)}</nav><div className={styles.outlineFoot}>{meeting.transcript.length} реплик · {meetingTasks.length} поручений</div></aside>
