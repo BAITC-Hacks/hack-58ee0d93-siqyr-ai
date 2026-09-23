@@ -50,8 +50,15 @@ class Runtime:
             return
         if not self.settings.llm_base_url:
             raise ValueError("Для реальных агентов задайте LLM_BASE_URL; облачного fallback нет.")
-        if urlsplit(self.settings.llm_base_url).hostname == "api.openai.com" and not run.synthetic:
-            raise ValueError("OpenAI API разрешён только для синтетических запусков.")
+        endpoint = urlsplit(self.settings.llm_base_url)
+        if endpoint.scheme in {"http", "https"} and endpoint.hostname in {"127.0.0.1", "localhost", "::1"}:
+            return
+        # synthetic is set by the server only for its built-in demo fixture;
+        # uploaded files are never trusted just because a client calls them mock.
+        if (endpoint.scheme == "https" and endpoint.hostname == "api.openai.com"
+                and run.synthetic and not run.audio_path):
+            return
+        raise ValueError("Внешний LLM разрешён только для проверенных синтетических запусков; реальные встречи обрабатывайте локально.")
 
     def get_run(self, run_id: str) -> Run:
         with self.db.session() as session:

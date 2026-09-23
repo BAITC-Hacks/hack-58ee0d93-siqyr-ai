@@ -112,6 +112,24 @@ def test_llm_never_falls_back_to_openai(client, monkeypatch):
         runtime.guard_llm_destination(Run(title="Реальная встреча", meeting_date=date(2026, 9, 23), synthetic=False))
 
 
+def test_llm_destination_rejects_external_uploads(client):
+    runtime = client.app.state.runtime
+    real = Run(title="Загруженная встреча", meeting_date=date(2026, 9, 23), audio_path="/tmp/test.wav")
+    demo = Run(title="Серверный образец", meeting_date=date(2026, 9, 23), synthetic=True)
+    for url in ("https://example.com/v1", "http://192.0.2.1:8000/v1", "http://localhost.example.com/v1"):
+        runtime.settings = replace(runtime.settings, agent_mode="real", llm_base_url=url)
+        with pytest.raises(ValueError, match="Внешний LLM"):
+            runtime.guard_llm_destination(real)
+        with pytest.raises(ValueError, match="Внешний LLM"):
+            runtime.guard_llm_destination(demo)
+    runtime.settings = replace(runtime.settings, llm_base_url="https://api.openai.com/v1")
+    with pytest.raises(ValueError, match="синтетических"):
+        runtime.guard_llm_destination(real)
+    runtime.guard_llm_destination(demo)
+    runtime.settings = replace(runtime.settings, llm_base_url="http://127.0.0.1:11434/v1")
+    runtime.guard_llm_destination(real)
+
+
 def test_reminders_next_day_and_window(client_factory):
     client = client_factory(seed=True, remind_days_before=2)
     db = client.app.state.runtime.db
