@@ -28,7 +28,7 @@ upload / sample ─► STT + диаризация ─► propose() ─► awaiti
 - Системный администратор создаёт департаменты через `POST /api/admin/departments` `{id, name, organization_id?, parent_id?}`, пользователей через `POST /api/admin/users` `{username, display_name, password?, is_system_admin?}`, назначает роль через `POST /api/admin/memberships` `{user_id, department_id, role}` и привязывает внешний идентификатор через `POST /api/admin/identities` `{user_id, provider: "keycloak"|"ecp", subject}`.
 - `PATCH /api/admin/users/{id}` с `{active?, password?}` отключает/включает пользователя или меняет его пароль. Отключение немедленно делает ранее выданный JWT непригодным.
 - `POST /api/auth/ecp/challenge` возвращает `{challenge_id, data_base64, expires_at}`; клиент подписывает именно `data_base64` через NCALayer. `POST /api/auth/ecp/verify` принимает `{challenge_id, cms}`. Backend запрашивает доверенный `ECP_VERIFY_URL`; проверяющий сервис обязан подтвердить CMS, цепочку/срок сертификата, отзыв и точное совпадение исходного payload. Только после этого выдаётся одноразовый локальный JWT для заранее привязанного `ecp` subject. Без сервиса — 503.
-- Нативный браузерный `EventSource` не умеет добавлять заголовок Bearer; фронтенд читает SSE через `fetch` с Authorization и разбирает те же `event/id/data`.
+- Нативный браузерный `EventSource` не умеет добавлять заголовок Bearer. Для него есть `POST /api/runs/{id}/events/token` → `{token, expires_in: 300}`, затем `new EventSource('/api/runs/{id}/events?token=' + token)`. Токен привязан к одному совещанию, живёт 5 минут и проверяется только при подключении: открытый поток живёт дольше. Как Bearer для других маршрутов токен не годится. Смена пароля и отключение пользователя его отзывают, права департамента проверяются заново при каждом подключении. В access-логе uvicorn значение маскируется (`token=***`). Если `EventSource` закрылся (`readyState=CLOSED`, например 401 после 5 минут при переподключении), клиент берёт новый токен и открывает новый `EventSource`; уже полученные шаги повторятся, их отбрасывают по `seq`. Чтение SSE через `fetch` с Authorization тоже работает.
 
 | Метод | Путь | Вход | Выход |
 |---|---|---|---|
@@ -43,7 +43,8 @@ upload / sample ─► STT + диаризация ─► propose() ─► awaiti
 | GET | `/api/runs` | — | список запусков `{id, department_id, title, meeting_date, meeting_date_verified, status, synthetic, source_mode, assignments_count, created_at}` |
 | GET | `/api/runs/{id}` | — | `{run, steps: StepEvent[], proposal, result, files: {docx, pdf}, revision, approved, approved_at, transcript: {source_mode, segments}, audio}`; `files.*` = null до `done` |
 | GET | `/api/runs/{id}/audio` | заголовок `Range` (опц.) | исходный файл, 206 для Range; 404 у `sample` |
-| GET | `/api/runs/{id}/events` | заголовок `Last-Event-ID` (опц.) | SSE, см. ниже |
+| POST | `/api/runs/{id}/events/token` | Bearer | `{token, expires_in}` — токен для `?token=` в `/events` на 5 минут, только для этого совещания; 404 без доступа к департаменту |
+| GET | `/api/runs/{id}/events` | заголовок `Authorization` **или** `?token=` из `/events/token`; `Last-Event-ID` (опц.) | SSE, см. ниже; 401 для токена чужого совещания, истёкшего, отозванного или обычного access token в `?token=` |
 | PUT | `/api/runs/{id}/proposal` | `{expected_revision: int, proposal: Proposal}` | `{revision, proposal}`; 409 чужая редакция/статус, 422 ссылка или цитата не из транскрипта |
 | POST | `/api/runs/{id}/approve` | `{approved: bool, expected_revision?: int, comment?: str, proposal?: Proposal}` | `{status, revision}`; 409 `code=review_required` + `assignments` |
 | GET | `/api/runs/{id}/protocol.docx` | — | файл из утверждённого snapshot; 409 до `done` |
