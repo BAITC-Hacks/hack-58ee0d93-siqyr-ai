@@ -6,10 +6,10 @@ import type { ChatGateway, ChatConversation, ChatMessage } from '../application/
 function explain(error: unknown): Error {
   if (error instanceof HttpError) {
     if (error.status === 401) return new Error('Для чата войдите в аккаунт локального сервера.');
-    if (error.status === 503) return new Error('Локальные модели RAG или LLM не готовы. Проверьте настройку сервера.');
-    return new Error(`Сервер чата недоступен (${error.status ?? 'сеть'}).`);
+    if (error.status === 503) return new Error('Чат сейчас недоступен. Попробуйте позже.');
+    return new Error('Не удалось связаться с чатом. Проверьте подключение и попробуйте снова.');
   }
-  return error instanceof Error ? error : new Error('Не удалось выполнить запрос чата.');
+  return new Error('Не удалось выполнить действие в чате. Попробуйте снова.');
 }
 
 export class ApiChatGateway implements ChatGateway {
@@ -38,7 +38,7 @@ export class ApiChatGateway implements ChatGateway {
   }
 
   async sync(meetings: Meeting[], tasks: Task[]): Promise<void> {
-    const body = { meetings: meetings.map((meeting) => ({
+    const body = { meetings: meetings.filter((meeting) => meeting.kind !== 'example').map((meeting) => ({
       id: meeting.id, title: meeting.title, status: meeting.status, date: meeting.date, summary: meeting.summary,
       transcript: meeting.transcript.map(({ id, speaker, text }) => ({ id, speaker, text })),
       tasks: tasks.filter((task) => task.meetingId === meeting.id).map(({ title, assignee, deadlineText, status }) =>

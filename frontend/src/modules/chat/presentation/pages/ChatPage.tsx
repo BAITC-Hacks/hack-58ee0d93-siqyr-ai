@@ -153,7 +153,7 @@ export default function ChatPage() {
         </div> : <div className={styles.welcome}>
           <div className={styles.welcomeIcon}><BookOpenText size={27} strokeWidth={1.6} /></div>
           <Title order={1}>Что хотите узнать о встречах?</Title>
-          <Text c="dimmed">Задайте вопрос о решениях и поручениях. Ответы будут сопровождаться фрагментами исходных встреч.</Text>
+          <Text c="dimmed">Задайте вопрос о ваших встречах. Ответы могут содержать фрагменты записей и протоколов; демонстрационные примеры не используются.</Text>
           <div className={styles.suggestions}>{suggestions.map((suggestion) => <UnstyledButton type="button" key={suggestion} onClick={() => setQuestion(suggestion)} className={styles.suggestion}>{suggestion}</UnstyledButton>)}</div>
         </div>}
       </div>
@@ -164,7 +164,7 @@ export default function ChatPage() {
           <Textarea aria-label="Вопрос по встречам" placeholder="Спросите о встречах..." autosize minRows={1} maxRows={6} variant="unstyled" value={question} onChange={(event) => setQuestion(event.currentTarget.value)} onKeyDown={onQuestionKeyDown} className={styles.input} />
           <div className={styles.composerBottom}><Text size="xs" c="dimmed">Enter — отправить · Shift+Enter — новая строка</Text><ActionIcon type="submit" size={34} radius="md" loading={busy} disabled={!question.trim() || loading || busy} aria-label="Отправить вопрос"><ArrowUp size={19} /></ActionIcon></div>
         </form>
-        <Text size="xs" c="dimmed" ta="center" className={styles.disclaimer}>Ответ формируется локально. Проверяйте его по источникам встреч.</Text>
+        <Text size="xs" c="dimmed" ta="center" className={styles.disclaimer}>Проверяйте ответы по источникам встреч.</Text>
       </div>
     </section>
     <Modal opened={Boolean(renaming)} onClose={() => setRenaming(null)} title="Переименовать чат" centered size="sm">

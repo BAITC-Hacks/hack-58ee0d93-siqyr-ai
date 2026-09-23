@@ -40,7 +40,8 @@ if [ "$API_ONLY" = 0 ] && port_busy 5174; then echo "Порт 5174 занят: �
 
 PIDS=()
 RAG_SOCKET=""
-cleanup() { for pid in "${PIDS[@]:-}"; do kill "$pid" 2>/dev/null || true; done; wait 2>/dev/null || true; if [ -n "$RAG_SOCKET" ]; then rm -f "$RAG_SOCKET"; fi; }
+RAG_OWN_SOCKET=0
+cleanup() { for pid in "${PIDS[@]:-}"; do kill "$pid" 2>/dev/null || true; done; wait 2>/dev/null || true; if [ "$RAG_OWN_SOCKET" = 1 ]; then rm -f "$RAG_SOCKET"; fi; }
 trap cleanup EXIT INT TERM
 
 if [ "$WITH_RAG" = 1 ]; then
@@ -55,6 +56,7 @@ if [ "$WITH_RAG" = 1 ]; then
   umask 077
   "$VPY" -m uvicorn backend.agents.rag_service:app --uds "$RAG_SOCKET" --workers 1 &
   PIDS+=($!)
+  RAG_OWN_SOCKET=1
   for _ in $(seq 1 60); do [ -S "$RAG_SOCKET" ] && break; sleep 0.5; done
   if [ ! -S "$RAG_SOCKET" ]; then echo "AI-сервис RAG не запустился." >&2; exit 1; fi
   echo "RAG AI: Unix socket $RAG_SOCKET"

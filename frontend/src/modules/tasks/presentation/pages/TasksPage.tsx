@@ -33,7 +33,7 @@ export default function TasksPage() {
         <div>
           <div className={styles.eyebrow}>РАБОЧИЙ РЕЕСТР</div>
           <Title order={1} className={styles.title}>Поручения</Title>
-          <Text className={styles.subtitle}>Решения из встреч, ответственные и сроки в одном списке.</Text>
+          <Text className={styles.subtitle}>Поручения из ваших встреч, ответственные и сроки. Демонстрационные примеры не входят в реестр.</Text>
         </div>
         <Button leftSection={<Plus size={17} />} onClick={() => openEditor()} disabled={meetings.length === 0}>Добавить поручение</Button>
       </header>

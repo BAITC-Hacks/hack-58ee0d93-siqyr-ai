@@ -19,8 +19,11 @@ export function useTasksModel() {
   const [actionError, setActionError] = useState('');
   const [remindersOpen, setRemindersOpen] = useState(false);
   const reminderDays = settings.reminderDays;
-  const board = new TaskBoard(tasks, reminderDays, new Date());
-  const meetingMap = useMemo(() => new Map(meetings.map((meeting) => [meeting.id, meeting])), [meetings]);
+  const workingMeetings = useMemo(() => meetings.filter((meeting) => meeting.kind !== 'example'), [meetings]);
+  const workingIds = useMemo(() => new Set(workingMeetings.map((meeting) => meeting.id)), [workingMeetings]);
+  const workingTasks = useMemo(() => tasks.filter((task) => workingIds.has(task.meetingId)), [tasks, workingIds]);
+  const board = new TaskBoard(workingTasks, reminderDays, new Date());
+  const meetingMap = useMemo(() => new Map(workingMeetings.map((meeting) => [meeting.id, meeting])), [workingMeetings]);
   const { owners, counts, reminders, missingDates } = board;
   const filtered = board.filter({ query, status, owner, meetingId });
   const groups = board.groups(filtered);
@@ -64,5 +67,5 @@ export function useTasksModel() {
     }
   }
 
-  return { meetings, tasks, loading, error, query, setQuery, status, setStatus, owner, setOwner, meetingId, setMeetingId, editing, editorOpen, setEditorOpen, deleting, setDeleting, busyId, actionError, setActionError, remindersOpen, setRemindersOpen, reminderDays, board, meetingMap, owners, counts, reminders, missingDates, filtered, groups, openEditor, resetFilters, changeStatus, confirmDelete };
+  return { meetings: workingMeetings, tasks: workingTasks, loading, error, query, setQuery, status, setStatus, owner, setOwner, meetingId, setMeetingId, editing, editorOpen, setEditorOpen, deleting, setDeleting, busyId, actionError, setActionError, remindersOpen, setRemindersOpen, reminderDays, board, meetingMap, owners, counts, reminders, missingDates, filtered, groups, openEditor, resetFilters, changeStatus, confirmDelete };
 }

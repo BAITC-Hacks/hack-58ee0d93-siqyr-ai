@@ -11,7 +11,7 @@ type Tab = 'summary' | 'transcript' | 'protocol' | 'tasks';
 export const tabs: { id: Tab; label: string; detail: string }[] = [
   { id: 'summary', label: 'Сводка', detail: 'Суть встречи' },
   { id: 'transcript', label: 'Расшифровка', detail: 'Реплики и источник' },
-  { id: 'protocol', label: 'Протокол', detail: 'Итоговый документ' },
+  { id: 'protocol', label: 'Протокол', detail: 'Черновик документа' },
   { id: 'tasks', label: 'Поручения', detail: 'Исполнение' },
 ];
 
@@ -89,6 +89,7 @@ export function useMeetingModel() {
 
   async function downloadDocx() {
     if (!meeting) return;
+    if (meeting.backendRunId) { setLocalError('Экспорт этой встречи недоступен: черновик здесь не подтверждён секретарём.'); return; }
     setBusy(true);
     setLocalError('');
     try { await exporter.download(meeting, meetingTasks, includeTranscript); setExportOpen(false); }
@@ -98,6 +99,7 @@ export function useMeetingModel() {
 
   function printProtocol() {
     if (!meeting) return;
+    if (meeting.backendRunId) { setLocalError('Печать этой встречи недоступна: черновик здесь не подтверждён секретарём.'); return; }
     setLocalError('');
     try { exporter.print(meeting, meetingTasks, includeTranscript); setExportOpen(false); }
     catch (cause) { setLocalError(cause instanceof Error ? cause.message : 'Не удалось открыть печать.'); }
