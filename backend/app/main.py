@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import mimetypes
 import re
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
@@ -18,17 +19,21 @@ from sqlalchemy import update
 from sqlmodel import select
 import httpx
 
-from backend.shared.schemas import Participant
+from backend.shared.schemas import Participant, Proposal, Segment, StepEvent
 from . import config, llm
 from .auth import Auth, Principal, hash_password, ROLES
 from .config import Settings, today
 from .demo import demo_meeting
 from .exports import export_protocol
 from .limits import RequestLimits
-from .models import Assignment, Department, EcpChallenge, ExternalIdentity, Membership, Notification, Organization, Run, User
+from .models import Assignment, Department, EcpChallenge, ExternalIdentity, Membership, Notification, Organization, Run, User, utcnow
 from .pipeline import Runtime
+from .readiness import as_dicts, blocking as unready
+from .profile import register_profile_routes
+from .profile_models import bump_token_version
 from .reminders import assignment_view, check_reminders, reminder_loop
-from .schemas import Approval, AssignmentUpdate, DepartmentCreate, IdentityLink, Login, MembershipCreate, UserCreate, UserUpdate, EcpSignature
+from .review import ProposalError, blocking, check_proposal, confirm_reviewed, unconfirmed_speakers
+from .schemas import Approval, AssignmentUpdate, DepartmentCreate, IdentityLink, Login, MembershipCreate, ProposalSave, UserCreate, UserUpdate, EcpSignature
 from .seed import seed_history
 
 AUDIO_EXTENSIONS = {".wav", ".mp3", ".m4a", ".aac", ".ogg", ".opus", ".flac", ".mp4", ".webm", ".mov", ".avi", ".mkv", ".mpeg", ".mpg", ".wma"}
@@ -97,13 +102,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def run_view(run: Run) -> dict:
         with runtime().db.session() as session:
             count = len(session.exec(select(Assignment.id).where(Assignment.run_id == run.id)).all())
-        return {"id": run.id, "department_id": run.department_id, "title": run.title, "meeting_date": run.meeting_date, "status": run.status,
-                "synthetic": run.synthetic, "assignments_count": count, "created_at": run.created_at}
+        return {"id": run.id, "department_id": run.department_id, "title": run.title, "meeting_date": run.meeting_date,
+                "meeting_date_verified": run.meeting_date_verified, "status": run.status, "synthetic": run.synthetic,
+                "source_mode": run.source_mode, "assignments_count": count, "created_at": run.created_at}
+
+    def raw_segments(run: Run) -> list[Segment]:
+        return [Segment.model_validate(s) for s in run.segments or (run.proposal or {}).get("segments", [])]
+
+    def edited(run: Run, draft: Proposal, current: Proposal) -> Proposal:
+        """Validate a human edit against the raw transcript and bump the server revision."""
+        try:
+            checked = check_proposal(draft, raw_segments(run), strict=True, date_verified=run.meeting_date_verified)
+        except ProposalError as exc:
+            raise HTTPException(422, str(exc)) from None
+        return checked.model_copy(update={"run_id": run.id, "revision": current.revision + 1, "source_mode": current.source_mode})
 
     @app.get("/api/health")
     def health() -> dict:
         return {"status": "ok", "agent_mode": settings.agent_mode, "stt_mode": settings.stt_mode,
-                "demo_mode": settings.demo_mode, "auth_mode": settings.auth_mode, "llm": "configured" if settings.llm_base_url else "unconfigured", "today": today(settings).isoformat()}
+                "demo_mode": settings.demo_mode, "auth_mode": settings.auth_mode, "llm": "configured" if settings.llm_base_url else "unconfigured",
+                "llm_provider": settings.llm_provider, "llm_model": settings.model_main, "today": today(settings).isoformat(),
+                "ready": not unready(settings), "problems": as_dicts(unready(settings))}
 
     def user_view(actor: Principal) -> dict:
         return {"id": actor.user.id, "username": actor.user.username, "display_name": actor.user.display_name,
@@ -201,6 +220,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 user.active = body.active
             if password_hash is not None:
                 user.password_hash = password_hash
+                bump_token_version(session, user.id)
             session.add(user)
             session.commit()
             return {"id": user.id, "username": user.username, "active": user.active}
@@ -279,6 +299,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         with runtime().db.session() as session:
             if session.get(Department, department_id) is None:
                 raise HTTPException(400, "Департамент не найден.")
+            queued = len(session.exec(select(Run.id).where(Run.status == "queued")).all())
+        if missing := unready(settings):
+            # Fail before accepting a file: weights are never downloaded at run time.
+            raise HTTPException(503, "Модель недоступна: " + "; ".join(c.detail for c in missing))
+        if queued >= settings.max_queue:
+            raise HTTPException(429, f"В очереди уже {queued} совещания: дождитесь обработки.", headers={"Retry-After": "30"})
         if (file is None) == (sample is None):
             raise HTTPException(400, "Загрузите файл или выберите образец demo — ровно один источник.")
         if sample is not None and sample != "demo":
@@ -286,18 +312,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if lang not in {"rukk", "kk", "ru"}:
             raise HTTPException(400, "Язык должен быть ru, kk или rukk.")
         try:
-            if meeting_date is not None and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", meeting_date):
+            if meeting_date and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", meeting_date):
                 raise ValueError()
-            meeting_day = date.fromisoformat(meeting_date) if meeting_date else today(settings)
+            meeting_day = date.fromisoformat(meeting_date) if meeting_date else None
         except ValueError:
             raise HTTPException(400, "Дата совещания должна быть в формате ГГГГ-ММ-ДД.") from None
         fixture = demo_meeting()
+        if meeting_day is None and sample:
+            meeting_day = date.fromisoformat(fixture["reference_meeting_date"])  # the synthetic script defines its date
         names = parse_participants(participants, fixture["participants"] if sample else [])
         resolved_title = title.strip() if title is not None else fixture["title"] if sample else "Загруженное совещание"
         if not resolved_title or len(resolved_title) > 300:
             raise HTTPException(400, "Название должно содержать от 1 до 300 символов.")
-        run = Run(title=resolved_title, meeting_date=meeting_day, lang=lang, participants=names, department_id=department_id,
-                  synthetic=bool(sample))
+        # Unknown date stays unknown: no silent «today», relative deadlines are not normalized.
+        run = Run(title=resolved_title, meeting_date=meeting_day, meeting_date_verified=meeting_day is not None, lang=lang,
+                  participants=names, department_id=department_id, synthetic=bool(sample))
         path = None
         if file is not None:
             suffix = Path(file.filename or "").suffix.lower()
@@ -340,7 +369,40 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def run_details(run_id: str, actor: Principal = Depends(principal)):
         run = require_run(run_id, actor)
         files = {kind: f"/api/runs/{run_id}/protocol.{kind}" if run.status == "done" else None for kind in ("docx", "pdf")}
-        return {"run": run_view(run), "steps": runtime().events.steps(run_id), "proposal": run.proposal, "result": run.result, "files": files}
+        return {"run": run_view(run), "steps": runtime().events.steps(run_id), "proposal": run.proposal, "result": run.result, "files": files,
+                "revision": (run.proposal or {}).get("revision"), "approved": run.approved, "approved_at": run.approved_at,
+                "transcript": {"source_mode": run.source_mode, "segments": run.segments},
+                "audio": f"/api/runs/{run_id}/audio" if run.audio_path else None}
+
+    @app.get("/api/runs/{run_id}/audio")
+    def audio(run_id: str, actor: Principal = Depends(principal)):
+        run = require_run(run_id, actor)
+        if not run.audio_path or not Path(run.audio_path).is_file():
+            raise HTTPException(404, "У этого совещания нет исходной записи.")
+        # FileResponse answers Range requests, so <audio> can seek to an evidence timestamp.
+        media = mimetypes.guess_type(run.audio_path)[0] or "application/octet-stream"
+        return FileResponse(run.audio_path, media_type=media)
+
+    @app.put("/api/runs/{run_id}/proposal")
+    async def save_proposal(run_id: str, body: ProposalSave, actor: Principal = Depends(principal)):
+        actor.require(require_run(run_id, actor).department_id, "write")
+        if body.proposal.run_id != run_id:
+            raise HTTPException(400, "Черновик относится к другому совещанию.")
+        async with runtime().events.lock:
+            with runtime().db.session() as session:
+                run = session.get(Run, run_id)
+                if run.status != "awaiting_approval":
+                    raise HTTPException(409, "Черновик можно менять только до утверждения.")
+                current = Proposal.model_validate(run.proposal)
+                if body.expected_revision != current.revision:
+                    raise HTTPException(409, f"Черновик уже изменён: текущая редакция {current.revision}. Обновите страницу.")
+                draft = edited(run, body.proposal, current)
+                run.proposal = draft.model_dump(mode="json")
+                session.add(run)
+                session.commit()
+        await runtime().events.emit(StepEvent(run_id=run_id, type="tool_result", agent="secretary", content=f"Сохранена редакция {draft.revision}.",
+                                              data={"stage": "review", "revision": draft.revision, "user_id": actor.user.id}))
+        return {"revision": draft.revision, "proposal": draft.model_dump(mode="json")}
 
     @app.get("/api/runs/{run_id}/events")
     async def events(run_id: str, last_event_id: str | None = Header(None), actor: Principal = Depends(principal)):
@@ -362,17 +424,42 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         async with runtime().events.lock:
             with runtime().db.session() as session:
                 run = session.get(Run, run_id)
+                snapshot = run.approved or {}
+                if (body.approved and body.expected_revision is not None and run.status in {"executing", "done"}
+                        and snapshot.get("revision") == body.expected_revision):
+                    return {"status": run.status, "revision": body.expected_revision}  # same approval repeated
                 if run.status != "awaiting_approval":
                     raise HTTPException(409, "Совещание сейчас не ожидает подтверждения.")
-                if body.proposal is not None:
-                    run.proposal = body.proposal.model_dump(mode="json")
+                current = Proposal.model_validate(run.proposal)
+                if body.expected_revision is not None and body.expected_revision != current.revision:
+                    raise HTTPException(409, f"Утверждается устаревшая редакция: текущая {current.revision}. Обновите страницу.")
+                draft = edited(run, body.proposal, current) if body.proposal is not None else current
+                if body.approved:
+                    pending = blocking(draft)
+                    if pending:
+                        return JSONResponse(status_code=409, content={
+                            "detail": "Нужно решение секретаря по поручениям " + ", ".join(map(str, pending)) + ": подтвердите, исправьте или исключите.",
+                            "code": "review_required", "assignments": pending})
+                    pending_speakers = unconfirmed_speakers(draft)
+                    if pending_speakers:
+                        return JSONResponse(status_code=409, content={
+                            "detail": "Подтвердите связь голоса с участником: " + ", ".join(pending_speakers),
+                            "code": "speaker_review_required", "speakers": pending_speakers})
+                    draft = confirm_reviewed(draft)
+                    run.approved = draft.model_dump(mode="json")
+                    run.approved_at = utcnow()
+                run.proposal = draft.model_dump(mode="json")
+                run.approval_comment = body.comment
                 run.status = "executing" if body.approved else "rejected"
                 session.add(run)
                 session.commit()
             runtime().events.publish(run_id, "status", {"status": run.status})
+        await runtime().events.emit(StepEvent(run_id=run_id, type="tool_result", agent="secretary",
+                                              content=f"Утверждена редакция {draft.revision}." if body.approved else "Протокол отклонён.",
+                                              data={"stage": "approve", "revision": draft.revision, "approved": body.approved, "user_id": actor.user.id}))
         if body.approved:
             runtime().spawn(runtime().execute(run_id))
-        return {"status": run.status}
+        return {"status": run.status, "revision": draft.revision}
 
     async def download(run_id: str, kind: str, actor: Principal):
         run = require_run(run_id, actor)
@@ -446,6 +533,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(403, "Только системный администратор может запускать общую проверку сроков.")
         return check_reminders(runtime().db, settings)
 
+    register_profile_routes(app, settings, principal)
     return app
 
 

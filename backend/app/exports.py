@@ -29,7 +29,8 @@ def pdf_font(settings: Settings) -> Path:
 def paragraphs(run: Run, proposal: Proposal):
     yield "Протокол совещания"
     yield run.title
-    yield f"Дата: {run.meeting_date.isoformat()}"
+    date_line = run.meeting_date.isoformat() if run.meeting_date else "не указана"
+    yield f"Дата: {date_line}" + ("" if run.meeting_date_verified or not run.meeting_date else " (не подтверждена)")
     if run.synthetic:
         yield "Синтетические демонстрационные данные. Имена и содержание вымышлены."
     yield "Участники: " + ", ".join(p["name"] for p in run.participants)
@@ -39,8 +40,8 @@ def paragraphs(run: Run, proposal: Proposal):
     for decision in proposal.decisions:
         yield decision
     yield "Поручения"
-    for i, item in enumerate(proposal.assignments, 1):
-        yield f"{i}. {item.assignee}: {item.task}"
+    for i, item in enumerate([a for a in proposal.assignments if a.review_status != "excluded"], 1):
+        yield f"{i}. {item.assignee or 'Ответственный не указан'}: {item.task}"
         yield f"Срок: {item.deadline or 'не указан'}; приоритет: {item.priority}."
         if item.deadline_text:
             yield f"Формулировка срока: {item.deadline_text}"
@@ -48,12 +49,14 @@ def paragraphs(run: Run, proposal: Proposal):
     segments = proposal.segments or run.segments
     for raw in segments:
         segment = raw.model_dump() if hasattr(raw, "model_dump") else raw
-        speaker = proposal.speakers.get(segment["speaker"], segment["speaker"])
-        yield f"[{segment['start']:.1f}–{segment['end']:.1f}] {speaker}: {segment['text']}"
+        speaker = proposal.speakers.get(segment["speaker"] or "", segment["speaker"]) or "Говорящий не определён"
+        text = segment.get("corrected_text") or segment["text"]
+        yield f"[{segment['start']:.1f}–{segment['end']:.1f}] {speaker}: {text}"
 
 
 def export_protocol(run: Run, settings: Settings, kind: str) -> Path:
-    proposal = Proposal.model_validate(run.proposal)
+    # Exports reflect only the approved snapshot; run.proposal remains for legacy/seed rows.
+    proposal = Proposal.model_validate(run.approved or run.proposal)
     directory = settings.exports_dir / run.id
     directory.mkdir(parents=True, exist_ok=True)
     target = directory / f"protocol.{kind}"

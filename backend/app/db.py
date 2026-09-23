@@ -3,6 +3,7 @@ from sqlmodel import SQLModel, Session, create_engine
 
 from .config import Settings
 from . import models  # noqa: F401: register tables
+from . import profile_models  # noqa: F401: register profile table
 
 
 class Database:
@@ -25,6 +26,12 @@ class Database:
             if "department_id" not in {c["name"] for c in inspect(connection).get_columns("runs")}:
                 connection.execute(text("ALTER TABLE runs ADD COLUMN department_id VARCHAR NOT NULL DEFAULT 'default'"))
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_runs_department_id ON runs (department_id)"))
+            # CONTRACT v0.2 columns. Old files keep NOT NULL meeting_date: use a fresh DATA_DIR for unknown dates.
+            run_columns = {c["name"] for c in inspect(connection).get_columns("runs")}
+            for name, ddl in [("meeting_date_verified", "BOOLEAN NOT NULL DEFAULT 1"), ("source_mode", "VARCHAR NOT NULL DEFAULT 'mock'"),
+                              ("approved", "JSON"), ("approved_at", "DATETIME"), ("approval_comment", "VARCHAR")]:
+                if name not in run_columns:
+                    connection.execute(text(f"ALTER TABLE runs ADD COLUMN {name} {ddl}"))
             if "run_id" not in {c["name"] for c in inspect(connection).get_columns("notifications")}:
                 connection.execute(text("ALTER TABLE notifications ADD COLUMN run_id VARCHAR"))
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_run_id ON notifications (run_id)"))
