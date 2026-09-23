@@ -4,10 +4,16 @@
 
 <h1 align="center">Siqyr AI</h1>
 <p align="center"><strong>От встречи — к проверяемым поручениям.</strong></p>
+
+[![Siqyr AI — короткое демо, 32 секунды. Нажмите, чтобы смотреть со звуком.](artifacts/demo-video/SiqyrAI-highlights.gif)](artifacts/demo-video/SiqyrAI-highlights.mp4)
+
 <p align="center">
-  <a href="artifacts/demo-video/SiqyrAI-demo.mp4"><img src="artifacts/demo-video/SiqyrAI-demo-preview.gif" width="800" alt="Анимированная демонстрация Siqyr AI — нажмите для полного видео 2:27"></a>
+  <a href="artifacts/demo-video/SiqyrAI-highlights.mp4"><strong>▶ Короткое демо · 32 секунды · со звуком</strong></a><br>
+  <a href="artifacts/demo-video/SiqyrAI-demo.mp4">Полная демонстрация · 2:27</a> ·
+  <a href="Siqyr_AI_Presentation.pptx">Презентация</a><br>
+  <sub>Интерфейс продукта на вымышленных mock-данных.</sub>
 </p>
-<p align="center"><strong><a href="artifacts/demo-video/SiqyrAI-demo.mp4">▶ Смотреть полное видео — 2:27</a></strong></p>
+
 <p align="center">Русский · Қазақша · Смешанная речь<br>Собственная STT · Диаризация · Проверка человеком · Протокол и контроль исполнения</p>
 
 <p align="center">
@@ -23,6 +29,8 @@
 Проект для кейса **HackAlem AI «Система автопротоколирования совещаний с фиксацией поручений»**. Рабочий профиль рассчитан на развёртывание внутри инфраструктуры заказчика: аудио, STT, диаризация и LLM обрабатываются в заданном контуре.
 
 ## Демо
+
+**Короткий обзор — в начале страницы.** Ниже — полная демонстрация пользовательского пути.
 
 ### [▶ Смотреть демонстрацию Siqyr AI — 2:27](artifacts/demo-video/SiqyrAI-demo.mp4)
 
