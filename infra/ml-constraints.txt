@@ -1,0 +1,10 @@
+# Версии ML-стека образа api (WITH_STT=1, WITH_RAG=1), из docs/STACK.md.
+# Сами зависимости — backend/requirements-stt.txt и backend/requirements-rag.txt.
+torch==2.8.0
+torchaudio==2.8.0
+torchcodec==0.7.0
+pyannote.audio==4.0.7
+onnxruntime==1.22.1
+numpy==2.2.6
+soundfile==0.13.1
+huggingface-hub==0.35.3

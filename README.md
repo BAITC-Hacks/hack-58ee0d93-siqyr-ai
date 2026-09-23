@@ -125,10 +125,10 @@ bash scripts/demo_e2e.sh --file запись.wav --meeting-date 2026-09-23 --mod
 
 ```bash
 cp .env.example .env
-docker compose up --build                  # WITH_STT=1 docker compose up --build — образ с torch и STT
+docker compose up --build                  # WITH_STT=1 / WITH_RAG=1 в .env — образ с torch, STT и RAG
 ```
 
-API — http://localhost:8000/api/health, фронтенд — http://localhost:5173. Основной проверенный путь — локальный запуск без Docker.
+Приложение — http://localhost:5173 (nginx отдаёт фронт и `/api`), API напрямую — http://127.0.0.1:8000/api/health. Развёртывание в закрытом контуре заказчика (локальные STT, LLM в Ollama, RAG-чат, перенос образов без интернета) — [infra/README.md](infra/README.md#закрытый-контур-docker-compose). Основной проверенный путь — локальный запуск без Docker.
 
 ## Настройка
 
