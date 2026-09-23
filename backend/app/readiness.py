@@ -16,6 +16,13 @@ from .config import Settings
 LOOPBACK = {"127.0.0.1", "localhost", "::1"}
 
 
+def llm_in_contour(settings: Settings) -> bool:
+    """Local LLM of this deployment: loopback or a self-hosted host the admin listed in LLM_ALLOWED_HOSTS
+    (the Ollama container of docker compose, a vLLM server inside the customer's network)."""
+    host = urlsplit(settings.llm_base_url).hostname if settings.llm_base_url else None
+    return settings.llm_provider == "local" and host is not None and host in LOOPBACK | set(settings.llm_allowed_hosts)
+
+
 @dataclass(frozen=True)
 class Check:
     name: str
