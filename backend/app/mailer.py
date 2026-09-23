@@ -92,9 +92,11 @@ def connect(settings: Settings) -> smtplib.SMTP:
 
 def describe(exc: OSError) -> str:
     if isinstance(exc, smtplib.SMTPAuthenticationError):
-        return "SMTP отклонил SMTP_USER/SMTP_PASSWORD (для Gmail и Яндекса нужен пароль приложения)."
+        return "SMTP отклонил SMTP_USER/SMTP_PASSWORD (для Gmail и Яндекса нужен пароль приложения, для Resend — действующий RESEND_API_KEY)."
     if isinstance(exc, smtplib.SMTPRecipientsRefused):
-        return "SMTP отклонил адрес получателя: " + ", ".join(exc.recipients)
+        # Причина от сервера важна: Resend без своего домена принимает только адрес владельца аккаунта.
+        return ("SMTP отклонил адрес получателя: " + "; ".join(
+            f"{address} ({code} {reply.decode(errors='replace')})" for address, (code, reply) in exc.recipients.items()))[:300]
     if isinstance(exc, smtplib.SMTPSenderRefused):
         return "SMTP отклонил отправителя: проверьте SMTP_FROM."
     if isinstance(exc, smtplib.SMTPNotSupportedError):
@@ -258,7 +260,7 @@ if __name__ == "__main__":
     if len(sys.argv) != 2 or "@" not in sys.argv[1]:
         sys.exit("Использование: python -m backend.app.mailer you@example.com")
     if not config.settings.smtp_host:
-        sys.exit("SMTP_HOST не задан в .env.")
+        sys.exit("Почта не настроена: задайте в .env SMTP_HOST или RESEND_API_KEY.")
     try:
         send_test(config.settings, sys.argv[1])
     except MailError as exc:
