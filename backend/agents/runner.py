@@ -60,7 +60,8 @@ def _completion_options() -> dict[str, Any]:
     active_settings = getattr(getattr(llm, "_service", None), "settings", None)
     endpoint = getattr(active_settings, "llm_base_url", "")
     if urlparse(endpoint).hostname == "api.openai.com":
-        options["max_completion_tokens"] = 1024
+        # A full meeting needs room for several assignments and their quotes.
+        options["max_completion_tokens"] = 4096
     else:
         # Ollama's OpenAI-compatible chat endpoint documents max_tokens.
         options["max_tokens"] = 1024
@@ -210,6 +211,22 @@ def _parse(content: str, source: RunInput) -> Proposal:
         raise ValueError("Некорректная карта говорящих.")
     if not isinstance(items, list):
         raise ValueError("Нет списка поручений.")
+    # Report all unsupported quotes together. A long meeting can contain more
+    # than one transcription mismatch, and propose() allows only one repair.
+    invalid_quotes: list[str] = []
+    for item in items:
+        if not isinstance(item, dict) or not isinstance(item.get("evidence"), list):
+            continue
+        for quoted in item["evidence"]:
+            if not isinstance(quoted, dict):
+                continue
+            index, quote, field = (quoted.get(key) for key in ("segment_index", "quote", "field"))
+            if (type(index) is int and 0 <= index < len(source.segments)
+                    and isinstance(quote, str) and _normalized(quote)
+                    and _normalized(quote) not in _normalized(source.segments[index].text)):
+                invalid_quotes.append(f"сегмент {index}, поле {field}")
+    if invalid_quotes:
+        raise ValueError("Цитата отсутствует в raw-транскрипте: " + "; ".join(dict.fromkeys(invalid_quotes)))
     labels = {segment.speaker for segment in source.segments}
     people = {person.name for person in source.participants}
     # v0.1 cannot attach evidence to speaker mappings, so unsupported guesses are discarded.
@@ -249,7 +266,10 @@ def _parse(content: str, source: RunInput) -> Proposal:
             if field not in {"task", "assignee", "deadline", "context"}:
                 raise ValueError("Некорректное поле цитаты.")
             if _normalized(quote) not in _normalized(source.segments[index].text):
-                raise ValueError("Цитата отсутствует в raw-транскрипте.")
+                raise ValueError(
+                    f"Цитата отсутствует в raw-транскрипте (сегмент {index}, поле {field}). "
+                    "Выбери короткую непрерывную подстроку без пропуска слов."
+                )
             quoted_segments.add(index)
             fields.add(field)
             if field == "deadline":
@@ -258,9 +278,9 @@ def _parse(content: str, source: RunInput) -> Proposal:
                 owner_quotes.append(quote)
         if "task" not in fields or set(checked) != quoted_segments:
             raise ValueError("Не все источники поручения подтверждены цитатами действия.")
-        if owner is not None and "assignee" not in fields:
-            raise ValueError("Исполнитель не подтверждён цитатой.")
-        resolved_owner = _owner_from_quotes(owner, owner_quotes, source) if owner is not None else _UNKNOWN_OWNER
+        # Keep the task for human review, but never publish an unquoted owner.
+        resolved_owner = (_owner_from_quotes(owner, owner_quotes, source)
+                          if owner is not None and "assignee" in fields else _UNKNOWN_OWNER)
         deadline_text = item.get("deadline_text")
         if deadline_text is not None and (not isinstance(deadline_text, str) or not deadline_text.strip()):
             raise ValueError("Некорректный исходный текст срока.")
@@ -276,16 +296,34 @@ def _parse(content: str, source: RunInput) -> Proposal:
         except ValueError as exc:
             raise ValueError("Несуществующая дата срока.") from exc
         cited_dates = set().union(*(_absolute_dates(quote) for _, quote in date_quotes))
-        revised_date = bool(deadline_text and len(cited_dates) > 1 and any(
-            _agreed_revision(source.segments[index].text)
-            and parsed_date in _absolute_dates(quote)
-            and _has_phrase(quote, deadline_text)
-            and all(old_index < index for old_index, old_quote in date_quotes
-                    if parsed_date not in _absolute_dates(old_quote))
-            for index, quote in date_quotes
+        source_dates = set().union(*(
+            _absolute_dates(source.segments[index].text) for index in checked
         ))
-        if parsed_date and (not deadline_text or parsed_date not in cited_dates or
-                            (len(cited_dates) != 1 and not revised_date)):
+        if source_dates and not deadline_text:
+            raise ValueError("Дата в источнике поручения не отражена в тексте срока.")
+        if source_dates - cited_dates:
+            raise ValueError("Не все даты из источников поручения подтверждены цитатами.")
+        agreed_final: list[tuple[int, date]] = []
+        if deadline_text:
+            text_dates = _absolute_dates(deadline_text)
+            for index, quote in date_quotes:
+                quote_dates = _absolute_dates(quote)
+                if len(quote_dates) != 1 or not _agreed_revision(source.segments[index].text):
+                    continue
+                candidate = next(iter(quote_dates))
+                if candidate in text_dates and all(
+                    old_index < index for old_index, old_quote in date_quotes
+                    if candidate not in _absolute_dates(old_quote)
+                ):
+                    agreed_final.append((index, candidate))
+        latest_agreement = max((index for index, _ in agreed_final), default=None)
+        final_dates = {value for index, value in agreed_final if index == latest_agreement}
+        if len(final_dates) == 1:
+            # An explicit later agreement in raw speech resolves the model's
+            # null or stale date without inferring from the meeting date.
+            parsed_date = next(iter(final_dates))
+        elif parsed_date and (not deadline_text or parsed_date not in cited_dates or
+                              len(cited_dates) != 1):
             # Date of meeting is not verified in v0.1: relative dates stay as text.
             parsed_date = None
         assignments.append(AssignmentDraft(
@@ -320,9 +358,18 @@ async def propose(run_input: RunInput, emit: Emit) -> Proposal:
             except ValueError as exc:
                 if attempt:
                     raise
+                mismatched = [int(value) for value in re.findall(r"сегмент (\d+), поле", str(exc))]
+                raw_examples = "\n".join(
+                    f"Реплика {index} дословно: {run_input.segments[index].text}"
+                    for index in dict.fromkeys(mismatched)
+                )
                 messages.extend([
-                    {"role": "assistant", "content": completion.content[:2000]},
-                    {"role": "user", "content": f"Ответ не прошёл проверку: {exc}. Верни исправленный полный JSON по исходному транскрипту. Не придумывай цитаты."},
+                    {"role": "assistant", "content": completion.content[:12000]},
+                    {"role": "user", "content":
+                        f"Ответ не прошёл проверку: {exc}.\n{raw_examples}\n"
+                        "Верни исправленный полный JSON по исходному транскрипту. "
+                        "Проверь каждую цитату с её номером реплики. Если имя исполнителя "
+                        "не произнесено, поставь assignee=null и не добавляй цитату имени."},
                 ])
                 continue
             await _emit(emit, rid, "tool_result", "orchestrator", "Черновик проверен по исходным репликам.", stage="validate", assignments=len(proposal.assignments), usage_available=completion.tokens > 0, tokens=completion.tokens, cost_usd=completion.cost_usd)

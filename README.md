@@ -44,7 +44,7 @@ npm run dev
 Откройте http://127.0.0.1:5174. Подробнее: [frontend/README.md](frontend/README.md).
 Фронтенд пока хранит данные в браузере; API, SSE и ИИ будут подключены отдельно.
 
-Режимы (`.env`): `AGENT_MODE=mock|real`, `STT_MODE=mock|real`, `DEMO_MODE=live|replay`, `LLM_BASE_URL` — пусто для OpenAI API или адрес self-hosted vLLM.
+Режимы (`.env`): `AGENT_MODE=mock|real`, `STT_MODE=mock|real`, `DEMO_MODE=live|replay`. Для `AGENT_MODE=real` задайте `LLM_BASE_URL` явно; локальный рабочий сценарий использует проверенный loopback endpoint. Тесты на разрешённых вымышленных данных могут явно указывать OpenAI API и `gpt-6-luna`.
 
 Вход по логину/паролю, права департаментов и подготовка Keycloak/NCALayer описаны в [docs/AUTH.md](docs/AUTH.md). После первого запуска уберите bootstrap-пароль из окружения.
 
