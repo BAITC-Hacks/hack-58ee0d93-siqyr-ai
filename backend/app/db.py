@@ -3,6 +3,7 @@ from sqlmodel import SQLModel, Session, create_engine
 
 from .config import Settings
 from . import models  # noqa: F401: register tables
+from . import profile_models  # noqa: F401: register profile table
 
 
 class Database:

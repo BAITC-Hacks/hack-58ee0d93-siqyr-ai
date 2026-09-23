@@ -28,6 +28,8 @@ from .exports import export_protocol
 from .limits import RequestLimits
 from .models import Assignment, Department, EcpChallenge, ExternalIdentity, Membership, Notification, Organization, Run, User, utcnow
 from .pipeline import Runtime
+from .profile import register_profile_routes
+from .profile_models import bump_token_version
 from .reminders import assignment_view, check_reminders, reminder_loop
 from .review import ProposalError, blocking, check_proposal, confirm_reviewed
 from .schemas import Approval, AssignmentUpdate, DepartmentCreate, IdentityLink, Login, MembershipCreate, ProposalSave, UserCreate, UserUpdate, EcpSignature
@@ -216,6 +218,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 user.active = body.active
             if password_hash is not None:
                 user.password_hash = password_hash
+                bump_token_version(session, user.id)
             session.add(user)
             session.commit()
             return {"id": user.id, "username": user.username, "active": user.active}
@@ -517,6 +520,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(403, "Только системный администратор может запускать общую проверку сроков.")
         return check_reminders(runtime().db, settings)
 
+    register_profile_routes(app, settings, principal)
     return app
 
 

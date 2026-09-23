@@ -46,7 +46,7 @@ npm run dev
 
 Режимы (`.env`): `AGENT_MODE=mock|real`, `STT_MODE=mock|real`, `DEMO_MODE=live|replay`, `LLM_BASE_URL` — пусто для OpenAI API или адрес self-hosted vLLM.
 
-Вход по логину/паролю, права департаментов и подготовка Keycloak/NCALayer описаны в [docs/AUTH.md](docs/AUTH.md). После первого запуска уберите bootstrap-пароль из окружения.
+Вход по логину/паролю, профиль с настройками и аватаром, права департаментов и подготовка Keycloak/NCALayer описаны в [docs/AUTH.md](docs/AUTH.md). После первого запуска уберите bootstrap-пароль из окружения.
 
 ## Агенты и инструменты
 _TODO: таблица из docs/README_AI.md_
