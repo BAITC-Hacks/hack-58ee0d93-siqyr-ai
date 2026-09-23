@@ -19,6 +19,7 @@ from sqlmodel import select
 from .config import Settings
 from .db import Database
 from .models import ExternalIdentity, Membership, User
+from .profile_models import token_version
 
 ROLES = {"viewer", "editor", "secretary", "department_admin"}
 WRITE_ROLES = {"editor", "secretary", "department_admin"}
@@ -111,8 +112,11 @@ class Auth:
 
     def issue(self, user: User) -> str:
         now = datetime.now(timezone.utc)
+        with self.db.session() as session:
+            version = token_version(session, user.id)
         return jwt.encode({"sub": user.id, "iss": self.settings.jwt_issuer, "aud": "siqyr-api",
-                           "iat": now, "exp": now + timedelta(minutes=self.settings.jwt_ttl_minutes)},
+                           "iat": now, "exp": now + timedelta(minutes=self.settings.jwt_ttl_minutes),
+                           "ver": version},
                           self.settings.jwt_secret, algorithm="HS256")
 
     def identify(self, authorization: str | None) -> Principal:
@@ -128,6 +132,8 @@ class Auth:
                                      issuer=self.settings.jwt_issuer, audience="siqyr-api", options={"require": ["sub", "iss", "aud", "exp"]})
                 with self.db.session() as session:
                     user = session.get(User, payload["sub"])
+                    if user is not None and payload.get("ver", 0) != token_version(session, user.id):
+                        raise HTTPException(401, "Токен отозван после смены пароля.")
             elif header.get("alg") == "RS256" and self.jwks is not None:
                 signing_key = self.jwks.get_signing_key_from_jwt(token)
                 payload = jwt.decode(token, signing_key.key, algorithms=["RS256"],

@@ -41,19 +41,23 @@ async def propose(run_input: RunInput, emit: Emit) -> Proposal:
     await _step(emit, rid, "agent_start", "assignment_extractor", "Выделяю исполнителей, задачи и сроки на русском и казахском.")
     assignments = []
     for i, item in enumerate(fixture["expected"]["assignments"]):
+        meeting_date = run_input.meeting_date if run_input.meeting_date_verified else None
         await _step(emit, rid, "tool_call", "assignment_extractor", f"Уточняю срок: {item['deadline_text']}.",
-                    tool="normalize_deadline", arguments={"text": item["deadline_text"], "meeting_date": run_input.meeting_date.isoformat()})
-        deadline = normalize_deadline(i, run_input.meeting_date)
-        await _step(emit, rid, "tool_result", "assignment_extractor", f"Срок приведён к дате {deadline.isoformat()}.",
-                    tool="normalize_deadline", deadline=deadline.isoformat())
+                    tool="normalize_deadline", arguments={"text": item["deadline_text"], "meeting_date": meeting_date and meeting_date.isoformat()})
+        # Without a confirmed meeting date a relative deadline stays text-only.
+        deadline = normalize_deadline(i, meeting_date) if meeting_date else None
+        await _step(emit, rid, "tool_result", "assignment_extractor",
+                    f"Срок приведён к дате {deadline.isoformat()}." if deadline else "Дата совещания не подтверждена: срок оставлен словами.",
+                    tool="normalize_deadline", deadline=deadline and deadline.isoformat())
         assignments.append(AssignmentDraft.model_validate({**item, "assignee": names[item["assignee"]], "deadline": deadline}))
     await _step(emit, rid, "handoff", "orchestrator", "Передаю результаты для краткого протокола.", to="summarizer")
     await _step(emit, rid, "agent_start", "summarizer", "Формирую резюме и фиксирую принятые решения.")
-    next_wednesday = run_input.meeting_date + timedelta(days=(2 - run_input.meeting_date.weekday()) % 7 or 7)
+    day = run_input.meeting_date if run_input.meeting_date_verified else None
+    next_wednesday = (day + timedelta(days=(2 - day.weekday()) % 7 or 7)).isoformat() if day else "дата не подтверждена"
     return Proposal(
         run_id=rid, speakers=speakers, segments=run_input.segments, assignments=assignments,
         summary="Участники обсудили запуск портала обращений, подготовку отчёта за сентябрь, передачу данных колл-центра, тестирование и презентацию для министерства.",
-        decisions=[f"Следующее совещание — в следующую среду ({next_wednesday.isoformat()})"],
+        decisions=[f"Следующее совещание — в следующую среду ({next_wednesday})"],
     )
 
 
@@ -62,6 +66,8 @@ async def execute(proposal: Proposal, emit: Emit) -> Result:
     await _step(emit, proposal.run_id, "agent_start", "notifier", "Готовлю персональные выдержки для ответственных.")
     grouped: dict[str, list[str]] = {}
     for item in proposal.assignments:
+        if item.review_status == "excluded" or not item.assignee:
+            continue
         grouped.setdefault(item.assignee, []).append(f"{item.task}. Срок: {item.deadline or 'не указан'}.")
     excerpts = [Excerpt(recipient=name, message="Ваши поручения по утверждённому протоколу:\n" + "\n".join(tasks)) for name, tasks in grouped.items()]
     await _step(emit, proposal.run_id, "tool_result", "notifier", f"Подготовлены выдержки для {len(excerpts)} ответственных.", recipients=list(grouped))

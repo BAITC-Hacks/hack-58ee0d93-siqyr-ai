@@ -1,6 +1,6 @@
 # frontend — Nurdaulet (WEB)
 
-- Сохранять реализованный frontend: React 19.3, Vite 8.3, TypeScript, Mantine, Dexie/IndexedDB, React Router, docx, lucide и локальный Inter; точные версии в package-lock.json. npm, dev-порт 5174. Не заменять стек ради старого плана. Внутренние решения принимает Nurdaulet; границы работы — docs/COORDINATION.md.
+- Сохранять реализованный frontend: React 19.3, Vite 8.3, TypeScript, Mantine, Dexie/IndexedDB, React Router, docx, lucide и локальный Geist; точные версии в package-lock.json. npm, dev-порт 5174. Не заменять стек ради старого плана. Внутренние решения принимает Nurdaulet; границы работы — docs/COORDINATION.md.
 - API пока не подключён в проверенном main 7bae7c2. Базовый URL и mock adapter согласовать с Meiirlan; VITE_FAKE и src/dev/fakeStream.ts не считать существующей реализацией. Mock должен использовать согласованный формат StepEvent и явно показывать свой режим.
 - Демо-путь из docs/DEMO.md первым: загрузка записи (с уведомлением о записи и ИИ-транскрибации) → живой трейс агентов →
   аудиоисточник → проверка и правка черновика → утверждение revision → скачать DOCX/PDF. Дашборд и напоминания в cut list.

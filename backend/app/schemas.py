@@ -8,6 +8,13 @@ class Approval(BaseModel):
     approved: StrictBool
     comment: str | None = None
     proposal: Proposal | None = None
+    expected_revision: int | None = None  # рекомендуется: повтор той же редакции идемпотентен, другая — 409
+
+
+class ProposalSave(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_revision: int
+    proposal: Proposal
 
 
 class AssignmentUpdate(BaseModel):

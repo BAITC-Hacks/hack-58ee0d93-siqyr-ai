@@ -116,17 +116,17 @@ npm --prefix frontend ci
 npm --prefix frontend run dev
 ```
 
-Переменные STT_MODEL_DIR/DIARIZATION_MODEL_DIR и запрет облачного fallback **ещё необходимо реализовать** в конфигурации. Нынешний config.py допускает пустой LLM_BASE_URL и облачные defaults; это blocker для real-режима. Frontend уже имеет package-lock.json: использовать npm ci. Его dev origin — http://127.0.0.1:5174; CORS backend должен разрешать фактический origin.
+[14:57] STT_MODEL_DIR/DIARIZATION_MODEL_DIR, LLM_PROVIDER=local по умолчанию и запрет облачного fallback реализованы в config.py/readiness.py; engine.py Alibi должен читать веса из `settings.stt_model_dir`/`settings.diarization_model_dir`. Frontend уже имеет package-lock.json: использовать npm ci. Его dev origin — http://127.0.0.1:5174; CORS backend должен разрешать фактический origin.
 
 ### Команды, которые Meiirlan обязан предоставить и проверить
 
 ```bash
 bash scripts/setup.sh --profile laptop --download-models
 bash scripts/run_local.sh --profile laptop --offline
-bash scripts/demo_e2e.sh --sample demo-mixed --mode real
+bash scripts/demo_e2e.sh --file <запись.wav> --meeting-date 2026-09-23 --mode real
 ```
 
-Эти scripts пока не существуют. Setup проверяет системные prerequisites, pins, шрифт, model manifest и доступ к gated весам; в случае отсутствия прав даёт инструкцию. Run запускает localhost сервисы и не скачивает ничего. `demo_e2e` проверяет реальные стадии, approval и два экспорта. Docker compose — дополнительный способ, не основной на Mac с Metal.
+[14:57] Scripts реализованы; `run_local.sh --api-only --offline` + `demo_e2e.sh` проверены в mock на чистом DATA_DIR (Windows/Git Bash), real-путь и Mac — ещё нет. Профиль `--profile laptop` единственный. Setup проверяет системные prerequisites, pins, шрифт, model manifest и доступ к gated весам; в случае отсутствия прав даёт инструкцию. Run запускает localhost сервисы и не скачивает ничего. `demo_e2e` проверяет реальные стадии, approval и два экспорта. Docker compose — дополнительный способ, не основной на Mac с Metal.
 
 ## Brev
 

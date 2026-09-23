@@ -21,6 +21,15 @@ def test_replay_latest_and_explicit(client_factory, monkeypatch):
     original_id = create(client)
     original = finish(client, original_id)
     runtime = client.app.state.runtime
+    source_audio = client.settings.uploads_dir / f"{original_id}.wav"
+    source_audio.write_bytes(b"RIFF replay source")
+    with runtime.db.session() as session:
+        source_run = session.get(Run, original_id)
+        source_run.source_mode = "real"
+        source_run.audio_path = str(source_audio)
+        source_run.synthetic = False
+        session.add(source_run)
+        session.commit()
     runtime.settings = replace(runtime.settings, demo_mode="replay")
     from backend import stt
     monkeypatch.setattr(stt, "transcribe", lambda *args: (_ for _ in ()).throw(AssertionError("Replay must not call STT")))
@@ -29,7 +38,10 @@ def test_replay_latest_and_explicit(client_factory, monkeypatch):
         run_id = create(client)
         pending = wait_for(client, run_id, "awaiting_approval")
         assert pending["proposal"]["run_id"] == run_id
-        assert pending["proposal"]["assignments"] == original["proposal"]["assignments"]
+        # Replay reproduces the pre-approval draft; the original was confirmed on approval.
+        assert pending["proposal"]["assignments"] == [dict(a, review_status="unreviewed") for a in original["proposal"]["assignments"]]
+        assert pending["run"]["source_mode"] == pending["proposal"]["source_mode"] == "replay"
+        assert client.get(f"/api/runs/{run_id}/audio").content == b"RIFF replay source"
         assert pending["steps"][-1]["type"] == "needs_approval"
         assert sum(step["type"] == "needs_approval" for step in pending["steps"]) == 1
         assert all(step["run_id"] == run_id for step in pending["steps"])
@@ -48,7 +60,13 @@ def test_replay_caps_timing(client, monkeypatch):
     run_id = create(client)
     finish(client, run_id)
     runtime = client.app.state.runtime
+    source_audio = client.settings.uploads_dir / f"{run_id}.wav"
+    source_audio.write_bytes(b"RIFF replay source")
     with runtime.db.session() as session:
+        source_run = session.get(Run, run_id)
+        source_run.source_mode = "real"
+        source_run.audio_path = str(source_audio)
+        session.add(source_run)
         steps = session.exec(select(Step).where(Step.run_id == run_id).order_by(Step.seq)).all()
         from datetime import datetime, timezone
         start = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -108,7 +126,7 @@ def test_llm_never_falls_back_to_openai(client, monkeypatch):
         asyncio.run(service.complete([{"role": "user", "content": "Тест"}], use_cache=False))
     runtime = client.app.state.runtime
     runtime.settings = replace(runtime.settings, agent_mode="real", llm_base_url="https://api.openai.com/v1")
-    with pytest.raises(ValueError, match="синтетических"):
+    with pytest.raises(ValueError, match="loopback|LLM_ALLOWED_HOSTS"):
         runtime.guard_llm_destination(Run(title="Реальная встреча", meeting_date=date(2026, 9, 23), synthetic=False))
 
 
@@ -117,7 +135,7 @@ def test_llm_destination_rejects_external_uploads(client):
     real = Run(title="Загруженная встреча", meeting_date=date(2026, 9, 23), audio_path="/tmp/test.wav")
     demo = Run(title="Серверный образец", meeting_date=date(2026, 9, 23), synthetic=True)
     for url in ("https://example.com/v1", "http://192.0.2.1:8000/v1", "http://localhost.example.com/v1"):
-        runtime.settings = replace(runtime.settings, agent_mode="real", llm_base_url=url)
+        runtime.settings = replace(runtime.settings, agent_mode="real", llm_provider="dev_openai", llm_base_url=url)
         with pytest.raises(ValueError, match="Внешний LLM"):
             runtime.guard_llm_destination(real)
         with pytest.raises(ValueError, match="Внешний LLM"):
@@ -126,7 +144,10 @@ def test_llm_destination_rejects_external_uploads(client):
     with pytest.raises(ValueError, match="синтетических"):
         runtime.guard_llm_destination(real)
     runtime.guard_llm_destination(demo)
-    runtime.settings = replace(runtime.settings, llm_base_url="http://127.0.0.1:11434/v1")
+    with pytest.raises(ValueError, match="синтетических"):
+        runtime.guard_llm_destination(Run(title="Загруженный mock", meeting_date=date(2026, 9, 23),
+                                         synthetic=True, audio_path="/tmp/test.wav"))
+    runtime.settings = replace(runtime.settings, llm_provider="local", llm_base_url="http://127.0.0.1:11434/v1")
     runtime.guard_llm_destination(real)
 
 

@@ -33,7 +33,7 @@ def create(client, **data):
 
 def finish(client, run_id):
     wait_for(client, run_id, "awaiting_approval")
-    assert client.post(f"/api/runs/{run_id}/approve", json={"approved": True}).json() == {"status": "executing"}
+    assert client.post(f"/api/runs/{run_id}/approve", json={"approved": True}).json()["status"] == "executing"
     return wait_for(client, run_id, "done")
 
 
@@ -47,7 +47,10 @@ def test_demo_flow(client):
     run_id = create(client)
     pending = wait_for(client, run_id, "awaiting_approval")
     assert pending["run"]["synthetic"] is True
-    assert pending["proposal"]["assignments"] == [dict(item, category=None) for item in demo_meeting()["expected"]["assignments"]]
+    v01 = [{key: item[key] for key in (*expected, "category")} for item, expected in zip(pending["proposal"]["assignments"], demo_meeting()["expected"]["assignments"])]
+    assert v01 == [dict(item, category=None) for item in demo_meeting()["expected"]["assignments"]]
+    assert all(item["evidence"] and item["confidence"] is None for item in pending["proposal"]["assignments"])
+    assert pending["proposal"]["revision"] == 1 and pending["proposal"]["source_mode"] == pending["run"]["source_mode"] == "mock"
     assert pending["files"] == {"docx": None, "pdf": None}
     assert client.get(f"/api/runs/{run_id}/protocol.docx").status_code == 409
     assert client.get("/api/assignments").json() == []
@@ -84,7 +87,7 @@ def test_demo_flow(client):
 
 @pytest.mark.parametrize("participants", ["Алия,Бек,Дана", json.dumps(["Алия", "Бек", "Дана"]), json.dumps([{"name": "Алия"}, {"name": "Бек"}, {"name": "Дана"}])])
 def test_upload_and_participants(client, participants):
-    response = client.post("/api/runs", files={"file": ("../../meeting.WAV", b"RIFF synthetic audio", "audio/wav")},
+    response = client.post("/api/runs", files={"file": ("../../meeting.WAV", b"RIFF\0\0\0\0WAVE synthetic audio", "audio/wav")},
                            data={"title": "Тест", "meeting_date": "2027-09-24", "participants": participants, "lang": "kk"})
     assert response.status_code == 201, response.text
     run_id = response.json()["run_id"]
@@ -118,7 +121,7 @@ def test_edited_approval_and_double_submit(client):
 def test_reject(client):
     run_id = create(client)
     wait_for(client, run_id, "awaiting_approval")
-    assert client.post(f"/api/runs/{run_id}/approve", json={"approved": False}).json() == {"status": "rejected"}
+    assert client.post(f"/api/runs/{run_id}/approve", json={"approved": False}).json()["status"] == "rejected"
     stream = client.get(f"/api/runs/{run_id}/events").text
     assert '"status": "rejected"' in stream and '"type": "final"' not in stream
     assert client.get("/api/assignments").json() == client.get("/api/notifications").json() == []
@@ -178,7 +181,7 @@ def test_errors(client):
 
 def test_size_rate_limit(client_factory):
     client = client_factory(max_upload_mb=0, rate_limit_per_min=2)
-    assert client.post("/api/runs", files={"file": ("x.wav", b"x")}).status_code == 413
+    assert client.post("/api/runs", files={"file": ("x.wav", b"RIFF\0\0\0\0WAVE")}).status_code == 413
     assert not list(client.settings.uploads_dir.iterdir())
     create(client)
     limited = client.post("/api/runs", data={"sample": "demo"})

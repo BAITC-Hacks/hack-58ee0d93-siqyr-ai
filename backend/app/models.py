@@ -20,15 +20,20 @@ class Run(SQLModel, table=True):
     id: str = Field(default_factory=identifier, primary_key=True)
     department_id: str = Field(default="default", foreign_key="departments.id", index=True)
     title: str
-    meeting_date: date
+    meeting_date: date | None = None  # None: дата неизвестна, сегодняшняя не подставляется
+    meeting_date_verified: bool = True
     lang: str = "rukk"
     status: str = Field(default="queued", index=True)
     synthetic: bool = False
+    source_mode: str = "mock"  # real | mock | replay — выставляет pipeline
     created_at: datetime = Field(default_factory=utcnow)
     audio_path: str | None = None
     participants: list[dict] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
-    segments: list[dict] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
-    proposal: dict | None = Field(default=None, sa_column=Column(JSON))
+    segments: list[dict] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))  # сырой STT, неизменяем
+    proposal: dict | None = Field(default=None, sa_column=Column(JSON))  # текущая редакция черновика
+    approved: dict | None = Field(default=None, sa_column=Column(JSON))  # immutable snapshot, из него экспорт
+    approved_at: datetime | None = None
+    approval_comment: str | None = None
     result: dict | None = Field(default=None, sa_column=Column(JSON))
 
 
@@ -51,6 +56,17 @@ class Assignment(SQLModel, table=True):
     category: str | None = None
     source_segments: list[int] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
     done: bool = False
+
+
+class JiraIssue(SQLModel, table=True):
+    """Задача Jira, созданная из поручения утверждённого snapshot; повторная отправка её не дублирует."""
+    __tablename__ = "jira_issues"
+    run_id: str = Field(primary_key=True, foreign_key="runs.id")
+    position: int = Field(primary_key=True)  # номер поручения в approved.assignments
+    key: str
+    url: str
+    assignee: str | None = None  # accountId (Cloud) / username (DC); None — не сопоставлен
+    created_at: datetime = Field(default_factory=utcnow)
 
 
 class Notification(SQLModel, table=True):

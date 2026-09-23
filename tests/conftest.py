@@ -14,6 +14,9 @@ def client_factory(tmp_path, monkeypatch):
                        "DEMO_MODE": "live", "REPLAY_RUN_ID": "", "DEMO_TODAY": "2026-09-23",
                        "RATE_LIMIT_PER_MIN": "100", "PDF_FONT_PATH": ""}.items():
         monkeypatch.setenv(key, value)
+    # .env разработчика может указывать на живую Jira: тесты ходят только в httpx.MockTransport.
+    for key in ("JIRA_URL", "JIRA_EMAIL", "JIRA_TOKEN", "JIRA_PROJECT", "JIRA_BOARD_ID", "JIRA_USERS", "JIRA_ALLOW_CLOUD", "PUBLIC_APP_URL"):
+        monkeypatch.setenv(key, "")
     monkeypatch.setenv("AUTH_MODE", "disabled")
     with ExitStack() as stack:
         def make(**overrides):

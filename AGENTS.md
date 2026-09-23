@@ -38,7 +38,7 @@ docs/handoffs/     личный отчёт участника                   
 ```
 
 ## Запуск
-- Основной путь: localhost без Docker, см. docs/STACK.md. Указанные там setup/run scripts — задания до их реализации и проверки.
+- Основной путь: localhost без Docker, см. docs/STACK.md. `scripts/setup.sh`, `scripts/run_local.sh`, `scripts/preflight.py` реализованы (cc4d99b); проверены в mock на Windows/Git Bash, real-путь и Mac — ещё нет.
 - API: `uvicorn backend.app.main:app --host 127.0.0.1 --port 8000` из проверенного env и с настройками STACK.md.
 - Тесты: `pytest`
 - Фронт: `npm --prefix frontend run dev`, порт 5174; зависимости через `npm --prefix frontend ci`.
@@ -59,7 +59,7 @@ $status-update, $contract-guard, $agents-sdk-patterns, $synthetic-data, $demo-ch
 - Фронт и бэк стартуют против mock, пока real не готов. Режимы явно подписаны. Hosted synthetic smoke к 14:15, local smoke до 15:00, real end-to-end к 15:30, freeze 16:15.
 - Все «простые» LLM-вызовы — через backend/app/llm.py. Имена моделей и ключи — только из .env.
 - Один structured вызов для propose допустим; SDK и несколько агентов не требуются. execute не вызывает LLM после approval и не рассылает сообщения.
-- docs/CONTRACT.md — целевой v0.2; текущие schemas.py v0.1, миграция явно перечислена. Не считать документацию уже реализованным кодом.
+- docs/CONTRACT.md — v0.2, реализован в schemas.py и API на ветке api (mock STT/агенты); фактический статус и «Не реализовано» — в разделе «Статус реализации v0.2». Целевые разделы CONTRACT не считать реализованным кодом.
 - Неизвестные даты/имена остаются null/помеченными. Последняя согласованная правка срока, не механически последняя фраза. Assignee может не говорить и быть отделом.
 - Raw transcript неизменяем, цитаты/таймкоды проверяемые, edits и approved snapshot отдельно. confidence=null до калибровки; mock не выдавать за real.
 - Перед изменением более двух файлов — короткий план. Небольшие коммиты, только после проверки; не коммитить без необходимости.
