@@ -14,6 +14,7 @@ def client_factory(tmp_path, monkeypatch):
                        "DEMO_MODE": "live", "REPLAY_RUN_ID": "", "DEMO_TODAY": "2026-09-23",
                        "RATE_LIMIT_PER_MIN": "100", "PDF_FONT_PATH": ""}.items():
         monkeypatch.setenv(key, value)
+    monkeypatch.setenv("AUTH_MODE", "disabled")
     with ExitStack() as stack:
         def make(**overrides):
             settings = config.Settings(**overrides)

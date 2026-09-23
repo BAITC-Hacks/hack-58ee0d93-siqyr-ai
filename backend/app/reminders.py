@@ -35,7 +35,7 @@ def check_reminders(db: Database, settings: Settings) -> dict:
             message = f"{'Просрочено поручение' if days < 0 else 'Приближается срок поручения'}: {item.task}. Срок: {item.deadline}."
             result = session.execute(insert(Notification).values(
                 id=identifier(), kind=kind, recipient=item.assignee, message=message,
-                assignment_id=item.id, day=current, created_at=utcnow(),
+                assignment_id=item.id, run_id=item.run_id, day=current, created_at=utcnow(),
             ).on_conflict_do_nothing(index_elements=["assignment_id", "kind", "day"]))
             created += result.rowcount
         session.commit()

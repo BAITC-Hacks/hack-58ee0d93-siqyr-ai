@@ -2,29 +2,33 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import re
 from contextlib import asynccontextmanager
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import FastAPI, File, Form, Header, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import ValidationError
+from sqlalchemy import update
 from sqlmodel import select
+import httpx
 
 from backend.shared.schemas import Participant
 from . import config, llm
+from .auth import Auth, Principal, hash_password, ROLES
 from .config import Settings, today
 from .demo import demo_meeting
 from .exports import export_protocol
 from .limits import RequestLimits
-from .models import Assignment, Notification, Run
+from .models import Assignment, Department, EcpChallenge, ExternalIdentity, Membership, Notification, Organization, Run, User
 from .pipeline import Runtime
 from .reminders import assignment_view, check_reminders, reminder_loop
-from .schemas import Approval, AssignmentUpdate
+from .schemas import Approval, AssignmentUpdate, DepartmentCreate, IdentityLink, Login, MembershipCreate, UserCreate, UserUpdate, EcpSignature
 from .seed import seed_history
 
 AUDIO_EXTENSIONS = {".wav", ".mp3", ".m4a", ".aac", ".ogg", ".opus", ".flac", ".mp4", ".webm", ".mov", ".avi", ".mkv", ".mpeg", ".mpg", ".wma"}
@@ -53,6 +57,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI):
         runtime = Runtime(settings)
         app.state.runtime = runtime
+        app.state.auth = Auth(settings, runtime.db)
         llm.configure(runtime.llm)
         try:
             if settings.seed:
@@ -77,16 +82,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def runtime() -> Runtime:
         return app.state.runtime
 
-    def require_run(run_id: str) -> Run:
+    def auth() -> Auth:
+        return app.state.auth
+
+    def principal(authorization: str | None = Header(None)) -> Principal:
+        return auth().identify(authorization)
+
+    def require_run(run_id: str, actor: Principal) -> Run:
         run = runtime().get_run(run_id)
-        if run is None:
+        if run is None or not actor.can(run.department_id):
             raise HTTPException(404, "Совещание не найдено.")
         return run
 
     def run_view(run: Run) -> dict:
         with runtime().db.session() as session:
             count = len(session.exec(select(Assignment.id).where(Assignment.run_id == run.id)).all())
-        return {"id": run.id, "title": run.title, "meeting_date": run.meeting_date, "status": run.status,
+        return {"id": run.id, "department_id": run.department_id, "title": run.title, "meeting_date": run.meeting_date, "status": run.status,
                 "synthetic": run.synthetic, "assignments_count": count, "created_at": run.created_at}
 
     @app.get("/api/health")
@@ -94,15 +105,180 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {"status": "ok", "agent_mode": settings.agent_mode, "stt_mode": settings.stt_mode,
                 "demo_mode": settings.demo_mode, "llm": "local" if settings.llm_base_url else "openai", "today": today(settings).isoformat()}
 
+    def user_view(actor: Principal) -> dict:
+        return {"id": actor.user.id, "username": actor.user.username, "display_name": actor.user.display_name,
+                "is_system_admin": actor.user.is_system_admin, "departments": actor.memberships}
+
+    @app.post("/api/auth/login")
+    def login(body: Login):
+        token, actor = auth().login(body.username, body.password)
+        return {"access_token": token, "token_type": "bearer", "expires_in": settings.jwt_ttl_minutes * 60,
+                "user": user_view(actor)}
+
+    @app.get("/api/auth/me")
+    def me(actor: Principal = Depends(principal)):
+        return user_view(actor)
+
+    @app.get("/api/departments")
+    def departments(actor: Principal = Depends(principal)):
+        with runtime().db.session() as session:
+            return [d.model_dump() for d in session.exec(select(Department)).all() if actor.can(d.id)]
+
+    def system_admin(actor: Principal) -> None:
+        if not actor.user.is_system_admin:
+            raise HTTPException(403, "Требуются права системного администратора.")
+
+    @app.post("/api/admin/departments", status_code=201)
+    def create_department(body: DepartmentCreate, actor: Principal = Depends(principal)):
+        system_admin(actor)
+        with runtime().db.session() as session:
+            if session.get(Department, body.id):
+                raise HTTPException(409, "Департамент уже существует.")
+            if not session.get(Organization, body.organization_id):
+                raise HTTPException(400, "Организация не найдена.")
+            if body.parent_id:
+                parent = session.get(Department, body.parent_id)
+                if not parent or parent.organization_id != body.organization_id:
+                    raise HTTPException(400, "Родительский департамент не найден в организации.")
+            department = Department(**body.model_dump())
+            session.add(department)
+            session.commit()
+            return department.model_dump()
+
+    @app.post("/api/admin/users", status_code=201)
+    def create_user(body: UserCreate, actor: Principal = Depends(principal)):
+        system_admin(actor)
+        if not body.password and settings.auth_mode == "local":
+            raise HTTPException(400, "Для локального входа нужен пароль.")
+        try:
+            password_hash = hash_password(body.password) if body.password else None
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from None
+        with runtime().db.session() as session:
+            if session.exec(select(User).where(User.username == body.username)).first():
+                raise HTTPException(409, "Логин уже существует.")
+            user = User(username=body.username, display_name=body.display_name,
+                        password_hash=password_hash, is_system_admin=body.is_system_admin)
+            session.add(user)
+            session.commit()
+            return {"id": user.id, "username": user.username, "display_name": user.display_name}
+
+    @app.post("/api/admin/memberships", status_code=201)
+    def create_membership(body: MembershipCreate, actor: Principal = Depends(principal)):
+        system_admin(actor)
+        if body.role not in ROLES:
+            raise HTTPException(400, "Неизвестная роль.")
+        with runtime().db.session() as session:
+            if not session.get(User, body.user_id) or not session.get(Department, body.department_id):
+                raise HTTPException(400, "Пользователь или департамент не найден.")
+            existing = session.exec(select(Membership).where(Membership.user_id == body.user_id,
+                Membership.department_id == body.department_id)).first()
+            if existing:
+                existing.role = body.role
+                membership = existing
+            else:
+                membership = Membership(**body.model_dump())
+            session.add(membership)
+            session.commit()
+            return membership.model_dump()
+
+    @app.patch("/api/admin/users/{user_id}")
+    def update_user(user_id: str, body: UserUpdate, actor: Principal = Depends(principal)):
+        system_admin(actor)
+        if body.active is None and body.password is None:
+            raise HTTPException(400, "Укажите active или password.")
+        if user_id == actor.user.id and body.active is False:
+            raise HTTPException(400, "Нельзя отключить собственную учётную запись.")
+        try:
+            password_hash = hash_password(body.password) if body.password is not None else None
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from None
+        with runtime().db.session() as session:
+            user = session.get(User, user_id)
+            if user is None:
+                raise HTTPException(404, "Пользователь не найден.")
+            if body.active is not None:
+                user.active = body.active
+            if password_hash is not None:
+                user.password_hash = password_hash
+            session.add(user)
+            session.commit()
+            return {"id": user.id, "username": user.username, "active": user.active}
+
+    @app.post("/api/admin/identities", status_code=201)
+    def link_identity(body: IdentityLink, actor: Principal = Depends(principal)):
+        system_admin(actor)
+        if body.provider not in {"keycloak", "ecp"}:
+            raise HTTPException(400, "Провайдер должен быть keycloak или ecp.")
+        with runtime().db.session() as session:
+            if not session.get(User, body.user_id):
+                raise HTTPException(400, "Пользователь не найден.")
+            existing = session.exec(select(ExternalIdentity).where(ExternalIdentity.provider == body.provider,
+                ExternalIdentity.subject == body.subject)).first()
+            if existing:
+                raise HTTPException(409, "Эта внешняя учётная запись уже привязана.")
+            identity = ExternalIdentity(**body.model_dump())
+            session.add(identity)
+            session.commit()
+            return {"id": identity.id, "provider": identity.provider, "user_id": identity.user_id}
+
+    @app.post("/api/auth/ecp/challenge")
+    def ecp_challenge():
+        if not settings.ecp_verify_url:
+            raise HTTPException(503, "Вход по ЭЦП ещё не настроен.")
+        challenge = EcpChallenge(payload="", expires_at=datetime.now(timezone.utc) + timedelta(minutes=3))
+        challenge.payload = f"siqyr-ai:login:{challenge.id}:{int(challenge.expires_at.timestamp())}"
+        with runtime().db.session() as session:
+            session.add(challenge)
+            session.commit()
+        return {"challenge_id": challenge.id, "data_base64": base64.b64encode(challenge.payload.encode()).decode(),
+                "expires_at": challenge.expires_at.isoformat()}
+
+    @app.post("/api/auth/ecp/verify")
+    async def ecp_verify(body: EcpSignature):
+        if not settings.ecp_verify_url:
+            raise HTTPException(503, "Вход по ЭЦП ещё не настроен.")
+        with runtime().db.session() as session:
+            challenge = session.get(EcpChallenge, body.challenge_id)
+        if challenge is None or challenge.consumed or challenge.expires_at.replace(tzinfo=timezone.utc) <= datetime.now(timezone.utc):
+            raise HTTPException(401, "Вызов ЭЦП истёк или уже использован.")
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                response = await client.post(settings.ecp_verify_url, json={"cms": body.cms, "payload": challenge.payload})
+                response.raise_for_status()
+                proof = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise HTTPException(503, "Сервис проверки ЭЦП недоступен.") from exc
+        if not (isinstance(proof, dict) and proof.get("valid") is True and proof.get("certificate_valid") is True
+                and proof.get("revocation_checked") is True and proof.get("payload") == challenge.payload
+                and isinstance(proof.get("subject"), str) and proof["subject"]):
+            raise HTTPException(401, "Подпись ЭЦП не прошла проверку.")
+        user = auth().by_external_identity("ecp", proof["subject"])
+        if user is None or not user.active:
+            raise HTTPException(401, "Сертификат не привязан к активному пользователю.")
+        with runtime().db.session() as session:
+            result = session.exec(update(EcpChallenge).where(EcpChallenge.id == body.challenge_id,
+                EcpChallenge.consumed == False).values(consumed=True))  # noqa: E712
+            if result.rowcount != 1:
+                raise HTTPException(401, "Вызов ЭЦП уже использован.")
+            session.commit()
+        return {"access_token": auth().issue(user), "token_type": "bearer",
+                "expires_in": settings.jwt_ttl_minutes * 60, "user": user_view(auth().principal(user))}
+
     @app.get("/api/samples")
-    def samples():
+    def samples(actor: Principal = Depends(principal)):
         demo = demo_meeting()
         return [{key: demo[key] for key in ("id", "title", "description", "lang", "synthetic", "participants")}]
 
     @app.post("/api/runs", status_code=201)
     async def create_run(file: UploadFile | None = File(None), sample: str | None = Form(None),
                          title: str | None = Form(None), meeting_date: str | None = Form(None),
-                         lang: str = Form("rukk"), participants: str | None = Form(None)):
+                         lang: str = Form("rukk"), participants: str | None = Form(None),
+                         department_id: str = Form("default"), actor: Principal = Depends(principal)):
+        actor.require(department_id, "write")
+        with runtime().db.session() as session:
+            if session.get(Department, department_id) is None:
+                raise HTTPException(400, "Департамент не найден.")
         if (file is None) == (sample is None):
             raise HTTPException(400, "Загрузите файл или выберите образец demo — ровно один источник.")
         if sample is not None and sample != "demo":
@@ -120,7 +296,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         resolved_title = title.strip() if title is not None else fixture["title"] if sample else "Загруженное совещание"
         if not resolved_title or len(resolved_title) > 300:
             raise HTTPException(400, "Название должно содержать от 1 до 300 символов.")
-        run = Run(title=resolved_title, meeting_date=meeting_day, lang=lang, participants=names,
+        run = Run(title=resolved_title, meeting_date=meeting_day, lang=lang, participants=names, department_id=department_id,
                   synthetic=bool(sample or settings.stt_mode == "mock" or settings.agent_mode == "mock" or settings.demo_mode == "replay"))
         path = None
         if file is not None:
@@ -156,19 +332,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {"run_id": run.id, "status": "queued"}
 
     @app.get("/api/runs")
-    def runs():
+    def runs(actor: Principal = Depends(principal)):
         with runtime().db.session() as session:
-            return [run_view(run) for run in session.exec(select(Run).order_by(Run.created_at.desc())).all()]
+            return [run_view(run) for run in session.exec(select(Run).order_by(Run.created_at.desc())).all() if actor.can(run.department_id)]
 
     @app.get("/api/runs/{run_id}")
-    def run_details(run_id: str):
-        run = require_run(run_id)
+    def run_details(run_id: str, actor: Principal = Depends(principal)):
+        run = require_run(run_id, actor)
         files = {kind: f"/api/runs/{run_id}/protocol.{kind}" if run.status == "done" else None for kind in ("docx", "pdf")}
         return {"run": run_view(run), "steps": runtime().events.steps(run_id), "proposal": run.proposal, "result": run.result, "files": files}
 
     @app.get("/api/runs/{run_id}/events")
-    async def events(run_id: str, last_event_id: str | None = Header(None)):
-        require_run(run_id)
+    async def events(run_id: str, last_event_id: str | None = Header(None), actor: Principal = Depends(principal)):
+        require_run(run_id, actor)
         try:
             after = int(last_event_id or 0)
             if after < 0:
@@ -179,8 +355,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                                  headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
     @app.post("/api/runs/{run_id}/approve")
-    async def approve(run_id: str, body: Approval):
-        require_run(run_id)
+    async def approve(run_id: str, body: Approval, actor: Principal = Depends(principal)):
+        actor.require(require_run(run_id, actor).department_id, "approve")
         if body.proposal is not None and body.proposal.run_id != run_id:
             raise HTTPException(400, "Черновик относится к другому совещанию.")
         async with runtime().events.lock:
@@ -198,8 +374,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             runtime().spawn(runtime().execute(run_id))
         return {"status": run.status}
 
-    async def download(run_id: str, kind: str):
-        run = require_run(run_id)
+    async def download(run_id: str, kind: str, actor: Principal):
+        run = require_run(run_id, actor)
         if run.status != "done":
             raise HTTPException(409, "Протокол доступен после утверждения и завершения обработки.")
         path = settings.exports_dir / run_id / f"protocol.{kind}"
@@ -212,15 +388,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return FileResponse(path, media_type=media, filename=f"protocol-{run_id}.{kind}")
 
     @app.get("/api/runs/{run_id}/protocol.docx")
-    async def docx(run_id: str):
-        return await download(run_id, "docx")
+    async def docx(run_id: str, actor: Principal = Depends(principal)):
+        return await download(run_id, "docx", actor)
 
     @app.get("/api/runs/{run_id}/protocol.pdf")
-    async def pdf(run_id: str):
-        return await download(run_id, "pdf")
+    async def pdf(run_id: str, actor: Principal = Depends(principal)):
+        return await download(run_id, "pdf", actor)
 
     @app.get("/api/assignments")
-    def assignments(status: str | None = None, assignee: str | None = None, run_id: str | None = None):
+    def assignments(status: str | None = None, assignee: str | None = None, run_id: str | None = None,
+                    actor: Principal = Depends(principal)):
         if status is not None and status not in {"in_progress", "overdue", "done"}:
             raise HTTPException(400, "Статус поручения должен быть in_progress, overdue или done.")
         with runtime().db.session() as session:
@@ -229,30 +406,44 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 statement = statement.where(Assignment.assignee == assignee)
             if run_id is not None:
                 statement = statement.where(Assignment.run_id == run_id)
-            items = [assignment_view(item, run.title, settings) for item, run in session.exec(statement).all()]
+            items = [assignment_view(item, run.title, settings) for item, run in session.exec(statement).all()
+                     if actor.can(run.department_id)]
         return [item for item in items if status is None or item["status"] == status]
 
     @app.patch("/api/assignments/{assignment_id}")
-    def update_assignment(assignment_id: str, body: AssignmentUpdate):
+    def update_assignment(assignment_id: str, body: AssignmentUpdate, actor: Principal = Depends(principal)):
         with runtime().db.session() as session:
             item = session.get(Assignment, assignment_id)
             if item is None:
                 raise HTTPException(404, "Поручение не найдено.")
+            run = session.get(Run, item.run_id)
+            if not actor.can(run.department_id):
+                raise HTTPException(404, "Поручение не найдено.")
+            actor.require(run.department_id, "write")
             item.done = body.done
             session.add(item)
             session.commit()
             return assignment_view(item, session.get(Run, item.run_id).title, settings)
 
     @app.get("/api/notifications")
-    def notifications(recipient: str | None = None):
+    def notifications(recipient: str | None = None, actor: Principal = Depends(principal)):
         with runtime().db.session() as session:
             statement = select(Notification).order_by(Notification.created_at.desc())
             if recipient is not None:
                 statement = statement.where(Notification.recipient == recipient)
-            return [n.model_dump(exclude={"day"}) for n in session.exec(statement).all()]
+            notes = session.exec(statement).all()
+            result = []
+            for n in notes:
+                assignment = session.get(Assignment, n.assignment_id) if n.assignment_id else None
+                run = session.get(Run, n.run_id) if n.run_id else session.get(Run, assignment.run_id) if assignment else None
+                if run and actor.can(run.department_id):
+                    result.append(n.model_dump(exclude={"day"}))
+            return result
 
     @app.post("/api/reminders/run")
-    def reminders():
+    def reminders(actor: Principal = Depends(principal)):
+        if not actor.user.is_system_admin:
+            raise HTTPException(403, "Только системный администратор может запускать общую проверку сроков.")
         return check_reminders(runtime().db, settings)
 
     return app

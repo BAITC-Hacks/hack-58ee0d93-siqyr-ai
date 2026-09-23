@@ -18,7 +18,7 @@ def identifier() -> str:
 class Run(SQLModel, table=True):
     __tablename__ = "runs"
     id: str = Field(default_factory=identifier, primary_key=True)
-    department_id: str = Field(default="default", index=True)
+    department_id: str = Field(default="default", foreign_key="departments.id", index=True)
     title: str
     meeting_date: date
     lang: str = "rukk"
@@ -56,6 +56,7 @@ class Notification(SQLModel, table=True):
     __tablename__ = "notifications"
     __table_args__ = (UniqueConstraint("assignment_id", "kind", "day"),)
     id: str = Field(default_factory=identifier, primary_key=True)
+    run_id: str | None = Field(default=None, foreign_key="runs.id", index=True)
     kind: str
     recipient: str = Field(index=True)
     message: str

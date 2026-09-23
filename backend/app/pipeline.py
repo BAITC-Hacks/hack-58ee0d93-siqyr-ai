@@ -145,7 +145,7 @@ class Runtime:
                 for excerpt in result.excerpts:
                     matching = [a for a in assignments if a.assignee == excerpt.recipient]
                     # One grouped excerpt may refer to several assignments.
-                    session.add(Notification(kind="excerpt", recipient=excerpt.recipient, message=excerpt.message,
+                    session.add(Notification(kind="excerpt", recipient=excerpt.recipient, message=excerpt.message, run_id=run.id,
                                              assignment_id=matching[0].id if len(matching) == 1 else None, day=today(self.settings)))
                 stored = session.get(Run, run_id)
                 stored.result = result.model_dump(mode="json")

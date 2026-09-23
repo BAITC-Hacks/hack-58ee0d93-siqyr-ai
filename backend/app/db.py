@@ -25,6 +25,10 @@ class Database:
             if "department_id" not in {c["name"] for c in inspect(connection).get_columns("runs")}:
                 connection.execute(text("ALTER TABLE runs ADD COLUMN department_id VARCHAR NOT NULL DEFAULT 'default'"))
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_runs_department_id ON runs (department_id)"))
+            if "run_id" not in {c["name"] for c in inspect(connection).get_columns("notifications")}:
+                connection.execute(text("ALTER TABLE notifications ADD COLUMN run_id VARCHAR"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_run_id ON notifications (run_id)"))
+            connection.execute(text("UPDATE notifications SET run_id = (SELECT assignments.run_id FROM assignments WHERE assignments.id = notifications.assignment_id) WHERE run_id IS NULL AND assignment_id IS NOT NULL"))
             connection.execute(text("INSERT OR IGNORE INTO organizations (id, name) VALUES ('default', 'Основная организация')"))
             connection.execute(text("INSERT OR IGNORE INTO departments (id, organization_id, name) VALUES ('default', 'default', 'Общий департамент')"))
 

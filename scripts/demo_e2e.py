@@ -37,6 +37,12 @@ def main():
         sys.stdout.reconfigure(encoding="utf-8")
     base_url = os.environ.get("API_URL", "http://localhost:8000").rstrip("/")
     with httpx.Client(base_url=base_url, timeout=120, trust_env=False) as client:
+        username = os.environ.get("DEMO_USER") or os.environ.get("BOOTSTRAP_ADMIN_USER")
+        password = os.environ.get("DEMO_PASSWORD") or os.environ.get("BOOTSTRAP_ADMIN_PASSWORD")
+        if username and password:
+            login = client.post("/api/auth/login", json={"username": username, "password": password})
+            login.raise_for_status()
+            client.headers["Authorization"] = f"Bearer {login.json()['access_token']}"
         response = client.post("/api/runs", files={"sample": (None, "demo")})
         response.raise_for_status()
         run_id = response.json()["run_id"]
