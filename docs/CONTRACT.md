@@ -11,6 +11,19 @@ upload / sample ─► STT + диаризация ─► propose() ─► awaiti
 
 ## HTTP (frontend ↔ backend)
 
+### Авторизация и департаменты
+
+- Все маршруты `/api`, кроме `/api/health`, `/api/auth/login`, `/api/auth/ecp/challenge`, `/api/auth/ecp/verify`, требуют `Authorization: Bearer <access_token>`; без токена — 401. `/api/samples` тоже требует токен.
+- `POST /api/auth/login` принимает `{username, password}` и отдаёт `{access_token, token_type: "bearer", expires_in, user}`. `GET /api/auth/me` отдаёт `{id, username, display_name, is_system_admin, departments: {department_id: role}}`.
+- При `AUTH_MODE=keycloak|hybrid` тот же заголовок принимает подписанный RS256 access token Keycloak с настроенными `iss` и `aud`. `sub` должен быть заранее привязан к локальному пользователю через `POST /api/admin/identities`; роли берутся только из локальных membership. `hybrid` также принимает локальные токены; `keycloak` выключает вход по паролю.
+- `GET /api/departments` возвращает только доступные подразделения `{id, organization_id, name, parent_id}`.
+- `POST /api/runs` дополнительно принимает `department_id` (по умолчанию `default`); `Run` в ответах содержит `department_id`. Списки совещаний, поручений, уведомлений фильтруются по доступным департаментам. Для недоступного совещания и его экспорта — 404; для запрещённого действия в доступном департаменте — 403.
+- Роли: `viewer` читает; `editor` также создаёт совещания и меняет поручения; `secretary` также утверждает протокол; `department_admin` имеет все действия в своём департаменте; `is_system_admin` имеет доступ ко всем департаментам и запускает общую проверку напоминаний.
+- Системный администратор создаёт департаменты через `POST /api/admin/departments` `{id, name, organization_id?, parent_id?}`, пользователей через `POST /api/admin/users` `{username, display_name, password?, is_system_admin?}`, назначает роль через `POST /api/admin/memberships` `{user_id, department_id, role}` и привязывает внешний идентификатор через `POST /api/admin/identities` `{user_id, provider: "keycloak"|"ecp", subject}`.
+- `PATCH /api/admin/users/{id}` с `{active?, password?}` отключает/включает пользователя или меняет его пароль. Отключение немедленно делает ранее выданный JWT непригодным.
+- `POST /api/auth/ecp/challenge` возвращает `{challenge_id, data_base64, expires_at}`; клиент подписывает именно `data_base64` через NCALayer. `POST /api/auth/ecp/verify` принимает `{challenge_id, cms}`. Backend запрашивает доверенный `ECP_VERIFY_URL`; проверяющий сервис обязан подтвердить CMS, цепочку/срок сертификата, отзыв и точное совпадение исходного payload. Только после этого выдаётся одноразовый локальный JWT для заранее привязанного `ecp` subject. Без сервиса — 503.
+- Нативный браузерный `EventSource` не умеет добавлять заголовок Bearer; фронтенд читает SSE через `fetch` с Authorization и разбирает те же `event/id/data`.
+
 | Метод | Путь | Вход | Выход |
 |---|---|---|---|
 | GET | `/api/health` | — | `{status, agent_mode, stt_mode, demo_mode, llm, today}` |

@@ -13,3 +13,4 @@ data/runtime/
 .env.*
 !.env.example
 /.frontend-workbench/
+.tmp/

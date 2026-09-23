@@ -20,6 +20,8 @@ _TODO: схема из docs/ARCHITECTURE.md_
 Одной командой (Docker):
 ```bash
 cp .env.example .env
+# В .env задайте JWT_SECRET (>=32 случайных символов),
+# BOOTSTRAP_ADMIN_USER и BOOTSTRAP_ADMIN_PASSWORD (>=12 символов).
 docker compose up --build
 ```
 API: http://localhost:8000/api/health · Фронт: http://localhost:5173
@@ -42,6 +44,8 @@ npm run dev
 Фронтенд пока хранит данные в браузере; API, SSE и ИИ будут подключены отдельно.
 
 Режимы (`.env`): `AGENT_MODE=mock|real`, `STT_MODE=mock|real`, `DEMO_MODE=live|replay`, `LLM_BASE_URL` — пусто для OpenAI API или адрес self-hosted vLLM.
+
+Вход по логину/паролю, права департаментов и подготовка Keycloak/NCALayer описаны в [docs/AUTH.md](docs/AUTH.md). После первого запуска уберите bootstrap-пароль из окружения.
 
 ## Агенты и инструменты
 _TODO: таблица из docs/README_AI.md_
