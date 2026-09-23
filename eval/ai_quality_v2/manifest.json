@@ -1,0 +1,8 @@
+{
+  "synthetic": true,
+  "origin": "manually_scripted_fiction",
+  "audio_path": null,
+  "inputs_sha256": "d1139b7308374d2edcfccc43690e9a5d8c6738e574966b4f72fd18afbbc0d27a",
+  "case_ids": ["ru_self", "ru_other_mention", "ru_blurry_name", "ru_same_first_name", "kk_self", "kk_other", "mixed_external", "unknown_overlap", "two_tasks_one_segment", "true_deadline_conflict", "unapproved_move", "mixed_unknown_owner"],
+  "note": "Каждый текст написан вручную для этого eval; персонажи, организации, встречи и поручения вымышлены. Аудио и реальные записи не использованы. Эталон хранится отдельно и не передаётся извлекателю."
+}
