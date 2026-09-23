@@ -1,6 +1,7 @@
 import { HttpError, type HttpClient } from '../../../shared/application/HttpClient.ts';
 import type { AuthGateway } from '../application/AuthGateway.ts';
 import { AuthError, validateSession, type AuthSession, type PasswordCredentials } from '../domain/auth.types.ts';
+import { departmentClaims } from '../domain/departmentAccess.ts';
 
 type TokenStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
@@ -44,8 +45,7 @@ function userSession(value: unknown, expiresAt: number): AuthSession {
     principal: {
       id: user.id,
       displayName: user.display_name,
-      roles: user.is_system_admin ? ['system_admin'] : [],
-      permissions: [],
+      ...departmentClaims(user.is_system_admin, user.departments as Record<string, string>),
     },
     expiresAt,
   };

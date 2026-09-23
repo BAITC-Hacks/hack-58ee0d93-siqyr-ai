@@ -1,11 +1,15 @@
 import { canAccess, isAccessPolicy, type AccessPolicy } from '../../modules/auth/domain/accessPolicy.ts';
 import type { AuthSession } from '../../modules/auth/domain/auth.types.ts';
 
+// Pages that create a server run: the API refuses them without a write role in the department.
+const writeMeetings: AccessPolicy = { permissionsAllOf: ['meetings:write'] };
+
 export const pagePolicies = {
   meetings: {},
   meeting: {},
-  newMeeting: {},
+  newMeeting: writeMeetings,
   liveMeeting: {},
+  call: writeMeetings,
   chat: {},
   tasks: {},
   integrations: {},
