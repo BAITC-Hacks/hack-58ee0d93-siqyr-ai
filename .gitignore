@@ -10,3 +10,4 @@ dist/
 tmp/
 data/runtime/
 .DS_Store
+.tmp/

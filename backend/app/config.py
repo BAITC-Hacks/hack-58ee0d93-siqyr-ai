@@ -35,6 +35,7 @@ class Settings:
     stt_mode: str = field(default_factory=lambda: _env("STT_MODE", "mock"))  # mock | real
     demo_mode: str = field(default_factory=lambda: _env("DEMO_MODE", "live"))  # live | replay
     replay_run_id: str = field(default_factory=lambda: _env("REPLAY_RUN_ID"))
+    mock_delay: float = field(default_factory=lambda: _float("MOCK_DELAY", 1))
 
     llm_base_url: str = field(default_factory=lambda: _env("LLM_BASE_URL"))  # пусто = OpenAI API
     llm_api_key: str = field(default_factory=lambda: _env("LLM_API_KEY") or _env("OPENAI_API_KEY"))
@@ -57,6 +58,16 @@ class Settings:
     demo_today: str = field(default_factory=lambda: _env("DEMO_TODAY"))  # YYYY-MM-DD, для демо
     seed: bool = field(default_factory=lambda: _env("SEED", "1") == "1")
 
+    auth_mode: str = field(default_factory=lambda: _env("AUTH_MODE", "local"))  # local | keycloak | disabled (tests only)
+    jwt_secret: str = field(default_factory=lambda: _env("JWT_SECRET"))
+    jwt_issuer: str = field(default_factory=lambda: _env("JWT_ISSUER", "siqyr-ai"))
+    jwt_ttl_minutes: int = field(default_factory=lambda: _int("JWT_TTL_MINUTES", 30))
+    bootstrap_admin_user: str = field(default_factory=lambda: _env("BOOTSTRAP_ADMIN_USER"))
+    bootstrap_admin_password: str = field(default_factory=lambda: _env("BOOTSTRAP_ADMIN_PASSWORD"))
+    keycloak_issuer: str = field(default_factory=lambda: _env("KEYCLOAK_ISSUER"))
+    keycloak_audience: str = field(default_factory=lambda: _env("KEYCLOAK_AUDIENCE"))
+    ecp_verify_url: str = field(default_factory=lambda: _env("ECP_VERIFY_URL"))
+
     pdf_font_path: str = field(default_factory=lambda: _env("PDF_FONT_PATH"))
     pdf_font_bold_path: str = field(default_factory=lambda: _env("PDF_FONT_BOLD_PATH"))
 
@@ -76,7 +87,8 @@ class Settings:
 settings = Settings()
 
 
-def today() -> date:
-    if settings.demo_today:
-        return date.fromisoformat(settings.demo_today)
-    return datetime.now(timezone(timedelta(hours=settings.utc_offset_hours))).date()
+def today(config: Settings | None = None) -> date:
+    config = config or settings
+    if config.demo_today:
+        return date.fromisoformat(config.demo_today)
+    return datetime.now(timezone(timedelta(hours=config.utc_offset_hours))).date()
