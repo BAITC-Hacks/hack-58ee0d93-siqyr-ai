@@ -138,7 +138,8 @@ API — http://localhost:8000/api/health, фронтенд — http://localhost:
 |---|---|---|
 | `STT_MODE`, `AGENT_MODE` | `mock` | `real` — локальные STT и LLM; любой mock-этап помечает результат `source_mode=mock` |
 | `DEMO_MODE`, `REPLAY_RUN_ID` | `live` | `replay` — повтор сохранённого прогона, помечен `source_mode=replay` |
-| `LLM_PROVIDER` | `local` | `local` — только loopback или хосты из `LLM_ALLOWED_HOSTS`; `dev_openai` — только встроенная синтетика, загрузки блокируются |
+| `LLM_PROVIDER` | `local` | `local` — только loopback или хосты из `LLM_ALLOWED_HOSTS`; `dev_openai` — встроенный образец или проверенная вымышленная тестовая запись |
+| `DEV_OPENAI_AUDIO_MANIFEST` | пусто | Серверный JSON с SHA-256 разрешённых вымышленных записей; без него загрузки не передаются внешней LLM |
 | `LLM_BASE_URL` | пусто | обязателен для `AGENT_MODE=real`; пусто — real-запуск останавливается, облачного fallback нет |
 | `MODEL_MAIN`, `MODEL_FAST` | `gpt-6-luna` | для локального профиля задайте явно, например `qwen3:4b` и `qwen3:1.7b` |
 | `STT_MODEL_DIR`, `DIARIZATION_MODEL_DIR` | `models/stt`, `models/diarization` | веса; в git только manifest |
@@ -148,6 +149,8 @@ API — http://localhost:8000/api/health, фронтенд — http://localhost:
 | `AUTH_MODE` | `disabled` | `local` — логин и пароль, `keycloak` — только корпоративный токен, `hybrid` — оба; `disabled` — без входа, для API-демо и тестов |
 | `JWT_SECRET`, `BOOTSTRAP_ADMIN_*` | пусто | обязательны при входе по паролю |
 | `KEYCLOAK_ISSUER`, `KEYCLOAK_AUDIENCE`, `ECP_VERIFY_URL` | пусто | корпоративный вход и ЭЦП, см. [docs/AUTH.md](docs/AUTH.md) |
+
+Для тестовой загрузки в `dev_openai` укажите путь к локальному JSON с `version: 1` и `files: [{"sha256": "...", "allow_dev_openai": true, "synthetic": true}]`. SHA-256 считается по байтам исходного аудио; список создаёт владелец сервера. Флаг или имя файла, переданные браузером, не разрешают облачную обработку.
 | `SMTP_*` или `RESEND_API_KEY` | пусто | почта для напоминаний; без неё напоминания видны только в `/api/notifications` |
 | `NOTIFY_EMAILS`, `NOTIFY_CC` | пусто | `{"имя из протокола": "email"}` и куратор в копии |
 | `REMINDER_INTERVAL_SEC`, `REMIND_DAYS_BEFORE` | `300`, `1` | частота проверки сроков и за сколько дней напоминать |
