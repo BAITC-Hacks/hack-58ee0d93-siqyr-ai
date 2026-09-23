@@ -1,0 +1,14 @@
+{
+  "d01": {"assignments": []},
+  "d02": {"assignments": [{"assignee": null, "task_terms": ["хаттаманы", "әзірле"], "deadline": null, "deadline_text_terms": ["жұмаға дейін"], "source_segments": [1]}]},
+  "d03": {"assignments": [{"assignee": "Жұлдыз бөлімі", "task_terms": ["макетін", "жібер"], "deadline": "2026-10-02", "deadline_text_terms": ["2026-10-02"], "source_segments": [0]}]},
+  "d04": {"assignments": [{"assignee": "Томирис", "task_terms": ["смету", "подготов"], "deadline": "2026-10-05", "deadline_text_terms": ["5 октября 2026"], "source_segments": [0, 1]}]},
+  "d05": {"assignments": [{"assignee": "Айбар", "task_terms": ["тізімін", "жаса"], "deadline": null, "deadline_text_terms": ["қазан"], "source_segments": [0, 1], "review_reasons": ["deadline_conflict"]}]},
+  "d06": {"assignments": [{"assignee": "Сая", "task_terms": ["карточкаларын", "тексер"], "deadline": null, "deadline_text_terms": [], "source_segments": [1]}]},
+  "d07": {"assignments": [{"assignee": "Оймыш", "task_terms": ["схему", "обнов"], "deadline": "2026-10-07", "deadline_text_terms": ["7 октября 2026"], "source_segments": [0]}]},
+  "d08": {"assignments": []},
+  "h01": {"assignments": []},
+  "h02": {"assignments": [{"assignee": "Лазурь", "task_terms": ["таблицу", "свер"], "deadline": null, "deadline_text_terms": ["октября"], "source_segments": [0, 1], "review_reasons": ["deadline_conflict"]}]},
+  "h03": {"assignments": [{"assignee": "Меруерт", "task_terms": ["скриншоттарды", "жина"], "deadline": "2026-10-09", "deadline_text_terms": ["2026-10-09"], "source_segments": [0, 1]}]},
+  "h04": {"assignments": [{"assignee": "Қиял зертханасы", "task_terms": ["сызбасын", "жібер"], "deadline": null, "deadline_text_terms": [], "source_segments": [0]}]}
+}
