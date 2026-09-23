@@ -2,7 +2,7 @@
 
 **Состояние на 15:05.** Контракт v0.2 реализован в `backend/shared/schemas.py` и API на ветке `api` (2e59cfa — v0.2, cc4d99b — 503/429 и упаковка) и покрыт тестами на mock STT/агентах; в `main` (b6be380) его ещё нет. Фактическое поведение — раздел «Статус реализации v0.2» ниже; таблица маршрутов приведена к коду. Разделы «Семантика», «StepEvent v0.2», JSON Schema и «Проверки сверх JSON Schema» — целевое описание: где код расходится, это перечислено в «Не реализовано». Изменения фиксируются в DECISIONS.md.
 
-**Согласовано / ждёт ACK:** реальные модули `backend/stt/engine.py` и `backend/agents/runner.py` в репозитории ещё отсутствуют (ни в `api`, ни в `main`) — ждём ветку/SHA Alibi и ACK по полям. Экспорт: по DECISIONS [14:46] основной путь — серверные DOCX/PDF из утверждённого snapshot (готовы); клиентский экспорт фронта допустим только из `approved` того же run. Ждёт ACK Nurdaulet. Frontend пока к API не подключён (данные только в IndexedDB).
+**Согласовано / ждёт ACK:** реальные модули `backend/stt/engine.py` и `backend/agents/runner.py` Alibi вошли в `main` merge-коммитом 63ac2f6. Их совместимые поля внесены в схему и статус ниже (DECISIONS, 16:45). Экспорт: по DECISIONS [14:46] основной путь — серверные DOCX/PDF из утверждённого snapshot (готовы); клиентский экспорт фронта допустим только из `approved` того же run. Ждёт ACK Nurdaulet. Frontend пока к API не подключён (данные только в IndexedDB).
 
 ## Поток
 ```
@@ -50,22 +50,40 @@ upload / sample ─► STT + диаризация ─► propose() ─► awaiti
 | GET | `/api/runs/{id}/protocol.pdf` | — | файл из утверждённого snapshot; 409 до `done` |
 | POST | `/api/runs/{id}/jira` | — | `{project, created: [key], sprint, issues: [{position, key, url, assigned}]}`; задачи Jira из approved snapshot, `excluded` пропускаются, повтор не дублирует; 409 до утверждения, 503 Jira не настроена/Cloud без `JIRA_ALLOW_CLOUD=1`, 502 ошибка Jira |
 | GET | `/api/runs/{id}/jira` | — | `{configured, project, issues}` — уже созданные задачи для кнопки/ссылок |
-| GET | `/api/assignments` | `?status=in_progress\|overdue\|done&assignee=&run_id=` | `[{id, run_id, run_title, assignee, task, deadline, deadline_text, priority, category, status, days_left}]` — только из `done`-запусков |
+| GET | `/api/assignments` | `?status=in_progress\|overdue\|done&assignee=&run_id=` | `[{id, run_id, run_title, assignee, task, deadline, deadline_text, priority, category, status, days_left, evidence: Evidence[], review_status, review_reasons, review_note, assignee_candidates, deadline_candidates}]` — только из `done`-запусков; review-поля копируются из approved snapshot; неустановленный исполнитель хранится как `"Не указан"` |
 | PATCH | `/api/assignments/{id}` | `{done: bool}` | поручение |
 | GET | `/api/notifications` | `?recipient=` | `[{id, kind: excerpt\|due_soon\|overdue, recipient, message, assignment_id, run_id, created_at, email: sent\|failed\|null}]` |
 | POST | `/api/reminders/run` | — | `{created, today, email: {enabled, sent, failed, unmapped: [имена без адреса], error?}}` — ручной запуск проверки сроков и отправки писем (сценарий 2), только системный администратор. `sent`/`failed` — число писем, не напоминаний |
 
 Все маршруты таблицы реализованы и покрыты тестами. Реестр поручений, уведомления и напоминания (фоновая проверка каждые `REMINDER_INTERVAL_SEC`) работают на backend, но frontend их пока не вызывает. Маршруты авторизации, админки и профиля — в разделе выше.
 
-### Статус реализации v0.2 (ветка api, Meiirlan, 14:46; дополнено 15:05)
+### Статус реализации v0.2 (ветка api, Meiirlan, 14:46; дополнено 15:05; поля AI из 63ac2f6 — 16:45)
 
 Реализовано и покрыто тестами (`tests/test_contract_v02.py`, mock STT/агенты):
 - `backend/shared/schemas.py` v0.2 **только добавлением полей с умолчаниями**: ответы v0.1 остаются валидными. Segment: `speaker` nullable, `speaker_candidates`, `corrected_text`, `review_reasons`. Participant: `kind`, `present`. RunInput: `meeting_date` nullable, `meeting_date_verified`. AssignmentDraft: `assignee` nullable, `deadline_candidates`, `evidence[]`, `review_status`, `review_reasons`, `review_note`, `confidence=null`. Proposal: `revision`, `source_mode`, `speaker_records`. Новые типы `Evidence`, `Speaker`.
+- [63ac2f6, AI Alibi] Ещё совместимые добавления с умолчаниями:
+  - `AssignmentDraft.assignee_candidates` — имена из participants, между которыми раннер не смог выбрать исполнителя по цитате. `assignee` при этом `null` с `owner_uncertain`; кандидат сам исполнителем не становится.
+  - `Speaker.candidate_names` — имена из самопредставления («я …», «мен …») в репликах этого голоса, точные или нечёткие совпадения со списком участников.
+  - `Speaker.evidence` — цитаты этого самопредставления (`field=context`).
+  - `Speaker.review_reasons` — у автоматической связи всегда `speaker_uncertain`, при наложении ещё `overlap`.
+  - `Speaker.confidence=null`.
+
+  Раннер ставит `participant_name` и `mapping_status=suggested` только при одном точном совпадении с присутствующим человеком без наложения, иначе `participant_name=null`, `mapping_status=unmapped`. Если одно имя досталось двум голосам, оно снимается у обоих.
 - `PUT /api/runs/{id}/proposal` `{expected_revision, proposal}` → `{revision, proposal}`. Только `awaiting_approval`; чужая revision → 409; ссылка на несуществующую реплику, цитата не из реплики, изменение числа реплик → 422. `text/start/end` реплик всегда берутся из сырого транскрипта; правка человека — только `corrected_text`/`speaker`.
+- [63ac2f6] Обычное сохранение не снимает серверные причины проверки. `review_reasons` объединяются с прежними для того же поручения: совпадение по `task`+`source_segments` либо та же позиция с теми же `source_segments`. Пропущенные в запросе `evidence`, `assignee_candidates`, `deadline_candidates`, `review_note` и `speaker_records` берутся из текущей редакции. Причину снимает только явный статус:
+  - `confirmed`/`corrected` снимает `owner_uncertain`, если `assignee` задан;
+  - `confirmed`/`corrected` снимает `deadline_conflict`, если в `deadline_candidates` осталось не больше одного срока;
+  - `corrected` с проверяемой цитатой снимает `evidence_missing`.
+
+  Если поручение на репликах с замечаниями переструктурировано и осталось `unreviewed` → 422. `Speaker.evidence` проверяется так же, как evidence поручения, и должна относиться к репликам этого же голоса, иначе 422.
 - `POST /api/runs/{id}/approve` принимает `expected_revision` (рекомендуется). Ответ `{status, revision}`. Повтор той же revision в executing/done → 200 тот же результат; другая → 409. Утверждение сохраняет immutable `approved` snapshot; execute, реестр поручений и DOCX/PDF строятся только из него. `review_status=excluded` не попадает в реестр и файлы.
-- Блокирующие причины (`deadline_conflict`, `evidence_missing`, `speaker_uncertain`, `overlap`, `audio_protocol_mismatch`) у `unreviewed` поручения → approve 409 `{detail, code: "review_required", assignments: [номера]}`. `owner_uncertain`/`deadline_unknown` не блокируют: утверждение протокола подтверждает «не указан». Остальные `unreviewed` при approve становятся `confirmed`.
+- Блокирующие причины у `unreviewed` поручения: `deadline_conflict`, `evidence_missing`, `speaker_uncertain`, `overlap`, `audio_protocol_mismatch` и [63ac2f6] `scope_incomplete`. С ними approve отвечает 409 `{detail, code: "review_required", assignments: [номера]}`.
+  - `scope_incomplete` — действие без объекта («подготовить», «дайындау керек»); полная реплика добавляется в evidence как `context`.
+  - `evidence_missing` и `deadline_conflict` блокируют и после `confirmed`/`corrected`, пока причина не снята. Исключение — `excluded`.
+  - `owner_uncertain`/`deadline_unknown` не блокируют: утверждение протокола подтверждает «не указан».
+  - Остальные `unreviewed` при approve становятся `confirmed`.
 - Сервер проверяет вывод модели: несуществующие индексы и непроверяемые цитаты удаляются с причиной `evidence_missing`; `start/end` evidence берутся из сегмента; при отсутствии цитат evidence = целая реплика из `source_segments`. `revision=1` и `source_mode` задаёт сервер (раннер не может объявить mock реальным).
-- Дата совещания не подставляется: без `meeting_date` у загрузки → `meeting_date=null`, `meeting_date_verified=false`, абсолютная дата срока удаляется, причина `deadline_unknown`. Для `sample=demo` берётся дата сценария fixture.
+- Дата совещания не подставляется: без `meeting_date` у загрузки → `meeting_date=null`, `meeting_date_verified=false`, абсолютная дата срока удаляется, причина `deadline_unknown`. [63ac2f6] Исключение: дата сохраняется, если она дословно, с днём, месяцем и годом, стоит в цитате `field=deadline`. Для `sample=demo` берётся дата сценария fixture.
 - `GET /api/runs/{id}/audio` — исходный файл с Range (206), 404 если записи нет (sample). В режиме с авторизацией `<audio src>` не шлёт Bearer: фронту нужен fetch→blob.
 - GET run дополнительно: `revision`, `approved`, `approved_at`, `transcript {source_mode, segments}` (сырой), `audio`. Run view: `meeting_date_verified`, `source_mode`.
 - SSE `data.stage`: `transcribe`, `validate`, `review` (needs_approval и каждое сохранение), `approve`, `export`, `complete`; `duration_ms` у transcribe/validate/export. Этапы внутри раннера (`map_speakers`, `extract`, `summarize`) проставляет раннер Alibi.
@@ -78,10 +96,11 @@ upload / sample ─► STT + диаризация ─► propose() ─► awaiti
 Не реализовано:
 - audit log с автором правки отдельной таблицей (сейчас шаг SSE `stage=review`/`approve` с `user_id`); speaker mapping как отдельный маршрут (правится через `speakers`/`speaker_records` в PUT); `usage_available` в StepEvent.
 - Лимит длительности 10 минут не проверяется — только размер `MAX_UPLOAD_MB` (100). Форматы записи — `GET /api/formats` (backend/app/media.py): `file` в `POST /api/runs` получает 415, если расширение не из списка, заявленный Content-Type не аудио/видео (пустой и `application/octet-stream` допустимы) или первые байты не совпадают ни с одним контейнером (WAV/RF64, MP3±ID3, ADTS AAC, MP4/M4A/MOV/3GP, OGG/Opus, WebM/MKV, FLAC, WMA, AMR, AIFF, AVI, MPEG-PS). Файл хранится с расширением фактического контейнера (M4A под именем `.mp3` → `.m4a`). Декодируемость и длительность не проверяются — это делает ffmpeg в STT.
+- [63ac2f6] Реальный STT для неизвестного голоса и наложения пока пишет в `Segment.speaker` строки `UNKNOWN`/`OVERLAP`, а не `null` с `review_reasons`; раннер создаёт для них `Speaker` с такими label вне паттерна `SPEAKER_nn`. Раннер считает их небезопасными и никогда не связывает с именем, а поручения на таких репликах получают `speaker_uncertain` (у `OVERLAP` ещё и `overlap`).
 - SSE `error` без `code`/`retryable`; этапы `ingest`, `normalize_audio`, `vad`, `diarize` backend не эмитит (сейчас только `transcribe` целиком) — их может добавить engine Alibi через свой шаг, если нужно.
-- Реальные `backend/stt/engine.py`, `backend/agents/runner.py` — отсутствуют. Если readiness пройдена, а модуля нет, запуск уходит в `error` с текстом «Модуль реального режима ещё не установлен».
+- [63ac2f6] Реальные `backend/stt/engine.py`, `backend/agents/runner.py` есть в main; веса моделей в Git не входят (`models/*/manifest.json`). Если readiness пройдена, а модуль не импортируется, запуск уходит в `error` с текстом «Модуль реального режима ещё не установлен».
 
-Известная ошибка (не исправлена на 15:05): при утверждении поручения с `assignee=null` («не указан», разрешено контрактом) `runner_mock.execute` создаёт `Excerpt(recipient=None)` → `ValidationError`, запуск уходит в `error` после approve. Там же выдержки готовятся и для `review_status=excluded`. Раннер Alibi должен учитывать оба случая; backend добавит защиту в `pipeline.execute`.
+Исправлено: `runner_mock.execute` (ae1320c) и `runner.execute` (63ac2f6) пропускают поручения с `assignee=null` и `review_status=excluded`, поэтому утверждение «не указан» больше не уводит запуск в `error`.
 
 Ошибки: `{detail: "текст для пользователя"}`, у 409 review — ещё `code` и `assignments`. 400 — неверный ввод, 403 — нет прав в департаменте, 404 — нет запуска/нет доступа, 409 — не тот статус или устаревшая редакция, 413 — файл больше MAX_UPLOAD_MB, 415 — формат, 422 — ссылка/цитата не из транскрипта в PUT/approve, 429 — rate limit (`RATE_LIMIT_PER_MIN` на POST runs/login, `Retry-After: 60`) или полная очередь (`Retry-After: 30`), 503 — модель/веса/LLM недоступны (или ЭЦП не настроена).
 
@@ -216,7 +235,11 @@ Draft 2020-12. Шесть доменных сущностей и вспомог�
         "label": {"type": "string", "pattern": "^SPEAKER_[0-9]+$"},
         "participant_name": {"type": ["string", "null"]},
         "mapping_status": {"enum": ["unmapped", "suggested", "confirmed"]},
-        "source_segments": {"type": "array", "items": {"type": "integer", "minimum": 0}}
+        "source_segments": {"type": "array", "items": {"type": "integer", "minimum": 0}},
+        "candidate_names": {"type": "array", "items": {"type": "string"}, "description": "Имена из самопредставления в репликах голоса; не подтверждённая связь"},
+        "evidence": {"type": "array", "items": {"$ref": "#/$defs/Evidence"}, "description": "Цитаты самопредставления только из реплик этого голоса"},
+        "review_reasons": {"type": "array", "items": {"type": "string"}},
+        "confidence": {"type": "null", "description": "Нет калиброванной вероятности; показывать review_reasons"}
       }
     },
     "Transcript": {
@@ -249,6 +272,7 @@ Draft 2020-12. Шесть доменных сущностей и вспомог�
       "required": ["assignee", "task", "deadline", "deadline_text", "source_segments", "evidence", "review_status", "review_reasons", "confidence"],
       "properties": {
         "assignee": {"type": ["string", "null"]},
+        "assignee_candidates": {"type": "array", "items": {"type": "string"}, "description": "Возможные исполнители, когда цитата не устанавливает одного; сами assignee не заполняют"},
         "task": {"type": "string", "minLength": 1},
         "deadline": {"type": ["string", "null"], "format": "date"},
         "deadline_text": {"type": ["string", "null"]},
@@ -291,7 +315,7 @@ Draft 2020-12. Шесть доменных сущностей и вспомог�
 ## Проверки сверх JSON Schema
 
 1. `0 <= start < end <= duration`, индексы evidence/source_segments существуют; source_indices относятся к неизменяемому raw Transcript, а не к списку после сортировки UI. Для clip хранить source_offset; UI показывает секунды оригинала.
-2. `quote` — подстрока указанного raw сегмента; punctuation/whitespace normalization разрешена одинаково для обеих сторон. Human correction хранится отдельно с именем проверившего/временем в audit log и не маскируется как STT.
+2. `quote` — подстрока указанного raw сегмента **целыми словами**; punctuation/whitespace normalization разрешена одинаково для обеих сторон. Цитата, пустая после нормализации (`"!!!"`), или обрывок слова не проходят. То же для `Speaker.evidence`, где цитата должна быть ещё и из реплики этого голоса. Human correction хранится отдельно с именем проверившего/временем в audit log и не маскируется как STT.
 3. Evidence time берётся из сегмента сервером. LLM не изобретает точные таймкоды слов. Несколько соседних источников допустимы для одного поручения.
 4. Срок «через две недели» вычислять только от подтверждённой даты. «На следующей неделе» хранить как диапазон/текст, deadline=null, если конкретный день не назван. «После совещания» — событие, не дата. День/месяц без года при неизвестной дате → null.
 5. Последняя **явно согласованная** правка того же поручения заменяет старую; поздний пересказ без ясности не отменяет прошлое автоматически. Сохраняем обе цитаты; конфликтующие сроки идут на аудио-проверку.
