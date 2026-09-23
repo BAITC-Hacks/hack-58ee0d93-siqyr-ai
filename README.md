@@ -32,6 +32,15 @@ uvicorn backend.app.main:app --reload
 pytest
 ```
 
+Фронтенд отдельно (Node.js 20.19+ в ветке 20.x или 22.12+):
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+Откройте http://127.0.0.1:5174. Подробнее: [frontend/README.md](frontend/README.md).
+Фронтенд пока хранит данные в браузере; API, SSE и ИИ будут подключены отдельно.
+
 Режимы (`.env`): `AGENT_MODE=mock|real`, `STT_MODE=mock|real`, `DEMO_MODE=live|replay`, `LLM_BASE_URL` — пусто для OpenAI API или адрес self-hosted vLLM.
 
 ## Агенты и инструменты

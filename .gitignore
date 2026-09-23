@@ -10,3 +10,6 @@ dist/
 tmp/
 data/runtime/
 .DS_Store
+.env.*
+!.env.example
+/.frontend-workbench/
