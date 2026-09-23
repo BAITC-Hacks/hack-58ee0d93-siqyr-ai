@@ -11,6 +11,25 @@ interface StoredToken {
 
 const storageKey = 'siqyrai.auth.v1';
 
+function readStoredToken(storage: Pick<Storage, 'getItem'>, now: number): StoredToken | null {
+  const raw = storage.getItem(storageKey);
+  if (!raw) return null;
+  try {
+    const value: unknown = JSON.parse(raw);
+    if (typeof value === 'object' && value !== null && 'token' in value && 'expiresAt' in value
+      && typeof value.token === 'string' && value.token.length > 0
+      && typeof value.expiresAt === 'number' && Number.isFinite(value.expiresAt) && value.expiresAt > now) {
+      return { token: value.token, expiresAt: value.expiresAt };
+    }
+  } catch { /* Invalid browser state is treated as a signed-out session. */ }
+  return null;
+}
+
+/** Bearer token of the signed-in user for API calls outside auth; null when signed out or expired. */
+export function storedAccessToken(storage: Pick<Storage, 'getItem'>, now: number = Date.now()): string | null {
+  return readStoredToken(storage, now)?.token ?? null;
+}
+
 function userSession(value: unknown, expiresAt: number): AuthSession {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new AuthError('invalid-session');
   const user = value as Record<string, unknown>;
@@ -48,18 +67,9 @@ export class ApiAuthGateway implements AuthGateway {
   }
 
   private storedToken(): StoredToken | null {
-    const raw = this.storage.getItem(storageKey);
-    if (!raw) return null;
-    try {
-      const value: unknown = JSON.parse(raw);
-      if (typeof value === 'object' && value !== null && 'token' in value && 'expiresAt' in value
-        && typeof value.token === 'string' && value.token.length > 0
-        && typeof value.expiresAt === 'number' && Number.isFinite(value.expiresAt) && value.expiresAt > this.now()) {
-        return { token: value.token, expiresAt: value.expiresAt };
-      }
-    } catch { /* Invalid browser state is treated as a signed-out session. */ }
-    this.clear();
-    return null;
+    const stored = readStoredToken(this.storage, this.now());
+    if (!stored) this.clear();
+    return stored;
   }
 
   async restoreSession(signal: AbortSignal): Promise<AuthSession | null> {

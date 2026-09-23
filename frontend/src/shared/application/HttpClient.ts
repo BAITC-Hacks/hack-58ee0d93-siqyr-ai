@@ -5,6 +5,8 @@ export interface HttpRequest {
   params?: Record<string, string | number | boolean | undefined>;
   signal?: AbortSignal;
   headers?: Record<string, string>;
+  /** Overrides the client default in milliseconds, e.g. for large uploads. */
+  timeout?: number;
 }
 
 export interface HttpClient {

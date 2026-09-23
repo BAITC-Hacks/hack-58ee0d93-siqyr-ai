@@ -1,3 +1,4 @@
+import type { UploadFormats } from '@/modules/recording/application/RecordingGateway';
 import { useRecorder } from '@/modules/recording/presentation/useRecorder';
 import { useServices } from '@/modules/workspace/presentation/WorkspaceProvider';
 import { useWorkspace } from '@/modules/workspace/presentation/useWorkspace';
@@ -19,6 +20,7 @@ export function useNewMeetingModel() {
   const runIdRef = useRef<string | null>(null);
   const [mode, setMode] = useState<IntakeMode>('upload');
   const [file, setFile] = useState<File | null>(null);
+  const [formats, setFormats] = useState<UploadFormats | null>(null);
   const [fileError, setFileError] = useState('');
   const [consent, setConsent] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -48,6 +50,15 @@ export function useNewMeetingModel() {
   }, [loading, settings.organization, settings.defaultLanguage]);
 
   useEffect(() => {
+    const gateway = services.recordings;
+    if (!gateway) return;
+    let active = true;
+    // Without the list the browser defaults stay; the server still checks the file on upload.
+    gateway.formats().then((value) => { if (active) setFormats(value); }).catch(() => {});
+    return () => { active = false; };
+  }, [services.recordings]);
+
+  useEffect(() => {
     if (recorder.status !== 'recording' && recorder.status !== 'paused' && recorder.status !== 'requesting' && recorder.status !== 'finishing') return;
     const preventUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
@@ -62,7 +73,7 @@ export function useNewMeetingModel() {
     setSubmitError('');
     setFile(null);
     if (!selected) return;
-    const issue = mediaSourceError(selected);
+    const issue = mediaSourceError(selected, formats ?? undefined);
     if (issue) {
       setFileError(issue);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -142,6 +153,18 @@ export function useNewMeetingModel() {
       return;
     }
     setSaving(true);
+    let backendRunId: string | undefined;
+    const gateway = services.recordings;
+    if (mode === 'upload' && file && gateway) {
+      // The server checks the format and queues recognition; the meeting is saved only after it accepted the file.
+      try {
+        backendRunId = await gateway.upload({ title: values.title.trim(), date: values.date || null, language: values.language }, file);
+      } catch (cause) {
+        setSubmitError(cause instanceof Error ? cause.message : 'Не удалось отправить файл на сервер.');
+        setSaving(false);
+        return;
+      }
+    }
     try {
       const sourceName = mode === 'record'
         ? `Запись ${new Date().toLocaleString('ru-RU')}.${recorder.blob?.type.includes('mp4') ? 'm4a' : 'webm'}`
@@ -151,6 +174,7 @@ export function useNewMeetingModel() {
         organization: values.organization.trim(),
         date: values.date || null,
         language: values.language,
+        ...(backendRunId ? { backendRunId } : {}),
         ...(source ? { source: { name: sourceName, size: source.size, type: source.type, blob: source } } : {}),
       });
       navigate(`/meetings/${id}`);
@@ -164,5 +188,5 @@ export function useNewMeetingModel() {
   const sourceForPreview = mode === 'upload' ? file : recorder.blob;
   const showConsent = mode !== 'draft';
 
-  return { recorder, streaming, beginRecording, finishRecording, mode, file, fileError, consent, setConsent, submitError, setSubmitError, saving, previewUrl, fileInputRef, form, onFileChange, changeMode, onSave, activeRecording, sourceForPreview, showConsent };
+  return { recorder, streaming, formats, beginRecording, finishRecording, mode, file, fileError, consent, setConsent, submitError, setSubmitError, saving, previewUrl, fileInputRef, form, onFileChange, changeMode, onSave, activeRecording, sourceForPreview, showConsent };
 }

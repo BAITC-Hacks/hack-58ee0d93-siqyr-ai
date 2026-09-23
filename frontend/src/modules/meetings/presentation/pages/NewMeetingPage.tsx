@@ -14,7 +14,8 @@ function formatDuration(ms: number) {
 }
 
 export default function NewMeetingPage() {
-  const { recorder, streaming, beginRecording, finishRecording, mode, file, fileError, consent, setConsent, submitError, setSubmitError, saving, previewUrl, fileInputRef, form, onFileChange, changeMode, onSave, activeRecording, sourceForPreview, showConsent } = useNewMeetingModel();
+  const { recorder, streaming, formats, beginRecording, finishRecording, mode, file, fileError, consent, setConsent, submitError, setSubmitError, saving, previewUrl, fileInputRef, form, onFileChange, changeMode, onSave, activeRecording, sourceForPreview, showConsent } = useNewMeetingModel();
+  const uploading = mode === 'upload' && streaming;
 
   return (
     <div className={styles.page}>
@@ -23,7 +24,7 @@ export default function NewMeetingPage() {
         <div>
           <p className={styles.eyebrow}>НОВАЯ ВСТРЕЧА</p>
           <h1>Добавить встречу</h1>
-          <p>Укажите контекст и добавьте источник. Данные сохраняются только в этом браузере.</p>
+          <p>Укажите контекст и добавьте источник. {streaming ? 'Запись распознаёт локальный сервер, карточка встречи хранится в этом браузере.' : 'Данные сохраняются только в этом браузере.'}</p>
         </div>
       </div>
 
@@ -41,11 +42,11 @@ export default function NewMeetingPage() {
         </section>
 
         <section className={styles.section} aria-labelledby="meeting-source">
-          <div className={styles.sectionHeader}><span className={styles.index}>02</span><div><h2 id="meeting-source">Источник встречи</h2><p>Выберите один способ. Файл и запись останутся в браузере на этом устройстве.</p></div></div>
+          <div className={styles.sectionHeader}><span className={styles.index}>02</span><div><h2 id="meeting-source">Источник встречи</h2><p>Выберите один способ. {streaming ? 'Файл и запись уходят на локальный сервер для распознавания, копия остаётся в этом браузере.' : 'Файл и запись останутся в браузере на этом устройстве.'}</p></div></div>
           <div className={styles.sourceBody}>
             <SegmentedControl className={styles.modeSwitch} fullWidth value={mode} onChange={changeMode} disabled={activeRecording || recorder.status === 'requesting' || recorder.status === 'finishing'} data={[{ label: 'Загрузить файл', value: 'upload' }, { label: 'Записать звук', value: 'record' }, { label: 'Без записи', value: 'draft' }]} />
             {mode === 'upload' && <div className={styles.sourcePanel}>
-              <label className={styles.filePicker}><UploadCloud size={22} strokeWidth={1.7} /><span><strong>Выбрать аудио или видео</strong><small>MP3, M4A, MP4, WAV, WebM, OGG, AAC, MOV · до 100 МБ</small></span><input ref={fileInputRef} className={styles.visuallyHidden} type="file" accept="audio/*,video/*,.m4a,.webm,.ogg,.opus,.aac,.mov" onChange={(event) => onFileChange(event.target.files?.[0] || null)} /></label>
+              <label className={styles.filePicker}><UploadCloud size={22} strokeWidth={1.7} /><span><strong>Выбрать аудио или видео</strong><small>MP3, M4A, MP4, WAV, WebM, OGG, AAC, MOV{formats ? ' и др.' : ''} · до {formats ? Math.round(formats.maxBytes / 1024 / 1024) : 100} МБ</small></span><input ref={fileInputRef} className={styles.visuallyHidden} type="file" accept={formats?.accept ?? 'audio/*,video/*,.m4a,.webm,.ogg,.opus,.aac,.mov'} onChange={(event) => onFileChange(event.target.files?.[0] || null)} /></label>
               {file && <div className={styles.sourceFile}><FileAudio2 size={18} /><div><strong>{file.name}</strong><span>{formatSize(file.size)}</span></div><button type="button" onClick={() => { onFileChange(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} aria-label="Удалить выбранный файл"><Trash2 size={16} /></button></div>}
               {fileError && <p className={styles.error} role="alert">{fileError}</p>}
             </div>}
@@ -74,9 +75,9 @@ export default function NewMeetingPage() {
         </section>}
 
         <div className={styles.footer}>
-          <div className={styles.saveText}><CircleAlert size={16} /><span>{mode === 'draft' ? 'Черновик будет доступен для ручного заполнения.' : mode === 'record' && streaming ? 'Звук уходит на локальный сервер во время записи. После «Завершить» начнётся распознавание, этапы появятся на странице встречи.' : 'Распознавание и ИИ-обработка пока не подключены. Источник сохранится со статусом ожидания.'}</span></div>
+          <div className={styles.saveText}><CircleAlert size={16} /><span>{mode === 'draft' ? 'Черновик будет доступен для ручного заполнения.' : mode === 'record' && streaming ? 'Звук уходит на локальный сервер во время записи. После «Завершить» начнётся распознавание, этапы появятся на странице встречи.' : uploading ? 'Файл уйдёт на локальный сервер: он проверит формат и начнёт распознавание, этапы появятся на странице встречи.' :'Распознавание и ИИ-обработка пока не подключены. Источник сохранится со статусом ожидания.'}</span></div>
           {submitError && <Alert color="red" title="Проверьте данные" className={styles.submitError}>{submitError}</Alert>}
-          <div className={styles.footerActions}><Button component={Link} to="/meetings" variant="default">Отмена</Button>{!(mode === 'record' && streaming) && <Button type="submit" loading={saving} disabled={activeRecording || recorder.status === 'requesting' || recorder.status === 'finishing'}>{mode === 'draft' ? 'Создать черновик' : 'Сохранить встречу'}</Button>}</div>
+          <div className={styles.footerActions}><Button component={Link} to="/meetings" variant="default">Отмена</Button>{!(mode === 'record' && streaming) && <Button type="submit" loading={saving} disabled={activeRecording || recorder.status === 'requesting' || recorder.status === 'finishing'}>{mode === 'draft' ? 'Создать черновик' : uploading ? 'Отправить на распознавание' : 'Сохранить встречу'}</Button>}</div>
         </div>
       </form>
     </div>
