@@ -1,7 +1,9 @@
 # Весь проект одной командой: cp .env.example .env && docker compose up --build
-# api  -> http://localhost:8000/api/health
-# web  -> http://localhost:5173 (собирается, когда во frontend/ появится Vite-приложение)
-# Со STT-моделью: WITH_STT=1 docker compose up --build
+# Приложение -> http://localhost:5173 (nginx отдаёт фронт и проксирует /api в контейнер api)
+# API напрямую только с этой машины -> http://127.0.0.1:8000/api/health
+# Закрытый контур (локальные STT, LLM и RAG-чат, сервер для пользователей) — infra/README.md:
+#   WITH_STT=1, WITH_RAG=1  torch, pyannote, sentence-transformers в образе; веса читаются из ./models
+#   COMPOSE_PROFILES=llm    Ollama в этой docker-сети без внешнего порта, веса в ./models/ollama
 
 services:
   api:
@@ -10,21 +12,38 @@ services:
       dockerfile: backend/Dockerfile
       args:
         WITH_STT: ${WITH_STT:-0}
+        WITH_RAG: ${WITH_RAG:-0}
+    image: siqyr-api
+    init: true
     env_file:
       - .env
     environment:
+      # Пути внутри контейнера, независимо от значений .env для запуска без Docker.
       DATA_DIR: /data
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:5174,http://127.0.0.1:5174}
-      AUTH_MODE: ${AUTH_MODE:-disabled}
+      STT_MODEL_DIR: /app/models/stt
+      DIARIZATION_MODEL_DIR: /app/models/diarization
+      RAG_EMBEDDING_DIR: /app/models/rag/embedding
+      RAG_RERANKER_DIR: /app/models/rag/reranker
+      RAG_AI_SOCKET: /run/siqyr/rag-ai.sock
+      # Браузер ходит в API через nginx по тому же адресу: разрешён только он, без localhost/*.vercel.app.
+      CORS_ORIGINS: ${PUBLIC_APP_URL:-http://localhost:5173}
+      CORS_ORIGIN_REGEX: ""
+      PUBLIC_API_URL: ${PUBLIC_APP_URL:-http://localhost:5173}
+      # LLM этого развёртывания: Ollama из профиля llm; LLM-сервер контура — DOCKER_LLM_BASE_URL и его хост в LLM_ALLOWED_HOSTS.
+      LLM_BASE_URL: ${DOCKER_LLM_BASE_URL:-http://ollama:11434/v1}
+      LLM_ALLOWED_HOSTS: ollama,${LLM_ALLOWED_HOSTS:-}
+      # nginx передаёт адрес пользователя: лимиты запросов считаются по нему, а не по прокси.
+      FORWARDED_ALLOW_IPS: "*"
     ports:
-      - "8000:8000"
+      - "127.0.0.1:${API_PORT:-8000}:8000"
     volumes:
       - api-data:/data
-      - hf-cache:/root/.cache/huggingface
+      - ./models:/app/models:ro
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
       interval: 10s
-      timeout: 3s
+      timeout: 5s
       retries: 5
 
   web:
@@ -32,13 +51,31 @@ services:
       context: .
       dockerfile: infra/web.Dockerfile
       args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+        # Адрес, который открывают пользователи; вшивается в сборку фронта.
+        VITE_API_URL: ${PUBLIC_APP_URL:-http://localhost:5173}
+    image: siqyr-web
     ports:
-      - "5173:80"
+      # Сервер в контуре: WEB_LISTEN=0.0.0.0:80 и вход через AUTH_MODE=local|hybrid|keycloak.
+      - "${WEB_LISTEN:-127.0.0.1:5173}:80"
+    restart: unless-stopped
     depends_on:
       api:
         condition: service_healthy
 
+  ollama:
+    image: ollama/ollama:0.34.3
+    profiles: ["llm"]
+    environment:
+      OLLAMA_NO_CLOUD: "1"
+    # Порт не публикуется: модель доступна только контейнерам этого compose.
+    volumes:
+      - ./models/ollama:/root/.ollama
+    restart: unless-stopped
+    # GPU NVIDIA (нужен nvidia-container-toolkit):
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices: [{driver: nvidia, count: all, capabilities: [gpu]}]
+
 volumes:
   api-data:
-  hf-cache:

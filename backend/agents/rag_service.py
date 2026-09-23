@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 from backend.app.config import Settings
 from backend.app.db import Database
 from backend.app.llm import LLM
-from backend.app.readiness import LOOPBACK
+from backend.app.readiness import llm_in_contour
 
 
 class EmbeddingsRequest(BaseModel):
@@ -91,7 +91,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {"provider": settings.rag_provider,
                 "models_present": (settings.rag_embedding_dir.is_dir() and settings.rag_reranker_dir.is_dir()) if local else
                                   bool(settings.rag_embedding_model and settings.rag_rerank_model and settings.llm_api_key),
-                "llm_local": settings.llm_provider == "local" and urlsplit(settings.llm_base_url).hostname in LOOPBACK}
+                "llm_local": llm_in_contour(settings)}
 
     @app.post("/internal/embeddings")
     async def embeddings(body: EmbeddingsRequest):
@@ -137,7 +137,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.post("/internal/answer")
     async def answer(body: AnswerRequest):
         host = urlsplit(settings.llm_base_url).hostname
-        if (settings.rag_provider == "local" and (settings.llm_provider != "local" or host not in LOOPBACK)) or (
+        if (settings.rag_provider == "local" and not llm_in_contour(settings)) or (
             settings.rag_provider == "dev_openai" and (settings.llm_provider != "dev_openai" or host != "api.openai.com")):
             raise HTTPException(503, "Провайдер RAG и LLM_BASE_URL не согласованы.")
         try:

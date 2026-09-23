@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createContext, useContext, useEffect, type PropsWithChildren } from 'react';
+import { serverSyncQuery } from '../../runs/presentation/runs.queries.ts';
 import type { WorkspaceServices } from '../application/WorkspaceServices.ts';
 import { workspaceKeys, workspaceQuery } from './workspace.queries.ts';
 
@@ -8,6 +9,8 @@ const ServicesContext = createContext<WorkspaceServices | null>(null);
 export function WorkspaceProvider({ services, children }: PropsWithChildren<{ services: WorkspaceServices }>) {
   const queryClient = useQueryClient();
   const query = useQuery(workspaceQuery(services.workspace));
+  // Server runs and approved assignments are copied in once the local register is open.
+  useQuery({ ...serverSyncQuery(services.sync), enabled: services.sync !== null && query.isSuccess });
 
   useEffect(() => {
     let active = true;

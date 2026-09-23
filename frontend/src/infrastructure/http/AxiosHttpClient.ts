@@ -1,6 +1,17 @@
 import axios, { type AxiosInstance } from 'axios';
 import { HttpError, type HttpClient, type HttpRequest } from '../../shared/application/HttpClient.ts';
 
+/** Only the API's `detail` string and `code` survive: they are written for users, other body fields are not. */
+async function apiExplanation(data: unknown): Promise<{ detail?: string; reason?: string }> {
+  let value = data;
+  if (typeof Blob !== 'undefined' && value instanceof Blob) {
+    try { value = JSON.parse(await value.text()); } catch { return {}; }
+  }
+  if (typeof value !== 'object' || value === null) return {};
+  const { detail, code } = value as Record<string, unknown>;
+  return { ...(typeof detail === 'string' ? { detail } : {}), ...(typeof code === 'string' ? { reason: code } : {}) };
+}
+
 export class AxiosHttpClient implements HttpClient {
   private readonly client: AxiosInstance;
   private readonly accessToken: () => string | null;
@@ -23,7 +34,8 @@ export class AxiosHttpClient implements HttpClient {
       // Cancellation must remain recognizable to query consumers.
       if (axios.isCancel(cause)) throw cause;
       if (axios.isAxiosError(cause)) {
-        throw new HttpError('Не удалось выполнить запрос. Попробуйте ещё раз.', cause.response?.status, cause.code);
+        const { detail, reason } = await apiExplanation(cause.response?.data);
+        throw new HttpError('Не удалось выполнить запрос. Попробуйте ещё раз.', cause.response?.status, cause.code, detail, reason);
       }
       throw cause;
     }

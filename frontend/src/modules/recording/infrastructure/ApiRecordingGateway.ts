@@ -46,7 +46,7 @@ export class ApiRecordingGateway implements RecordingGateway {
   private readonly accessToken: () => string | null;
   private readonly streamFetch: typeof fetch;
 
-  constructor(http: HttpClient, baseUrl: string, accessToken: () => string | null = () => null, streamFetch: typeof fetch = fetch) {
+  constructor(http: HttpClient, baseUrl: string, accessToken: () => string | null = () => null, streamFetch: typeof fetch = (input, init) => fetch(input, init)) {
     this.http = http;
     this.baseUrl = baseUrl.replace(/\/+$/, '');
     this.accessToken = accessToken;

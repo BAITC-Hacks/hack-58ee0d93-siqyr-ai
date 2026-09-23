@@ -19,7 +19,7 @@ from .db import Database
 from .models import Run, utcnow
 from .rag_models import RagChunk, RagConversation, RagDocument, RagMessage
 from .rag_schemas import BrowserMeeting
-from .readiness import LOOPBACK
+from .readiness import llm_in_contour
 
 INDEX_VERSION = 1
 EMBED_MODEL = "BAAI/bge-m3"
@@ -338,5 +338,5 @@ class RagEngine:
         if self.settings.rag_provider == "dev_openai":
             if self.settings.llm_provider != "dev_openai" or host != "api.openai.com" or not self.settings.llm_api_key:
                 raise HTTPException(503, "OpenAI demo требует явные LLM_PROVIDER=dev_openai, LLM_BASE_URL и OPEN_AI_TOKEN.")
-        elif self.settings.rag_provider != "local" or self.settings.llm_provider != "local" or host not in LOOPBACK:
-            raise HTTPException(503, "RAG-чат требует локальный LLM_BASE_URL на этом сервере; облачная отправка запрещена.")
+        elif self.settings.rag_provider != "local" or not llm_in_contour(self.settings):
+            raise HTTPException(503, "RAG-чат требует локальную LLM: LLM_BASE_URL на этом сервере или на хосте из LLM_ALLOWED_HOSTS; облачная отправка запрещена.")

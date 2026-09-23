@@ -8,3 +8,10 @@ venv
 **/dist
 data/runtime
 tmp
+# Веса монтируются в контейнер (docker-compose.yml), в контекст сборки не идут.
+models
+.worktrees
+.pytest-tmp-*
+pytest_status_*
+frontend/.env
+frontend/.env.local

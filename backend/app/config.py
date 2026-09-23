@@ -46,6 +46,10 @@ class Settings:
     llm_provider: str = field(default_factory=lambda: _env("LLM_PROVIDER", "local"))
     llm_base_url: str = field(default_factory=lambda: _env("LLM_BASE_URL"))  # обязательный явный endpoint
     llm_allowed_hosts: list[str] = field(default_factory=lambda: [host.strip().lower() for host in _env("LLM_ALLOWED_HOSTS").split(",") if host.strip()])
+    # Server-owned SHA-256 manifest. Client flags cannot authorize hosted processing.
+    dev_openai_audio_manifest: Path | None = field(default_factory=lambda: (
+        _path("DEV_OPENAI_AUDIO_MANIFEST", "") if _env("DEV_OPENAI_AUDIO_MANIFEST") else None
+    ))
     llm_api_key: str = field(default_factory=lambda: _env("LLM_API_KEY") or (_env("OPEN_AI_TOKEN") if _env("LLM_PROVIDER", "local") == "dev_openai" else ""))
     model_main: str = field(default_factory=lambda: _env("MODEL_MAIN", "gpt-6-luna"))
     model_fast: str = field(default_factory=lambda: _env("MODEL_FAST", "gpt-6-luna"))

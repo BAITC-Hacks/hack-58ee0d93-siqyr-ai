@@ -1,5 +1,7 @@
 import { isMeetingLanguage } from '@/modules/meetings/domain/meeting.types';
 import { RecordingProgress } from '@/modules/recording/presentation/RecordingProgress';
+import RunMeetingPage from '@/modules/runs/presentation/RunMeetingPage';
+import { useServices } from '@/modules/workspace/presentation/WorkspaceProvider';
 import TaskEditor from '@/modules/tasks/presentation/components/TaskEditor';
 import { formatDate } from '@/shared/lib/formatDate';
 import { ActionIcon, Alert, Button, Checkbox, Loader, Modal, Select, Textarea, TextInput, UnstyledButton, Table } from '@mantine/core';
@@ -25,9 +27,12 @@ function countText(count: number, forms: [string, string, string]) {
 
 export default function MeetingPage() {
   const { meeting, meetingTasks, loading, error, tab, metadataOpen, setMetadataOpen, participantsOpen, setParticipantsOpen, exportOpen, setExportOpen, includeTranscript, setIncludeTranscript, taskOpen, setTaskOpen, editingTask, setEditingTask, editingSegment, setEditingSegment, transcriptQuery, setTranscriptQuery, summaryDraft, setSummaryDraft, summaryEditing, setSummaryEditing, metadata, setMetadata, peopleDraft, setPeopleDraft, segmentDraft, setSegmentDraft, busy, localError, setLocalError, sourceUrl, selectTab, saveMeeting, startSegment, saveSegment, saveParticipants, downloadDocx, printProtocol } = useMeetingModel();
+  const { runs } = useServices();
 
   if (loading) return <div className={styles.loading}><Loader size="sm" /><span>Открываем встречу…</span></div>;
   if (!meeting) return <div className={styles.missing}><FileText size={27} /><h1>Встреча не найдена</h1><p>Запись могла быть удалена или ссылка устарела.</p><Button component={Link} to="/meetings" variant="light">К списку встреч</Button></div>;
+  // Transcript, draft and assignments of an uploaded recording live on the server.
+  if (meeting.backendRunId && runs) return <RunMeetingPage key={meeting.id} meeting={meeting} />;
 
   const filteredSegments = meeting.transcript.filter((segment) => `${segment.speaker} ${segment.role} ${segment.section || ''} ${segment.text}`.toLowerCase().includes(transcriptQuery.trim().toLowerCase()));
   const sections = [...new Set(meeting.transcript.map((segment) => segment.section).filter(Boolean))];
@@ -42,11 +47,10 @@ export default function MeetingPage() {
     </header>
 
     {meeting.backendRunId && <RecordingProgress runId={meeting.backendRunId} className={styles.alert} />}
-    {meeting.backendRunId && <Alert color="gray" className={styles.alert}>Экспорт из этой карточки пока недоступен: её содержимое не является утверждённым протоколом.</Alert>}
     {(error || localError) && <Alert color="red" className={styles.alert} withCloseButton onClose={() => setLocalError('')}>{localError || error}</Alert>}
     {pending && !meeting.backendRunId && <div className={styles.pending}><FileAudio size={17} /><div><strong>Запись сохранена в этом браузере.</strong><span>Расшифровка появится после подключения обработки. Сводку и поручения можно заполнить вручную.</span></div></div>}
 
-    <div className={styles.workspace}>
+    {!meeting.backendRunId && <div className={styles.workspace}>
       <aside className={styles.outline} aria-label="Разделы встречи"><div className={styles.railTitle}>ДОКУМЕНТ</div><nav>{tabs.map((item, index) => <UnstyledButton type="button" key={item.id} className={`${styles.outlineItem} ${tab === item.id ? styles.active : ''}`} onClick={() => selectTab(item.id)}><span className={styles.outlineNumber}>{String(index + 1).padStart(2, '0')}</span><span><strong>{item.label}</strong><small>{meeting.kind === 'example' && item.id === 'protocol' ? 'Пример документа' : item.detail}</small></span></UnstyledButton>)}</nav><div className={styles.outlineFoot}>{countText(meeting.transcript.length, ['реплика', 'реплики', 'реплик'])} · {countText(meetingTasks.length, ['поручение', 'поручения', 'поручений'])}</div></aside>
       <div className={styles.mobileTabs} role="tablist" aria-label="Разделы встречи">{tabs.map((item) => <UnstyledButton type="button" role="tab" aria-label={item.label} aria-selected={tab === item.id} key={item.id} className={tab === item.id ? styles.mobileActive : ''} onClick={() => selectTab(item.id)}>{item.id === 'transcript' ? 'Текст' : item.id === 'tasks' ? 'Задачи' : item.label}</UnstyledButton>)}</div>
 
@@ -88,7 +92,7 @@ export default function MeetingPage() {
       </article>
 
       <aside className={styles.context} aria-label="Контекст встречи"><div className={styles.contextHead}><span>КОНТЕКСТ</span><Users size={16} /></div><div className={styles.contextSection}><div className={styles.contextTitle}><strong>Участники</strong><UnstyledButton type="button" onClick={() => setParticipantsOpen(true)}>Изменить</UnstyledButton></div><div className={styles.contextPeople}>{meeting.participants.slice(0, 5).map((person) => <div key={person.id}><Initials name={person.name} /><span>{person.name}</span></div>)}{meeting.participants.length === 0 && <small>Не указаны</small>}</div></div><div className={styles.contextSection}><div className={styles.contextTitle}><strong>Поручения</strong><UnstyledButton type="button" onClick={() => selectTab('tasks')}>Все {meetingTasks.length}</UnstyledButton></div>{meetingTasks.slice(0, 3).map((task) => <UnstyledButton type="button" className={styles.contextTask} key={task.id} onClick={() => { setEditingTask(task); setTaskOpen(true); }}><span className={task.status === 'done' ? styles.taskDotDone : styles.taskDot} /><span><strong>{task.title}</strong><small>{task.assignee || 'Не назначен'} · {task.deadlineText || 'Без срока'}</small></span></UnstyledButton>)}{meetingTasks.length === 0 && <small>Пока нет поручений</small>}<UnstyledButton className={styles.contextAdd} type="button" onClick={() => { setEditingTask(undefined); setTaskOpen(true); }}><Plus size={14} /> Добавить поручение</UnstyledButton></div></aside>
-    </div>
+    </div>}
 
     <Modal opened={metadataOpen} onClose={() => setMetadataOpen(false)} title="Реквизиты встречи" centered><div className={styles.modalFields}>{localError && <Alert color="red">{localError}</Alert>}<TextInput label="Тема встречи" required value={metadata.title} onChange={(event) => setMetadata({ ...metadata, title: event.currentTarget.value })} /><TextInput label="Организация" value={metadata.organization} onChange={(event) => setMetadata({ ...metadata, organization: event.currentTarget.value })} /><DatePickerInput label="Дата встречи" placeholder="Выберите дату" locale="ru" valueFormat="DD.MM.YYYY" clearable value={metadata.date || null} onChange={(value) => setMetadata({ ...metadata, date: value || '' })} /><Select label="Язык" data={languageOptions} value={metadata.language} onChange={(value) => setMetadata({ ...metadata, language: isMeetingLanguage(value) ? value : metadata.language })} /><div className={styles.modalActions}><Button variant="default" onClick={() => setMetadataOpen(false)}>Отмена</Button><Button loading={busy} disabled={!metadata.title.trim()} onClick={() => saveMeeting({ title: metadata.title.trim(), organization: metadata.organization.trim(), date: metadata.date || null, language: metadata.language }, () => setMetadataOpen(false))}>Сохранить</Button></div></div></Modal>
     <Modal opened={participantsOpen} onClose={() => setParticipantsOpen(false)} title="Участники" centered><div className={styles.modalFields}>{localError && <Alert color="red">{localError}</Alert>}<Textarea label="По одному участнику на строке" description="Формат: Имя — роль" autosize minRows={6} value={peopleDraft} onChange={(event) => setPeopleDraft(event.currentTarget.value)} /><div className={styles.modalActions}><Button variant="default" onClick={() => setParticipantsOpen(false)}>Отмена</Button><Button loading={busy} onClick={saveParticipants}>Сохранить</Button></div></div></Modal>

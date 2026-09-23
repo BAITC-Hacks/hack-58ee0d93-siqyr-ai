@@ -1,5 +1,7 @@
 import { usePermission } from '@/modules/auth/presentation/usePermission';
 import type { Meeting } from '@/modules/meetings/domain/meeting.types';
+import { runStatusLabels } from '@/modules/runs/domain/mirror';
+import { useServerSync } from '@/modules/runs/presentation/useServerSync';
 import { formatDate } from '@/shared/lib/formatDate';
 import { ActionIcon, Button, Group, Menu, Modal, Select, Text, TextInput, UnstyledButton } from '@mantine/core';
 import { Mic2, MoreHorizontal, Plus, Search, Trash2, X } from 'lucide-react';
@@ -38,6 +40,7 @@ export default function MeetingsPage() {
   const { meetings, loading, error, search, setSearch, kind, setKind, view, setView, deleting, setDeleting, deleteError, setDeleteError, deletingNow, visibleMeetings, taskCounts, hasFilters, clearFilters, confirmDelete } = useMeetingsModel();
   const canCreate = usePermission('meetings:write');
   const hasExamples = meetings.some((meeting) => meeting.kind === 'example');
+  const server = useServerSync();
 
   return (
     <div className={styles.page}>
@@ -50,6 +53,7 @@ export default function MeetingsPage() {
       </div>
 
       {error && <div className={styles.errorBanner} role="alert">Не удалось загрузить встречи: {error}</div>}
+      {server.error && <div className={styles.errorBanner} role="alert">Встречи с сервера не обновились: {server.error} <Button variant="subtle" size="compact-xs" onClick={() => void server.refresh()} loading={server.syncing}>Повторить</Button></div>}
 
       <div className={styles.toolbar}>
         <TextInput
@@ -100,7 +104,7 @@ export default function MeetingsPage() {
               </div>
             </div>
             <span className={styles.dateCell}>{formatDate(meeting.date)}</span>
-            <span className={styles.statusCell}><span className={`${styles.status} ${meeting.status === 'draft' ? styles.statusDraft : ''}`}>{meeting.kind === 'example' ? 'Для ознакомления' : statusText[meeting.status]}</span></span>
+            <span className={styles.statusCell}><span className={`${styles.status} ${meeting.status === 'draft' ? styles.statusDraft : ''}`}>{meeting.kind === 'example' ? 'Для ознакомления' : meeting.runStatus ? runStatusLabels[meeting.runStatus] : statusText[meeting.status]}</span></span>
             <span className={styles.taskCell}>{assignmentCount(taskCount)}</span>
             <div className={styles.actions}>
               <Link to={`/meetings/${meeting.id}`} className={styles.rowAction}>{meeting.status === 'draft' ? 'Проверить' : 'Открыть'}</Link>
@@ -117,7 +121,7 @@ export default function MeetingsPage() {
       </section>
 
       <Modal opened={Boolean(deleting)} onClose={() => setDeleting(null)} title="Удалить встречу?" centered size="sm">
-        <Text size="sm">«{deleting?.title}» и связанные поручения будут удалены с этого устройства.</Text>
+        <Text size="sm">«{deleting?.title}» и связанные поручения будут удалены с этого устройства.{deleting?.backendRunId ? ' На сервере встреча и утверждённый протокол сохранятся.' : ''}</Text>
         {deleteError && <div className={styles.modalError} role="alert">{deleteError}</div>}
         <Group justify="flex-end" mt="lg">
           <Button variant="default" onClick={() => setDeleting(null)} disabled={deletingNow}>Отмена</Button>

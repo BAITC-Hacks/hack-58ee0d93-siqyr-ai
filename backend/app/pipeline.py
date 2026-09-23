@@ -9,6 +9,7 @@ from urllib.parse import urlsplit
 from sqlmodel import select
 
 from backend import stt
+from backend.agents.trusted_audio import VerifiedAudio, verify_audio
 from backend.shared.schemas import Proposal, Result, RunInput, Segment, Speaker, StepEvent
 from .config import Settings, today
 from .db import Database
@@ -56,7 +57,7 @@ class Runtime:
         # Any mock stage makes the whole result mock; never label partial mocks as real.
         return "real" if self.settings.stt_mode == "real" and self.settings.agent_mode == "real" else "mock"
 
-    def guard_llm_destination(self, run: Run):
+    def guard_llm_destination(self, run: Run, verified_audio: VerifiedAudio | None = None) -> VerifiedAudio | None:
         if self.settings.agent_mode != "real":
             return
         if not self.settings.llm_base_url:
@@ -68,12 +69,15 @@ class Runtime:
             if endpoint.scheme in {"http", "https"} and endpoint.hostname in LOOPBACK | set(self.settings.llm_allowed_hosts):
                 return
             raise ValueError("Профиль local требует loopback или хост из LLM_ALLOWED_HOSTS.")
-        # synthetic is set by the server only for its built-in demo fixture;
-        # uploaded files are never trusted just because a client calls them mock.
-        if (endpoint.scheme == "https" and endpoint.hostname == "api.openai.com"
-                and run.synthetic and not run.audio_path):
-            return
-        raise ValueError("Внешний LLM разрешён только для проверенных синтетических запусков; реальные встречи обрабатывайте локально.")
+        if (endpoint.scheme != "https" or endpoint.hostname != "api.openai.com"
+                or endpoint.port not in {None, 443} or endpoint.username or endpoint.password):
+            raise ValueError("Внешний LLM в dev_openai требует https://api.openai.com/v1.")
+        if run.audio_path:
+            # A persisted/client synthetic flag cannot authorize an uploaded file.
+            return verify_audio(run.audio_path, self.settings.dev_openai_audio_manifest, verified_audio)
+        if run.synthetic:  # Existing built-in server demo, without uploaded audio.
+            return None
+        raise ValueError("Внешний LLM разрешён только для проверенных синтетических образцов или явно разрешённых тестов.")
 
     def get_run(self, run_id: str) -> Run:
         with self.db.session() as session:
@@ -159,6 +163,15 @@ class Runtime:
                 run = self.get_run(run_id)
                 segments = [Segment.model_validate(s) for s in proposal.segments]
             else:
+                # Reject unapproved hosted uploads before expensive local STT.
+                verified_audio = await asyncio.to_thread(self.guard_llm_destination, run)
+                if verified_audio is not None:
+                    run.synthetic = verified_audio.synthetic
+                    with self.db.session() as session:
+                        stored = session.get(Run, run_id)
+                        stored.synthetic = verified_audio.synthetic
+                        session.add(stored)
+                        session.commit()
                 await self.events.status(run_id, "transcribing")
                 await self.events.emit(StepEvent(run_id=run_id, type="agent_start", agent="stt", content="Распознаю запись и разделяю реплики участников.",
                                                  data={"stage": "transcribe", "source_mode": mode}))
@@ -175,7 +188,7 @@ class Runtime:
                 await self.events.status(run_id, "running")
                 run_input = RunInput(run_id=run_id, title=run.title, meeting_date=run.meeting_date if run.meeting_date_verified else None,
                                      meeting_date_verified=run.meeting_date_verified, lang=run.lang, participants=run.participants, segments=segments)
-                self.guard_llm_destination(run)
+                self.guard_llm_destination(run, verified_audio)
                 started = time.monotonic()
                 proposal = Proposal.model_validate(await self.runner().propose(run_input, self.events.emit))
                 elapsed = int((time.monotonic() - started) * 1000)
