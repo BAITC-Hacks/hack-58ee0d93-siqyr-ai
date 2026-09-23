@@ -59,11 +59,12 @@ def _e(index: int, quote: str, field: str) -> dict:
 
 def _d04_valid() -> str:
     return _reply([{"assignee": "Томирис", "task": "Подготовить смету для бумажных драконов",
-                    "deadline_text": "5 октября 2026 года", "deadline": "2026-10-05",
+                    "deadline_text": "к 2 октября 2026 года; на 5 октября 2026 года", "deadline": "2026-10-05",
                     "source_segments": [0, 1],
                     "evidence": [_e(0, "Томирис, подготовь смету", "task"),
                                  _e(0, "Томирис", "assignee"),
-                                 _e(1, "5 октября 2026 года", "deadline")] }])
+                                 _e(0, "к 2 октября 2026 года", "deadline"),
+                                 _e(1, "на 5 октября 2026 года", "deadline")] }])
 
 
 async def _emit(event):
@@ -117,12 +118,35 @@ async def guard() -> int:
                        inspect=lambda p, e: len(p.assignments) == 1 and
                        str(p.assignments[0].deadline) == "2026-10-05" and
                        p.assignments[0].source_segments == [0, 1])
+        for model_date in (None, "2026-10-02"):
+            response = json.loads(_d04_valid())
+            response["assignments"][0]["deadline"] = model_date
+            corrected = runner._parse(json.dumps(response, ensure_ascii=False), _input("d04"))
+            good = str(corrected.assignments[0].deadline) == "2026-10-05"
+            print(f"{'PASS' if good else 'FAIL'} agreed_revision_overrides_{model_date or 'null'}")
+            passed += bool(good)
+            failures += not good
+        unagreed = _input("d04")
+        unagreed.segments[1].text = unagreed.segments[1].text.replace("Согласовано:", "Предложено:")
+        unagreed_result = runner._parse(_d04_valid(), unagreed)
+        good = unagreed_result.assignments[0].deadline is None
+        print(f"{'PASS' if good else 'FAIL'} unagreed_revision_keeps_null_date")
+        passed += bool(good)
+        failures += not good
         await exercise("unknown_owner_v01", "d02", [_reply([{
             "assignee": None, "task": "Хаттаманы әзірлеу", "deadline": None,
             "deadline_text": "жұмаға дейін", "source_segments": [1],
             "evidence": [_e(1, "Хаттаманы", "task"), _e(1, "жұмаға дейін", "deadline")]}])],
             ok=True, expected_calls=1,
             inspect=lambda p, e: p.assignments[0].assignee == "Не указан")
+        unquoted_owner = json.loads(_d04_valid())
+        unquoted_owner["assignments"][0]["evidence"] = [
+            evidence for evidence in unquoted_owner["assignments"][0]["evidence"]
+            if evidence["field"] != "assignee"
+        ]
+        await exercise("unquoted_owner_downgraded", "d04", [json.dumps(unquoted_owner, ensure_ascii=False)],
+                       ok=True, expected_calls=1,
+                       inspect=lambda p, e: p.assignments[0].assignee == "Не указан")
         await exercise("external_non_speaker_owner", "d03", [_reply([{
             "assignee": "Жұлдыз бөлімі", "task": "макетін жіберсін", "deadline": "2026-10-02",
             "deadline_text": "2026-10-02", "source_segments": [0],
@@ -138,6 +162,18 @@ async def guard() -> int:
                          _e(0, "3 қазан 2026", "deadline"), _e(1, "6 қазан 2026", "deadline")]}])],
             ok=True, expected_calls=1,
             inspect=lambda p, e: p.assignments[0].deadline is None)
+        await exercise("source_date_omitted", "d05", [_reply([{
+            "assignee": "Айбар", "task": "шамдардың тізімін жаса", "deadline": None,
+            "deadline_text": None, "source_segments": [0],
+            "evidence": [_e(0, "Айбар", "assignee"),
+                         _e(0, "шамдардың тізімін жаса", "task")]}])],
+            ok=False, expected_calls=2, contains="Дата в источнике")
+        await exercise("old_date_quote_omitted", "d04", [_reply([{
+            "assignee": "Томирис", "task": "Подготовить смету", "deadline": "2026-10-05",
+            "deadline_text": "на 5 октября 2026 года", "source_segments": [0, 1],
+            "evidence": [_e(0, "подготовь смету", "task"), _e(0, "Томирис", "assignee"),
+                         _e(1, "на 5 октября 2026 года", "deadline")]}])],
+            ok=False, expected_calls=2, contains="Не все даты")
         await exercise("repair_after_empty", "d04", ["", _d04_valid()],
                        ok=True, expected_calls=2, inspect=lambda p, e: len(p.assignments) == 1)
         await exercise("bad_source_index", "d04", [_reply([{
@@ -148,6 +184,17 @@ async def guard() -> int:
             "assignee": None, "task": "Смету", "deadline": None, "deadline_text": None,
             "source_segments": [0], "evidence": [_e(0, "вымышленная цитата", "task")]}])],
             ok=False, expected_calls=2, contains="Цитата отсутствует")
+        wrong_quotes = json.loads(_d04_valid())
+        wrong_quotes["assignments"][0]["evidence"][0]["quote"] = "вымышленное действие"
+        wrong_quotes["assignments"][0]["evidence"][-1]["quote"] = "выдуманный срок"
+        try:
+            runner._parse(json.dumps(wrong_quotes, ensure_ascii=False), _input("d04"))
+            good = False
+        except ValueError as exc:
+            good = "сегмент 0, поле task" in str(exc) and "сегмент 1, поле deadline" in str(exc)
+        print(f"{'PASS' if good else 'FAIL'} multiple_invalid_quotes_reported_together")
+        passed += bool(good)
+        failures += not good
         await exercise("duplicate_source", "d04", [_reply([{
             "assignee": None, "task": "Смету", "deadline": None, "deadline_text": None,
             "source_segments": [0, 0], "evidence": [_e(0, "смету", "task")]}])],
@@ -178,12 +225,8 @@ async def guard() -> int:
             "deadline_text": "6 қазан 2026", "source_segments": [0, 1],
             "evidence": [_e(0, "Айбар", "assignee"), _e(0, "шамдардың тізімін жаса", "task"),
                          _e(1, "6 қазан 2026", "deadline")]}])
-        await exercise("unagreed_deadline_detected_by_gold", "d05", [unresolved_as_agreed],
-                       ok=True, expected_calls=1,
-                       inspect=lambda p, e: p.assignments[0].deadline is not None and
-                       not score({"proposal": p.model_dump(mode="json")},
-                                 json.loads((HERE / "expected.json").read_text(encoding="utf-8"))["d05"])
-                       ["cases"][0]["deadline_ok"])
+        await exercise("unagreed_deadline_missing_old_date_rejected", "d05", [unresolved_as_agreed],
+                       ok=False, expected_calls=2, contains="Не все даты")
 
         # execute must not call the model, and unknown owners must not get excerpts.
         async def forbidden(*args, **kwargs):
@@ -365,6 +408,97 @@ async def hosted(split: str, output: Path) -> int:
     return 0
 
 
+async def hosted_sync(split: str, output: Path) -> int:
+    """Evaluation-only synchronous HTTPS transport; NOT backend.app.llm.complete."""
+    import requests
+    from dotenv import dotenv_values
+
+    if output.exists():
+        raise FileExistsError(f"Refusing to overwrite prior measurement: {output}")
+    case_ids = _synthetic_cases(split)
+    source_env = Path("/Users/user/Desktop/hack-58ee0d93-siqyr-ai/.env")
+    api_key = dotenv_values(source_env).get("OPENAI_API_KEY") if source_env.exists() else None
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is absent in the source .env")
+
+    original = llm.complete
+    prompt_sha256 = hashlib.sha256(runner._PROMPT.encode()).hexdigest()
+    responses: dict[str, list[dict]] = {}
+    raw: dict[str, dict] = {}
+    active_id = ""
+    calls = 0
+    spent = 0.0
+
+    async def sync_completion(messages, **kwargs):
+        nonlocal calls, spent
+        if calls >= 2 * len(case_ids) or spent >= 5.0:
+            raise RuntimeError("Hosted eval call or $5 budget limit reached")
+        calls += 1
+        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json",
+                   "Accept-Encoding": "identity"}
+        headers.update(kwargs.get("extra_headers") or {})
+        body = {"model": "gpt-6-luna", "messages": messages,
+                "max_completion_tokens": 1024, "reasoning_effort": "none"}
+        if "response_format" in kwargs:
+            body["response_format"] = kwargs["response_format"]
+
+        def request_once():
+            response = requests.post("https://api.openai.com/v1/chat/completions",
+                                     json=body, headers=headers, timeout=(10, 75))
+            response.raise_for_status()
+            return response.json()
+
+        answer = await asyncio.to_thread(request_once)
+        message = answer["choices"][0]["message"]
+        content = message.get("content") or ""
+        usage = answer.get("usage") or {}
+        tokens = usage.get("total_tokens") or 0
+        cost = ((usage.get("prompt_tokens") or 0) * 0.10 +
+                (usage.get("completion_tokens") or 0) * 0.50) / 1_000_000
+        spent += cost
+        responses.setdefault(active_id, []).append({"content": content, "tokens": tokens,
+                                                      "cost_usd": cost})
+        return llm.Completion(content=content, tokens=tokens, cost_usd=cost)
+
+    llm.complete = sync_completion
+    try:
+        for case_id in case_ids:
+            active_id = case_id
+            events = []
+
+            async def capture(event):
+                events.append(event.model_dump(mode="json"))
+                return event
+
+            try:
+                proposal = await runner.propose(_input(case_id), capture)
+                raw[case_id] = {"proposal": proposal.model_dump(mode="json"),
+                                "model_responses": responses.get(case_id, []), "events": events}
+            except Exception as exc:
+                raw[case_id] = {"error": f"{type(exc).__name__}: {exc}",
+                                "model_responses": responses.get(case_id, []), "events": events}
+            print(f"completed {case_id}: " + ("ok" if "proposal" in raw[case_id] else raw[case_id]["error"]),
+                  flush=True)
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(json.dumps({"split": split, "model": "gpt-6-luna", "provider": "openai",
+                                          "transport": "evaluation_only_requests_sync_not_product_path",
+                                          "synthetic_only": True, "max_completion_tokens": 1024,
+                                          "reasoning_effort": "none", "prompt_sha256": prompt_sha256,
+                                          "calls": calls, "cost_usd": spent, "raw": raw},
+                                         ensure_ascii=False, indent=2), encoding="utf-8")
+    finally:
+        llm.complete = original
+
+    gold = json.loads((HERE / "expected.json").read_text(encoding="utf-8"))
+    scores = {case_id: score(raw[case_id], gold[case_id]) for case_id in case_ids}
+    for case_id in case_ids:
+        print(f"{case_id}: {scores[case_id]}")
+    score_path = output.with_name(output.stem + "_scores.json")
+    score_path.write_text(json.dumps(scores, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"Raw: {output}; scores: {score_path}; calls={calls}; cost_usd={spent:.6f}")
+    return 0
+
+
 def _norm(value: str | None) -> str:
     return " ".join((value or "").casefold().replace("ё", "е").split())
 
@@ -404,7 +538,7 @@ def score(result: dict, gold: dict) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", choices=["guard", "local", "hosted"])
+    parser.add_argument("mode", choices=["guard", "local", "hosted", "hosted_sync"])
     parser.add_argument("--split", choices=["dev", "holdout"], default="dev")
     parser.add_argument("--base-url", default="http://127.0.0.1:11434/v1")
     parser.add_argument("--model", default="")
@@ -415,6 +549,9 @@ def main() -> int:
     if args.mode == "hosted":
         output = args.output or HERE / f"hosted_{args.split}.json"
         return asyncio.run(hosted(args.split, output))
+    if args.mode == "hosted_sync":
+        output = args.output or HERE / f"hosted_sync_{args.split}.json"
+        return asyncio.run(hosted_sync(args.split, output))
     output = args.output or HERE / f"local_{args.split}.json"
     return asyncio.run(local(args.split, args.base_url, args.model, output))
 
