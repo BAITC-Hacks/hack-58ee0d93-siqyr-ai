@@ -4,24 +4,27 @@ from __future__ import annotations
 
 import json
 import re
-import unicodedata
 from datetime import date
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
 from backend.app import llm
-from backend.shared.schemas import AssignmentDraft, Emit, Excerpt, Proposal, Result, RunInput, StepEvent
+from backend.agents.deadlines import deadline_context, task_scope
+from backend.agents.grounding import (
+    has_phrase as _has_phrase, normalized as _normalized, raw_evidence, raw_spans,
+    resolve_owner, speaker_records, generic_action,
+)
+from backend.shared.schemas import AssignmentDraft, Emit, Evidence, Excerpt, Proposal, Result, RunInput, StepEvent
 
 _PROMPT = (Path(__file__).parent / "prompts" / "extract.md").read_text(encoding="utf-8")
-_UNKNOWN_OWNER = "Не указан"  # v0.1 requires str; replace with null after schema migration.
 _OUTPUT_SCHEMA = {
     "type": "object", "additionalProperties": False,
     "required": ["summary", "decisions", "speakers", "assignments"],
     "properties": {
         "summary": {"type": "string"},
         "decisions": {"type": "array", "items": {"type": "string"}},
-        # v0.1 has no evidence for speaker mappings; leave mapping to human review.
+        # A deterministic mapper separately proposes raw-grounded, unconfirmed identities.
         "speakers": {"type": "object", "additionalProperties": False, "properties": {}},
         "assignments": {"type": "array", "items": {
             "type": "object", "additionalProperties": False,
@@ -85,47 +88,11 @@ async def _emit(emit: Emit, run_id: str, kind: str, agent: str, content: str, **
                          tokens=tokens, cost_usd=cost_usd))
 
 
-def _normalized(text: str) -> str:
-    return " ".join("".join(
-        char.casefold() if char.isalnum() else " " for char in unicodedata.normalize("NFKC", text)
-    ).split())
-
-
-def _has_phrase(text: str, phrase: str) -> bool:
-    """Match complete normalized words, not name fragments."""
-    return f" {_normalized(phrase)} " in f" {_normalized(text)} "
-
-
-def _owner_from_quotes(owner: str, quotes: list[str], source: RunInput) -> str:
-    quoted = " ".join(quotes)
-    names = [person.name.strip() for person in source.participants]
-    owner_key = _normalized(owner)
-    exact = next((name for name in names if _normalized(name) == owner_key), None)
-    if _has_phrase(quoted, owner):
-        # A spoken short name cannot distinguish two participants with that alias.
-        if len(owner_key.split()) == 1:
-            matches = [name for name in names if owner_key in _normalized(name).split()]
-            if len(matches) > 1:
-                raise ValueError("Короткое имя исполнителя неоднозначно.")
-            if len(matches) == 1:
-                return matches[0]
-        return exact or owner.strip()
-    if exact is None:
-        raise ValueError("Имя исполнителя отсутствует в цитате.")
-    # Only a unique first-name alias can justify expanding to a full participant name.
-    first = owner_key.split()[0]
-    if first in {"отдел", "департамент", "управление", "группа", "команда"} or len(first) < 3:
-        raise ValueError("Исполнитель не подтверждён полным названием.")
-    matches = [name for name in names if _normalized(name).split()[0] == first]
-    if len(matches) != 1 or not _has_phrase(quoted, first):
-        raise ValueError("Имя исполнителя отсутствует в цитате или неоднозначно.")
-    return exact
-
-
 def _agreed_revision(text: str) -> bool:
     normalized = _normalized(text)
     if any(phrase in normalized for phrase in (
-        "не согласовано", "не согласован", "не договорились", "келіскен жоқ", "келіспедік",
+        "не согласовано", "не согласован", "не согласовали", "не утвердили",
+        "не договорились", "келіскен жоқ", "келіспедік", "келісілген жоқ", "бекітілмеді",
     )):
         return False
     return any(phrase in normalized for phrase in (
@@ -139,14 +106,15 @@ def _unagreed_proposal(text: str) -> bool:
     unresolved = any(phrase in normalized for phrase in (
         "предлагаю", "предлагаем", "предлагается", "предложили", "предложена",
         "предложено", "решение по сроку пока не принято", "срок не утвержден",
-        "срок не утверждён", "срок не согласован", "не согласовано",
+        "срок не утверждён", "срок не согласован", "не согласовано", "не согласовали", "не утвердили",
         "ұсынамын", "ұсынамыз", "ұсыныс", "келіспедік", "келіскен жоқ",
         "келісілген жоқ", "бекітілмеді",
     ))
     return unresolved and not _agreed_revision(text)
 
 
-def _deadline_matches_quotes(value: str, quotes: list[tuple[int, str]], source: RunInput) -> bool:
+def _deadline_matches_quotes(value: str, quotes: list[tuple[int, str]], source: RunInput,
+                             scopes: dict[int, tuple[int, int]]) -> bool:
     # Multiple conflicting phrases may be joined with ';' or newlines. Each must
     # be a verbatim normalized span of a cited raw segment, and every quote used.
     parts = [_normalized(part) for part in re.split(r"[;\n]+", value)]
@@ -161,12 +129,13 @@ def _deadline_matches_quotes(value: str, quotes: list[tuple[int, str]], source: 
     # A confirmed later revision may replace, rather than concatenate, an old date.
     if len(parts) != 1:
         return False
-    selected = [index for index, quote in normalized_quotes if _has_phrase(quote, parts[0])]
+    contextual = [(quote, *deadline_context(index, quote, quotes, source, scopes)) for index, quote in quotes]
+    selected = [(position, context) for quote, position, context in contextual if _has_phrase(quote, parts[0])]
     return any(
-        all(old_index < index for old_index, quote in normalized_quotes
+        all(old_position < position for quote, old_position, _ in contextual
             if not _has_phrase(quote, parts[0]))
-        and _agreed_revision(source.segments[index].text)
-        for index in selected
+        and _agreed_revision(context)
+        for position, context in selected
     )
 
 
@@ -199,6 +168,25 @@ def _index(value: Any, count: int) -> int:
     return value
 
 
+def _distinct_deadline_phrases(quotes: list[tuple[int, str]]) -> list[str]:
+    """Do not count a repeated date or a verb attached to the same deadline twice."""
+    result: list[str] = []
+    temporal = {"не", "нет", "емес", "а", "но", "или", "либо", "ал", "немесе",
+                "до", "к", "на", "после", "через", "дейін", "кейін", "бұрын"}
+    for _, quote in quotes:
+        key, dates = _normalized(quote), _absolute_dates(quote)
+        for existing in result:
+            previous, old_dates = _normalized(existing), _absolute_dates(existing)
+            if dates and len(dates) == 1 and dates == old_dates:
+                break
+            short, long = sorted((key, previous), key=len)
+            if _has_phrase(long, short) and not temporal.intersection(long.replace(short, "", 1).split()):
+                break
+        else:
+            result.append(quote)
+    return result
+
+
 def _parse(content: str, source: RunInput) -> Proposal:
     if not content.strip():
         raise ValueError("LLM вернула пустой ответ.")
@@ -228,25 +216,25 @@ def _parse(content: str, source: RunInput) -> Proposal:
     # than one transcription mismatch, and propose() allows only one repair.
     invalid_quotes: list[str] = []
     for item in items:
-        if not isinstance(item, dict) or not isinstance(item.get("evidence"), list):
-            continue
+        if not isinstance(item, dict):
+            raise ValueError("Некорректное поручение.")
+        if not isinstance(item.get("evidence"), list) or not item["evidence"]:
+            raise ValueError("Поручение без источников или цитат.")
         for quoted in item["evidence"]:
             if not isinstance(quoted, dict):
-                continue
+                raise ValueError("Некорректная цитата.")
             index, quote, field = (quoted.get(key) for key in ("segment_index", "quote", "field"))
+            _index(index, len(source.segments))
+            if not isinstance(quote, str) or not _normalized(quote):
+                raise ValueError("Некорректная цитата.")
             if (type(index) is int and 0 <= index < len(source.segments)
                     and isinstance(quote, str) and _normalized(quote)
-                    and _normalized(quote) not in _normalized(source.segments[index].text)):
+                    and not raw_spans(source.segments[index].text, quote)):
                 invalid_quotes.append(f"сегмент {index}, поле {field}")
     if invalid_quotes:
         raise ValueError("Цитата отсутствует в raw-транскрипте: " + "; ".join(dict.fromkeys(invalid_quotes)))
-    labels = {segment.speaker for segment in source.segments}
-    people = {person.name for person in source.participants}
-    # v0.1 cannot attach evidence to speaker mappings, so unsupported guesses are discarded.
-    speakers = {k: v for k, v in speakers.items() if k in labels and v in people and any(
-        segment.speaker == k and _normalized(v) in _normalized(segment.text)
-        for segment in source.segments
-    )}
+    records = speaker_records(source)
+    speakers = {record.label: record.participant_name for record in records if record.participant_name}
     assignments: list[AssignmentDraft] = []
     for item in items:
         if not isinstance(item, dict):
@@ -267,7 +255,7 @@ def _parse(content: str, source: RunInput) -> Proposal:
         fields: set[str] = set()
         quoted_segments: set[int] = set()
         date_quotes: list[tuple[int, str]] = []
-        owner_quotes: list[str] = []
+        retained_evidence: list[Evidence] = []
         for evidence_item in evidence:
             if not isinstance(evidence_item, dict):
                 raise ValueError("Некорректная цитата.")
@@ -278,28 +266,28 @@ def _parse(content: str, source: RunInput) -> Proposal:
                 raise ValueError("Цитата не связана с источником.")
             if field not in {"task", "assignee", "deadline", "context"}:
                 raise ValueError("Некорректное поле цитаты.")
-            if _normalized(quote) not in _normalized(source.segments[index].text):
+            if not raw_spans(source.segments[index].text, quote):
                 raise ValueError(
                     f"Цитата отсутствует в raw-транскрипте (сегмент {index}, поле {field}). "
                     "Выбери короткую непрерывную подстроку без пропуска слов."
                 )
             quoted_segments.add(index)
             fields.add(field)
+            retained_evidence.append(raw_evidence(index, quote, field, source))
             if field == "deadline":
                 date_quotes.append((index, quote))
-            elif field == "assignee":
-                owner_quotes.append(quote)
         if "task" not in fields or set(checked) != quoted_segments:
             raise ValueError("Не все источники поручения подтверждены цитатами действия.")
         # Keep the task for human review, but never publish an unquoted owner.
-        resolved_owner = (_owner_from_quotes(owner, owner_quotes, source)
-                          if owner is not None and "assignee" in fields else _UNKNOWN_OWNER)
+        resolved_owner, owner_reasons, owner_candidates, identity_evidence = resolve_owner(
+            owner, retained_evidence, source, records)
+        scopes = {index: task_scope(item, items, index, source) for index in checked}
         deadline_text = item.get("deadline_text")
         if deadline_text is not None and (not isinstance(deadline_text, str) or not deadline_text.strip()):
             raise ValueError("Некорректный исходный текст срока.")
         if deadline_text and "deadline" not in fields:
             raise ValueError("Срок не подтверждён цитатой.")
-        if deadline_text and not _deadline_matches_quotes(deadline_text, date_quotes, source):
+        if deadline_text and not _deadline_matches_quotes(deadline_text, date_quotes, source, scopes):
             raise ValueError("Текст срока не совпадает с цитатами.")
         proposed_date = item.get("deadline")
         if proposed_date is not None and (not isinstance(proposed_date, str) or not _DATE_ISO.fullmatch(proposed_date)):
@@ -310,47 +298,80 @@ def _parse(content: str, source: RunInput) -> Proposal:
             raise ValueError("Несуществующая дата срока.") from exc
         cited_dates = set().union(*(_absolute_dates(quote) for _, quote in date_quotes))
         source_dates = set().union(*(
-            _absolute_dates(source.segments[index].text) for index in checked
+            _absolute_dates(source.segments[index].text[slice(*scopes[index])]) for index in checked
         ))
         if source_dates and not deadline_text:
             raise ValueError("Дата в источнике поручения не отражена в тексте срока.")
         if source_dates - cited_dates:
             raise ValueError("Не все даты из источников поручения подтверждены цитатами.")
-        agreed_final: list[tuple[int, date]] = []
+        date_contexts = [(quote, *deadline_context(index, quote, date_quotes, source, scopes))
+                         for index, quote in date_quotes]
+        agreed_final: list[tuple[tuple[int, int], date]] = []
         if deadline_text:
             text_dates = _absolute_dates(deadline_text)
-            for index, quote in date_quotes:
+            for quote, position, context in date_contexts:
                 quote_dates = _absolute_dates(quote)
-                if len(quote_dates) != 1 or not _agreed_revision(source.segments[index].text):
+                if len(quote_dates) != 1 or not _agreed_revision(context):
                     continue
                 candidate = next(iter(quote_dates))
-                if candidate in text_dates and all(
-                    old_index < index for old_index, old_quote in date_quotes
-                    if candidate not in _absolute_dates(old_quote)
-                ):
-                    agreed_final.append((index, candidate))
+                if candidate in text_dates:
+                    agreed_final.append((position, candidate))
         latest_agreement = max((index for index, _ in agreed_final), default=None)
         final_dates = {value for index, value in agreed_final if index == latest_agreement}
+        unresolved_revision = False
         if len(final_dates) == 1:
-            # An explicit later agreement in raw speech resolves the model's
-            # null or stale date without inferring from the meeting date.
-            parsed_date = next(iter(final_dates))
+            agreed_date = next(iter(final_dates))
+            later_changes = [(quote, context) for quote, position, context in date_contexts
+                             if position > latest_agreement and _absolute_dates(quote) != {agreed_date}]
+            # An unapproved suggestion does not cancel the last explicitly agreed date.
+            unresolved_revision = bool(later_changes)
+            parsed_date = (agreed_date if not later_changes or all(_unagreed_proposal(context)
+                           for _, context in later_changes) else None)
         elif parsed_date and (not deadline_text or parsed_date not in cited_dates or
                               len(cited_dates) != 1 or any(
                                   parsed_date in _absolute_dates(quote)
-                                  and _unagreed_proposal(source.segments[index].text)
-                                  for index, quote in date_quotes
+                                  and _unagreed_proposal(context)
+                                  for quote, _, context in date_contexts
                               )):
-            # Date of meeting is not verified in v0.1: relative dates stay as text.
+            # This runner only normalizes dates whose day, month and year are explicit.
             parsed_date = None
+        for ev in identity_evidence:
+            if ev not in retained_evidence:
+                retained_evidence.append(ev)
+            if ev.segment_index not in checked:
+                checked.append(ev.segment_index)
+        incomplete_scope = generic_action(task)
+        if incomplete_scope:
+            for index in dict.fromkeys(ev.segment_index for ev in retained_evidence if ev.field == "task"):
+                context = raw_evidence(index, source.segments[index].text, "context", source)
+                if context not in retained_evidence:
+                    retained_evidence.append(context)
+        unresolved_phrases = _distinct_deadline_phrases(date_quotes)
+        conflict = unresolved_revision or (parsed_date is None and (len(cited_dates) > 1 or
+                                           (not cited_dates and len(unresolved_phrases) > 1)))
         assignments.append(AssignmentDraft(
             assignee=resolved_owner,
             task=task.strip(), deadline=parsed_date, deadline_text=deadline_text,
             source_segments=checked,
+            evidence=retained_evidence,
+            review_reasons=list(dict.fromkeys(
+                owner_reasons
+                + (["scope_incomplete"] if incomplete_scope else [])
+                + (["deadline_unknown"] if deadline_text and parsed_date is None else [])
+                + (["deadline_conflict"] if conflict else [])
+                + (["overlap", "speaker_uncertain"] if any(
+                    source.segments[index].speaker == "OVERLAP" or "overlap" in source.segments[index].review_reasons
+                    for index in checked) else [])
+                + (["speaker_uncertain"] if any(source.segments[index].speaker in {None, "UNKNOWN"}
+                                                   for index in checked) else [])
+            )),
+            deadline_candidates=unresolved_phrases if conflict else [],
+            assignee_candidates=owner_candidates,
         ))
     return Proposal(
         run_id=source.run_id, summary=summary.strip(), decisions=[value.strip() for value in decisions],
         speakers=speakers, segments=source.segments, assignments=assignments,
+        speaker_records=records,
     )
 
 
@@ -365,13 +386,15 @@ async def propose(run_input: RunInput, emit: Emit) -> Proposal:
                  f"Участники (не определяют говорящих): {participants}", "Реплики:"]
         lines.extend(f"{index} [{segment.speaker}]: {segment.text}"
                      for index, segment in enumerate(run_input.segments))
-        # Meeting date is intentionally omitted until RunInput has meeting_date_verified.
+        # Relative-date normalization is intentionally outside this extraction pass.
         messages = [{"role": "system", "content": _PROMPT}, {"role": "user", "content": "\n".join(lines)}]
         for attempt in range(2):
             await _emit(emit, rid, "tool_call", "orchestrator", "Извлекаю поручения, решения и резюме." if not attempt else "Повторно запрашиваю корректный JSON.", stage="extract", attempt=attempt + 1)
             completion = await llm.complete(messages, **_completion_options())
             try:
                 proposal = _parse(completion.content, run_input)
+                if attempt and not proposal.assignments:
+                    raise ValueError("Пустой список поручений после невалидного ответа требует повторной проверки.")
             except ValueError as exc:
                 if attempt:
                     raise
@@ -401,7 +424,7 @@ async def execute(proposal: Proposal, emit: Emit) -> Result:
     """Prepare local excerpts only; backend owns approval, export and delivery."""
     grouped: dict[str, list[str]] = {}
     for item in proposal.assignments:
-        if item.assignee == _UNKNOWN_OWNER:
+        if not item.assignee or item.assignee == "Не указан" or item.review_status == "excluded":
             continue
         deadline = item.deadline_text or (item.deadline.isoformat() if item.deadline else "не указан")
         grouped.setdefault(item.assignee, []).append(f"{item.task}. Срок: {deadline}.")

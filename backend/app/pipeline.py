@@ -226,7 +226,8 @@ class Runtime:
                     if draft.review_status == "excluded":
                         continue
                     item = Assignment(run_id=run_id, assignee=draft.assignee or "Не указан",
-                                      **draft.model_dump(include={"task", "deadline", "deadline_text", "priority", "category", "source_segments"}))
+                                      **draft.model_dump(include={"task", "deadline", "deadline_text", "priority", "category", "source_segments",
+                                          "evidence", "review_reasons", "assignee_candidates", "deadline_candidates", "review_status", "review_note"}))
                     session.add(item)
                     assignments.append(item)
                 session.flush()
