@@ -5,11 +5,13 @@
 <h1 align="center">Siqyr AI</h1>
 <p align="center"><strong>От встречи — к проверяемым поручениям.</strong></p>
 
-[![Siqyr AI — короткое демо, 32 секунды. Нажмите, чтобы смотреть со звуком.](artifacts/demo-video/SiqyrAI-highlights.gif)](artifacts/demo-video/SiqyrAI-demo.mp4)
+<video src="https://github.com/user-attachments/assets/5cc3d01d-a547-4459-a70b-93cf75f496cd" controls></video>
+
+<p align="center"><strong>Полная демонстрация · 2:27 · нажмите Play и включите звук в плеере</strong></p>
 
 <p align="center">
-  <a href="artifacts/demo-video/SiqyrAI-highlights.mp4"><strong>▶ Короткое демо · 32 секунды · со звуком</strong></a><br>
-  <a href="artifacts/demo-video/SiqyrAI-demo.mp4">Полная демонстрация · 2:27</a> ·
+  <a href="artifacts/demo-video/SiqyrAI-demo.mp4"><strong>▶ Полное видео · 2:27 · со звуком</strong></a><br>
+  <a href="artifacts/demo-video/SiqyrAI-highlights.mp4">Короткое демо · 32 секунды</a> ·
   <a href="Siqyr_AI_Presentation.pptx">Презентация</a><br>
   <sub>Интерфейс продукта на вымышленных mock-данных.</sub>
 </p>
