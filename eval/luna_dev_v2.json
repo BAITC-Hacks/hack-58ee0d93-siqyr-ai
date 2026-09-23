@@ -1,0 +1,107 @@
+{
+  "split": "dev",
+  "model": "gpt-6-luna",
+  "provider": "openai",
+  "synthetic_only": true,
+  "max_completion_tokens": 1024,
+  "reasoning_effort": "none",
+  "prompt_sha256": "caccd1033eb1451147f4823db2f2c7d959a505a2fb96c409598ab8eab2290156",
+  "calls": 2,
+  "cost_usd": 0.0,
+  "raw": {
+    "d01": {
+      "error": "APIConnectionError: Connection error.",
+      "model_responses": [],
+      "events": [
+        {
+          "run_id": "synthetic-d01",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:07:22.241074Z"
+        },
+        {
+          "run_id": "synthetic-d01",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:07:22.241109Z"
+        },
+        {
+          "run_id": "synthetic-d01",
+          "seq": 0,
+          "type": "error",
+          "agent": "orchestrator",
+          "content": "Не удалось подготовить протокол.",
+          "data": {
+            "stage": "extract",
+            "code": "APIConnectionError"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:07:36.647339Z"
+        }
+      ]
+    },
+    "d02": {
+      "error": "APIConnectionError: Connection error.",
+      "model_responses": [],
+      "events": [
+        {
+          "run_id": "synthetic-d02",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:07:36.648473Z"
+        },
+        {
+          "run_id": "synthetic-d02",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:07:36.648595Z"
+        },
+        {
+          "run_id": "synthetic-d02",
+          "seq": 0,
+          "type": "error",
+          "agent": "orchestrator",
+          "content": "Не удалось подготовить протокол.",
+          "data": {
+            "stage": "extract",
+            "code": "APIConnectionError"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:07:50.066083Z"
+        }
+      ]
+    }
+  }
+}

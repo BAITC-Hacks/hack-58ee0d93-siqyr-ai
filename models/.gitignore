@@ -1,0 +1,6 @@
+**/*
+!.gitignore
+!stt/
+!stt/manifest.json
+!diarization/
+!diarization/manifest.json

@@ -23,6 +23,34 @@ def test_recording_streams_chunks_then_starts_pipeline(client):
     assert client.post(f"/api/runs/{run_id}/finish").status_code == 409
 
 
+def test_recording_participants_change_until_finish(client):
+    from test_api import wait_for
+
+    response = client.post("/api/runs/recordings", data={"title": "Планёрка", "meeting_date": "2026-09-23", "participants": "Алия, Бек"})
+    assert response.status_code == 201, response.text
+    run_id = response.json()["run_id"]
+    url = f"/api/runs/{run_id}/participants"
+
+    # Someone joined mid-recording: the client sends the whole list, not a diff.
+    joined = client.patch(url, json={"participants": [{"name": " Алия "}, {"name": "Бек"}, {"name": "Дана", "role": "главный инженер"}]})
+    assert joined.status_code == 200, joined.text
+    assert [(p["name"], p["role"]) for p in joined.json()["participants"]] == [("Алия", None), ("Бек", None), ("Дана", "главный инженер")]
+    assert client.patch(url, json={"participants": [{"name": "  "}]}).status_code == 400
+    assert client.patch(url, json={"participants": [{"name": "Дана"}], "extra": 1}).status_code == 400
+    assert client.patch("/api/runs/missing/participants", json={"participants": []}).status_code == 404
+
+    client.post(f"/api/runs/{run_id}/chunks", headers={"X-Chunk-Offset": "0"}, content=b"webm")
+    assert client.post(f"/api/runs/{run_id}/finish").status_code == 200
+    assert client.patch(url, json={"participants": [{"name": "Ерлан"}]}).status_code == 409
+    pending = wait_for(client, run_id, "awaiting_approval")
+    assert list(pending["proposal"]["speakers"].values()) == ["Алия", "Бек", "Дана"]
+
+
+def test_recording_rejects_bad_participants(client):
+    response = client.post("/api/runs/recordings", data={"title": "Планёрка", "participants": "[broken"})
+    assert response.status_code == 400
+
+
 def test_recording_chunk_size_limit(client_factory):
     client = client_factory(max_upload_mb=0)
     run_id = client.post("/api/runs/recordings", data={"title": "Лимит"}).json()["run_id"]

@@ -38,6 +38,17 @@ class Database:
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_run_id ON notifications (run_id)"))
             if "source_segments" not in {c["name"] for c in inspect(connection).get_columns("assignments")}:
                 connection.execute(text("ALTER TABLE assignments ADD COLUMN source_segments JSON NOT NULL DEFAULT '[]'"))
+            assignment_columns = {c["name"] for c in inspect(connection).get_columns("assignments")}
+            for name, ddl in [
+                ("evidence", "JSON NOT NULL DEFAULT '[]'"),
+                ("review_reasons", "JSON NOT NULL DEFAULT '[]'"),
+                ("assignee_candidates", "JSON NOT NULL DEFAULT '[]'"),
+                ("deadline_candidates", "JSON NOT NULL DEFAULT '[]'"),
+                ("review_status", "VARCHAR NOT NULL DEFAULT 'unreviewed'"),
+                ("review_note", "VARCHAR"),
+            ]:
+                if name not in assignment_columns:
+                    connection.execute(text(f"ALTER TABLE assignments ADD COLUMN {name} {ddl}"))
             connection.execute(text("UPDATE notifications SET run_id = (SELECT assignments.run_id FROM assignments WHERE assignments.id = notifications.assignment_id) WHERE run_id IS NULL AND assignment_id IS NOT NULL"))
             connection.execute(text("INSERT OR IGNORE INTO organizations (id, name) VALUES ('default', 'Основная организация')"))
             connection.execute(text("INSERT OR IGNORE INTO departments (id, organization_id, name) VALUES ('default', 'default', 'Общий департамент')"))

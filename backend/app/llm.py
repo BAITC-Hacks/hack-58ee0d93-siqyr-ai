@@ -6,9 +6,11 @@ No model-specific optional parameters are sent unless explicitly supplied.
 import hashlib
 import json
 import logging
+import asyncio
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, OpenAI
 import httpx
 from sqlalchemy.dialects.sqlite import insert
 
@@ -31,6 +33,7 @@ class LLM:
     def __init__(self, db: Database, settings: Settings):
         self.db, self.settings = db, settings
         self.client: AsyncOpenAI | None = None
+        self.sync_client: OpenAI | None = None
 
     async def complete(self, messages: list[dict], *, model: str | None = None, use_cache: bool = True, **kwargs) -> Completion:
         if kwargs.get("stream"):
@@ -46,15 +49,28 @@ class LLM:
                 if cached:
                     logger.info("llm model=%s cached=true tokens=0 cost_usd=0", model)
                     return Completion(content=cached.value["content"], tokens=0, cost_usd=0, cached=True)
-        if self.client is None:
-            if not self.settings.llm_base_url:
-                raise RuntimeError("Задайте LLM_BASE_URL для явного подключения LLM.")
-            self.client = AsyncOpenAI(
-                api_key=self.settings.llm_api_key or "local",
-                base_url=self.settings.llm_base_url,
-                http_client=httpx.AsyncClient(trust_env=False, follow_redirects=False),
-            )
-        response = await self.client.chat.completions.create(**request)
+        if not self.settings.llm_base_url:
+            raise RuntimeError("Задайте LLM_BASE_URL для явного подключения LLM.")
+        if urlsplit(self.settings.llm_base_url).hostname == "api.openai.com":
+            # On this Mac the SDK's async HTTP transport times out while its sync
+            # transport succeeds. Keep complete() async without blocking the loop.
+            if self.sync_client is None:
+                self.sync_client = OpenAI(
+                    api_key=self.settings.llm_api_key or "local",
+                    base_url=self.settings.llm_base_url,
+                    default_headers={"Accept-Encoding": "identity"},
+                    max_retries=0,
+                    timeout=60,
+                )
+            response = await asyncio.to_thread(self.sync_client.chat.completions.create, **request)
+        else:
+            if self.client is None:
+                self.client = AsyncOpenAI(
+                    api_key=self.settings.llm_api_key or "local",
+                    base_url=self.settings.llm_base_url,
+                    http_client=httpx.AsyncClient(trust_env=False, follow_redirects=False),
+                )
+            response = await self.client.chat.completions.create(**request)
         content = response.choices[0].message.content or ""
         usage = response.usage
         tokens = usage.total_tokens if usage else 0
@@ -69,6 +85,8 @@ class LLM:
     async def close(self):
         if self.client is not None:
             await self.client.close()
+        if self.sync_client is not None:
+            await asyncio.to_thread(self.sync_client.close)
 
 
 _service: LLM | None = None

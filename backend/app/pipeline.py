@@ -63,11 +63,17 @@ class Runtime:
             raise ValueError("Для реальных агентов задайте LLM_BASE_URL; облачного fallback нет.")
         if self.settings.llm_provider not in {"local", "dev_openai"}:
             raise ValueError("LLM_PROVIDER должен быть local или dev_openai.")
-        host = urlsplit(self.settings.llm_base_url).hostname
-        if self.settings.llm_provider == "local" and host not in LOOPBACK | set(self.settings.llm_allowed_hosts):
+        endpoint = urlsplit(self.settings.llm_base_url)
+        if self.settings.llm_provider == "local":
+            if endpoint.scheme in {"http", "https"} and endpoint.hostname in LOOPBACK | set(self.settings.llm_allowed_hosts):
+                return
             raise ValueError("Профиль local требует loopback или хост из LLM_ALLOWED_HOSTS.")
-        if self.settings.llm_provider == "dev_openai" and not run.synthetic:
-            raise ValueError("Внешний LLM разрешён только для синтетических запусков.")
+        # synthetic is set by the server only for its built-in demo fixture;
+        # uploaded files are never trusted just because a client calls them mock.
+        if (endpoint.scheme == "https" and endpoint.hostname == "api.openai.com"
+                and run.synthetic and not run.audio_path):
+            return
+        raise ValueError("Внешний LLM разрешён только для проверенных синтетических запусков; реальные встречи обрабатывайте локально.")
 
     def get_run(self, run_id: str) -> Run:
         with self.db.session() as session:
@@ -220,7 +226,8 @@ class Runtime:
                     if draft.review_status == "excluded":
                         continue
                     item = Assignment(run_id=run_id, assignee=draft.assignee or "Не указан",
-                                      **draft.model_dump(include={"task", "deadline", "deadline_text", "priority", "category", "source_segments"}))
+                                      **draft.model_dump(include={"task", "deadline", "deadline_text", "priority", "category", "source_segments",
+                                          "evidence", "review_reasons", "assignee_candidates", "deadline_candidates", "review_status", "review_note"}))
                     session.add(item)
                     assignments.append(item)
                 session.flush()

@@ -3,7 +3,7 @@ import { AuthError, LOCAL_WORKSPACE_ID, type AuthSession, type PasswordCredentia
 
 const storageKey = 'siqyrai.local-workspace.enabled';
 const localSession: AuthSession = {
-  principal: { id: LOCAL_WORKSPACE_ID, displayName: 'Локальное пространство', roles: [], permissions: [] },
+  principal: { id: LOCAL_WORKSPACE_ID, displayName: 'Локальное пространство', roles: [], permissions: ['meetings:read', 'meetings:write'] },
   expiresAt: null,
 };
 

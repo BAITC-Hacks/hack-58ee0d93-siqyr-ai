@@ -47,8 +47,8 @@ class Settings:
     llm_base_url: str = field(default_factory=lambda: _env("LLM_BASE_URL"))  # обязательный явный endpoint
     llm_allowed_hosts: list[str] = field(default_factory=lambda: [host.strip().lower() for host in _env("LLM_ALLOWED_HOSTS").split(",") if host.strip()])
     llm_api_key: str = field(default_factory=lambda: _env("LLM_API_KEY"))
-    model_main: str = field(default_factory=lambda: _env("MODEL_MAIN", "qwen3:4b"))
-    model_fast: str = field(default_factory=lambda: _env("MODEL_FAST", "qwen3:1.7b"))
+    model_main: str = field(default_factory=lambda: _env("MODEL_MAIN", "gpt-6-luna"))
+    model_fast: str = field(default_factory=lambda: _env("MODEL_FAST", "gpt-6-luna"))
     price_in_per_1m: float = field(default_factory=lambda: _float("PRICE_IN_PER_1M", 0))
     price_out_per_1m: float = field(default_factory=lambda: _float("PRICE_OUT_PER_1M", 0))
 

@@ -2,6 +2,7 @@ import { useRecordingActivity } from '@/modules/recording/presentation/useRecord
 import { useWorkspace } from '@/modules/workspace/presentation/useWorkspace';
 import { useAuth } from '@/modules/auth/presentation/AuthProvider';
 import { canAccess } from '@/modules/auth/domain/accessPolicy';
+import { roleLabel } from '@/modules/auth/domain/departmentAccess';
 import { pagePolicies, workspaceNavigation } from '../routing/access';
 import { Burger, Button, Drawer, Group, Menu, Modal, Text, UnstyledButton } from '@mantine/core';
 import { CalendarDays, CheckSquare2, ChevronDown, LogOut, MessageSquareText, Mic2, PanelLeftClose, PanelLeftOpen, Plug2, Settings2 } from 'lucide-react';
@@ -9,7 +10,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useBlocker, useLocation } from 'react-router-dom';
 import styles from './Shell.module.css';
 
-const navigationIcons = { meetings: CalendarDays, tasks: CheckSquare2, integrations: Plug2, settings: Settings2, meeting: CalendarDays, newMeeting: CalendarDays, liveMeeting: Mic2, chat: MessageSquareText };
+const navigationIcons = { meetings: CalendarDays, tasks: CheckSquare2, integrations: Plug2, settings: Settings2, meeting: CalendarDays, newMeeting: CalendarDays, liveMeeting: Mic2, call: Mic2, chat: MessageSquareText };
 
 function pageName(pathname: string) {
   if (pathname.startsWith('/chat')) return 'Чат по встречам';
@@ -147,6 +148,7 @@ export default function Shell() {
               </Menu.Target>
               <Menu.Dropdown>
                 <Menu.Label>{displayName}</Menu.Label>
+                {auth.status === 'authenticated' && <Menu.Label>{roleLabel(auth.session.principal.roles)}</Menu.Label>}
                 <Menu.Item leftSection={<LogOut size={15} />} onClick={() => recording ? setConfirmSignOut(true) : void controller.signOut()}>Выйти</Menu.Item>
               </Menu.Dropdown>
             </Menu>

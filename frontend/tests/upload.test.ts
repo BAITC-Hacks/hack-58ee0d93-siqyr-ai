@@ -4,6 +4,7 @@ import axios from 'axios';
 import { AxiosHttpClient } from '../src/infrastructure/http/AxiosHttpClient.ts';
 import { storedAccessToken } from '../src/modules/auth/infrastructure/ApiAuthGateway.ts';
 import { mediaSourceError } from '../src/modules/meetings/domain/mediaSource.ts';
+import { parseParticipantLines } from '../src/modules/meetings/domain/participantLines.ts';
 import { ApiRecordingGateway } from '../src/modules/recording/infrastructure/ApiRecordingGateway.ts';
 import { HttpError, type HttpClient, type HttpRequest } from '../src/shared/application/HttpClient.ts';
 
@@ -30,6 +31,26 @@ test('upload sends the recording and meeting context to POST /api/runs and retur
   const sent = body.get('file') as File;
   assert.equal(sent.name, 'Совещание.wav');
   assert.equal(await sent.text(), 'RIFF');
+});
+
+test('participants go to the server run on start and can be replaced while it records', async () => {
+  const participants = parseParticipantLines('Алия Сарсенова — главный инженер\n\n  Бекзат Омаров  \n');
+  assert.deepEqual(participants, [{ name: 'Алия Сарсенова', role: 'главный инженер' }, { name: 'Бекзат Омаров', role: '' }]);
+
+  const http = client(() => ({ run_id: 'run-1', status: 'recording' }));
+  const gateway = new ApiRecordingGateway(http, 'http://api');
+  await gateway.create({ ...input, participants });
+  const created = http.requests[0]?.body as FormData;
+  assert.deepEqual(JSON.parse(String(created.get('participants'))), [{ name: 'Алия Сарсенова', role: 'главный инженер' }, { name: 'Бекзат Омаров' }]);
+
+  await gateway.updateParticipants('run-1', [...participants, { name: 'Дана', role: '' }]);
+  const [, update] = http.requests;
+  assert.equal(update?.method, 'PATCH');
+  assert.equal(update?.path, '/api/runs/run-1/participants');
+  assert.deepEqual(update?.body, { participants: [{ name: 'Алия Сарсенова', role: 'главный инженер' }, { name: 'Бекзат Омаров' }, { name: 'Дана' }] });
+
+  await gateway.create(input);
+  assert.equal((http.requests[2]?.body as FormData).has('participants'), false);
 });
 
 test('upload explains rejected formats and an unreachable server without server text', async () => {

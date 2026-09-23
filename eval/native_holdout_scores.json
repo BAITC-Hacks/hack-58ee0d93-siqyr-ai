@@ -1,0 +1,22 @@
+{
+  "h01": {
+    "error": "ValueError: Нет содержательного резюме.",
+    "gold": 0,
+    "found": 0
+  },
+  "h02": {
+    "error": "ValueError: Нет содержательного резюме.",
+    "gold": 1,
+    "found": 0
+  },
+  "h03": {
+    "error": "ValueError: Нет содержательного резюме.",
+    "gold": 1,
+    "found": 0
+  },
+  "h04": {
+    "error": "ValueError: Нет содержательного резюме.",
+    "gold": 1,
+    "found": 0
+  }
+}

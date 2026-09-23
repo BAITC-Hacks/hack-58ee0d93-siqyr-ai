@@ -1,0 +1,104 @@
+{
+  "d01": {
+    "gold": 0,
+    "found": 0,
+    "matched": 0,
+    "false_positives": 0,
+    "cases": []
+  },
+  "d02": {
+    "error": "ValueError: Цитата отсутствует в raw-транскрипте.",
+    "gold": 1,
+    "found": 0
+  },
+  "d03": {
+    "error": "ValueError: Цитата отсутствует в raw-транскрипте.",
+    "gold": 1,
+    "found": 0
+  },
+  "d04": {
+    "gold": 1,
+    "found": 1,
+    "matched": 1,
+    "false_positives": 0,
+    "cases": [
+      {
+        "matched": true,
+        "task_terms_ok": true,
+        "assignee_ok": true,
+        "legacy_unknown_owner_sentinel": false,
+        "deadline_ok": false,
+        "deadline_text_ok": true,
+        "source_segments_ok": true,
+        "review_reasons_available": false,
+        "expected_review_reasons": []
+      }
+    ]
+  },
+  "d05": {
+    "gold": 1,
+    "found": 1,
+    "matched": 1,
+    "false_positives": 0,
+    "cases": [
+      {
+        "matched": true,
+        "task_terms_ok": true,
+        "assignee_ok": true,
+        "legacy_unknown_owner_sentinel": false,
+        "deadline_ok": true,
+        "deadline_text_ok": false,
+        "source_segments_ok": false,
+        "review_reasons_available": false,
+        "expected_review_reasons": [
+          "deadline_conflict"
+        ]
+      }
+    ]
+  },
+  "d06": {
+    "gold": 1,
+    "found": 1,
+    "matched": 1,
+    "false_positives": 0,
+    "cases": [
+      {
+        "matched": true,
+        "task_terms_ok": false,
+        "assignee_ok": true,
+        "legacy_unknown_owner_sentinel": false,
+        "deadline_ok": true,
+        "deadline_text_ok": true,
+        "source_segments_ok": true,
+        "review_reasons_available": false,
+        "expected_review_reasons": []
+      }
+    ]
+  },
+  "d07": {
+    "gold": 1,
+    "found": 1,
+    "matched": 1,
+    "false_positives": 0,
+    "cases": [
+      {
+        "matched": true,
+        "task_terms_ok": true,
+        "assignee_ok": true,
+        "legacy_unknown_owner_sentinel": false,
+        "deadline_ok": true,
+        "deadline_text_ok": true,
+        "source_segments_ok": true,
+        "review_reasons_available": false,
+        "expected_review_reasons": []
+      }
+    ]
+  },
+  "d08": {
+    "gold": 0,
+    "found": 0,
+    "matched": 0,
+    "false_positives": 0,
+    "cases": []
+  }
+}

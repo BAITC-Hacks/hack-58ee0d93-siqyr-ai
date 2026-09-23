@@ -188,4 +188,4 @@ def test_llm_profiles_fail_closed(client):
     runtime.settings = replace(runtime.settings, llm_base_url="http://127.0.0.1:11434/v1")
     runtime.guard_llm_destination(real)
     health = client.get("/api/health").json()
-    assert health["llm_provider"] == "local" and health["llm_model"] == "qwen3:4b"
+    assert health["llm_provider"] == "local" and health["llm_model"] == client.settings.model_main

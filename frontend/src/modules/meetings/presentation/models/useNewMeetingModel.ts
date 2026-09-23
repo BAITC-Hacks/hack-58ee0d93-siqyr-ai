@@ -1,3 +1,4 @@
+import type { UploadFormats } from '@/modules/recording/application/RecordingGateway';
 import { useRecorder } from '@/modules/recording/presentation/useRecorder';
 import { useServices } from '@/modules/workspace/presentation/WorkspaceProvider';
 import { useWorkspace } from '@/modules/workspace/presentation/useWorkspace';
@@ -6,6 +7,7 @@ import { useForm } from '@mantine/form';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { mediaSourceError } from '../../domain/mediaSource';
+import { parseParticipantLines } from '../../domain/participantLines';
 import type { Person, Segment } from '../../domain/meeting.types';
 import { useMeetingCommands } from '../useMeetingCommands';
 type IntakeMode = 'upload' | 'record' | 'draft';
@@ -19,13 +21,16 @@ function localToday(): string {
 export function useNewMeetingModel(initialMode: IntakeMode = 'upload', autoConversation = false, navigateAfterSave = true) {
   const navigate = useNavigate();
   const { settings, loading } = useWorkspace();
-  const { createMeeting } = useMeetingCommands();
+  const { createMeeting, saveParticipants } = useMeetingCommands();
   const recorder = useRecorder();
   const services = useServices();
   const streaming = services.recordings !== null;
   const runIdRef = useRef<string | null>(null);
+  const sentParticipantsRef = useRef('');
+  const [participantsError, setParticipantsError] = useState('');
   const [mode, setMode] = useState<IntakeMode>(initialMode);
   const [file, setFile] = useState<File | null>(null);
+  const [formats, setFormats] = useState<UploadFormats | null>(null);
   const [fileError, setFileError] = useState('');
   const [consent, setConsent] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -38,6 +43,7 @@ export function useNewMeetingModel(initialMode: IntakeMode = 'upload', autoConve
       organization: settings.organization || (autoConversation ? 'Личное пространство' : ''),
       date: autoConversation ? localToday() : '',
       language: settings.defaultLanguage,
+      participants: '',
     },
     validate: {
       title: (value) => value.trim() ? null : 'Укажите тему встречи.',
@@ -54,6 +60,15 @@ export function useNewMeetingModel(initialMode: IntakeMode = 'upload', autoConve
   }, [loading, settings.organization, settings.defaultLanguage]);
 
   useEffect(() => {
+    const gateway = services.recordings;
+    if (!gateway) return;
+    let active = true;
+    // Without the list the browser defaults stay; the server still checks the file on upload.
+    gateway.formats().then((value) => { if (active) setFormats(value); }).catch(() => {});
+    return () => { active = false; };
+  }, [services.recordings]);
+
+  useEffect(() => {
     if (recorder.status !== 'recording' && recorder.status !== 'paused' && recorder.status !== 'requesting' && recorder.status !== 'finishing') return;
     const preventUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
@@ -68,7 +83,7 @@ export function useNewMeetingModel(initialMode: IntakeMode = 'upload', autoConve
     setSubmitError('');
     setFile(null);
     if (!selected) return;
-    const issue = mediaSourceError(selected);
+    const issue = mediaSourceError(selected, formats ?? undefined);
     if (issue) {
       setFileError(issue);
       return;
@@ -85,17 +100,41 @@ export function useNewMeetingModel(initialMode: IntakeMode = 'upload', autoConve
     if (value === 'upload' || value === 'record' || value === 'draft') setMode(value);
   }
 
+  // Sends the list only while the server run still records: after /finish the server has already read it.
+  async function syncParticipants() {
+    const gateway = services.recordings;
+    const runId = runIdRef.current;
+    const participants = parseParticipantLines(form.values.participants);
+    const key = JSON.stringify(participants);
+    if (!gateway || !runId || key === sentParticipantsRef.current) return;
+    await gateway.updateParticipants(runId, participants);
+    sentParticipantsRef.current = key;
+  }
+
+  function onParticipantsBlur() {
+    syncParticipants().then(() => setParticipantsError(''), () => {
+      setParticipantsError('Не удалось обновить список на сервере. Он будет отправлен ещё раз при завершении записи.');
+    });
+  }
+
+  // The card already exists: a failed list save must not look like a failed meeting save, the list stays editable on the meeting page.
+  async function saveLocalParticipants(id: string, text: string) {
+    if (text.trim()) await saveParticipants(id, text).catch(() => {});
+  }
+
   async function beginRecording(existingRunId?: string, consentAlreadyGiven = false) {
     if (!consent && !consentAlreadyGiven) { setSubmitError('Сначала подтвердите, что участники уведомлены о записи.'); return; }
     setSubmitError('');
-    if (form.validate().hasErrors) return;
     const gateway = services.recordings;
+    if (form.validate().hasErrors) return;
     setSaving(true);
     try {
       if (!gateway) { await recorder.start(); return; }
-      // The server run needs the meeting title before the first chunk arrives.
-      const runId = existingRunId ?? await gateway.create({ title: form.values.title.trim(), date: form.values.date || null, language: form.values.language });
+      const participants = parseParticipantLines(form.values.participants);
+      const runId = existingRunId ?? await gateway.create({ title: form.values.title.trim(), date: form.values.date || null, language: form.values.language, participants });
       runIdRef.current = runId;
+      if (existingRunId && participants.length) await gateway.updateParticipants(runId, participants);
+      sentParticipantsRef.current = JSON.stringify(participants);
       let offset = 0;
       await recorder.start(async (chunk) => { offset = await gateway.sendChunk(runId, chunk, offset); });
     } catch (cause) {
@@ -111,8 +150,7 @@ export function useNewMeetingModel(initialMode: IntakeMode = 'upload', autoConve
     const values = form.values;
     const id = await createMeeting({
       title: values.title.trim(), organization: values.organization.trim(), date: values.date || null, language: values.language,
-      captureKind: 'conversation',
-      participants: capture?.participants ?? [], transcript: capture?.transcript ?? [],
+      captureKind: 'conversation', participants: capture?.participants ?? [], transcript: capture?.transcript ?? [],
       source: { name: `Разговор ${new Date().toLocaleString('ru-RU')}.${blob.type.includes('mp4') ? 'm4a' : 'webm'}`, size: blob.size, type: blob.type, blob },
     });
     if (navigateAfterSave) navigate(`/meetings/${id}`);
@@ -129,19 +167,19 @@ export function useNewMeetingModel(initialMode: IntakeMode = 'upload', autoConve
       await services.recorder.drain();
       const blob = services.recorder.getSnapshot().blob;
       if (!blob || blob.size === 0) throw new Error('Запись пуста. Запишите звук ещё раз.');
-      if (!gateway) {
-        return capture ? await saveConversationLocally(capture) : undefined;
-      }
+      if (!gateway) return capture ? await saveConversationLocally(capture) : undefined;
       if (!runId) throw new Error('Серверная запись не была создана. Сохраните звук локально.');
+      // The recording matters more than the name hints: voices can still be mapped to people on review.
+      await syncParticipants().catch(() => {});
       await gateway.finish(runId);
       runIdRef.current = null;
       const values = form.values;
       const id = await createMeeting({
         title: values.title.trim(), organization: values.organization.trim(), date: values.date || null, language: values.language,
-        backendRunId: runId, captureKind: 'conversation',
-        participants: capture?.participants ?? [], transcript: capture?.transcript ?? [],
+        backendRunId: runId, captureKind: 'conversation', participants: capture?.participants ?? [], transcript: capture?.transcript ?? [],
         source: { name: `Разговор ${new Date().toLocaleString('ru-RU')}.webm`, size: blob.size, type: blob.type, blob },
       });
+      await saveLocalParticipants(id, values.participants);
       if (navigateAfterSave) navigate(`/meetings/${id}`);
       return id;
     } catch (cause) {
@@ -173,6 +211,20 @@ export function useNewMeetingModel(initialMode: IntakeMode = 'upload', autoConve
       return;
     }
     setSaving(true);
+    let backendRunId: string | undefined;
+    const gateway = services.recordings;
+    if (mode === 'upload' && file && gateway) {
+      // The server checks the format and queues recognition; the meeting is saved only after it accepted the file.
+      try {
+        backendRunId = await gateway.upload({
+          title: values.title.trim(), date: values.date || null, language: values.language, participants: parseParticipantLines(values.participants),
+        }, file);
+      } catch (cause) {
+        setSubmitError(cause instanceof Error ? cause.message : 'Не удалось отправить файл на сервер.');
+        setSaving(false);
+        return;
+      }
+    }
     try {
       const sourceName = mode === 'record'
         ? `Запись ${new Date().toLocaleString('ru-RU')}.${recorder.blob?.type.includes('mp4') ? 'm4a' : 'webm'}`
@@ -182,8 +234,10 @@ export function useNewMeetingModel(initialMode: IntakeMode = 'upload', autoConve
         organization: values.organization.trim(),
         date: values.date || null,
         language: values.language,
+        ...(backendRunId ? { backendRunId } : {}),
         ...(source ? { source: { name: sourceName, size: source.size, type: source.type, blob: source } } : {}),
       });
+      await saveLocalParticipants(id, values.participants);
       navigate(`/meetings/${id}`);
     } catch {
       setSubmitError('Не удалось сохранить встречу на этом устройстве. Проверьте доступное место и попробуйте снова.');
@@ -195,5 +249,5 @@ export function useNewMeetingModel(initialMode: IntakeMode = 'upload', autoConve
   const sourceForPreview = mode === 'upload' ? file : recorder.blob;
   const showConsent = mode !== 'draft';
 
-  return { recorder, streaming, beginRecording, finishRecording, keepRecordingLocally, mode, file, fileError, consent, setConsent, submitError, setSubmitError, saving, previewUrl, form, onFileChange, changeMode, onSave, activeRecording, sourceForPreview, showConsent };
+  return { recorder, streaming, formats, beginRecording, finishRecording, keepRecordingLocally, mode, file, fileError, consent, setConsent, submitError, setSubmitError, saving, previewUrl, form, onFileChange, changeMode, onSave, activeRecording, sourceForPreview, showConsent, participantsError, onParticipantsBlur };
 }

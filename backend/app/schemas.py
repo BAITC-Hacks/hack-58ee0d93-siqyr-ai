@@ -1,6 +1,6 @@
 """HTTP request bodies. Agent payloads use the unchanged shared schemas."""
 from pydantic import BaseModel, ConfigDict, StrictBool, Field
-from backend.shared.schemas import Proposal
+from backend.shared.schemas import Participant, Proposal
 
 
 class Approval(BaseModel):
@@ -20,6 +20,11 @@ class ProposalSave(BaseModel):
 class AssignmentUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     done: StrictBool
+
+
+class ParticipantsUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    participants: list[Participant]  # весь список целиком: отсутствующий в нём участник удаляется
 
 
 class Login(BaseModel):

@@ -3,12 +3,14 @@ import { ArrowRight, Plus, Radio } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useServices } from '@/modules/workspace/presentation/WorkspaceProvider';
+import { usePermission } from '@/modules/auth/presentation/usePermission';
 import { useWorkspace } from '@/modules/workspace/presentation/useWorkspace';
 import { LiveConnecting } from '../components/LiveConnecting';
 import styles from './LiveMeetingPage.module.css';
 
 export default function LiveMeetingPage() {
   const navigate = useNavigate();
+  const canRecord = usePermission('meetings:write');
   const [opening, setOpening] = useState(false);
   const [createError, setCreateError] = useState('');
   const { meetings, settings, loading, error, retry } = useWorkspace();
@@ -17,7 +19,7 @@ export default function LiveMeetingPage() {
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 
   async function startConversation() {
-    if (opening) return;
+    if (opening || !canRecord) return;
     setCreateError('');
     setOpening(true);
     const started = Date.now();
@@ -48,7 +50,7 @@ export default function LiveMeetingPage() {
   if (opening) return <LiveConnecting />;
 
   return <div className={styles.page}>
-    <header className={styles.header}><div><Text size="xs" fw={750} c="var(--accent)" tt="uppercase" lts="0.12em">Рабочее пространство</Text><Title order={1} mt={4}>Разговоры</Title></div><Button onClick={() => void startConversation()} leftSection={<Plus size={18} />}>Новый разговор</Button></header>
+    <header className={styles.header}><div><Text size="xs" fw={750} c="var(--accent)" tt="uppercase" lts="0.12em">Рабочее пространство</Text><Title order={1} mt={4}>Разговоры</Title></div>{canRecord && <Button onClick={() => void startConversation()} leftSection={<Plus size={18} />}>Новый разговор</Button>}</header>
     {createError && <Alert color="red" title="Не удалось создать разговор" mb="md">{createError}</Alert>}
     {error && <Alert color="red" title="Не удалось открыть разговоры" mb="md"><Stack gap="sm"><Text size="sm">{error}</Text><Button variant="light" size="xs" w="fit-content" onClick={() => void retry()}>Повторить</Button></Stack></Alert>}
     <section aria-label="Сохранённые разговоры"><Stack gap="sm">

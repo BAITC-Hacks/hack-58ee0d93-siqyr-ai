@@ -1,3 +1,4 @@
+import type { ParticipantLine } from '../../meetings/domain/participantLines.ts';
 import { HttpError, type HttpClient } from '../../../shared/application/HttpClient.ts';
 import type { RecordingGateway, RecordingRunInput, RunProgress, RunStep, UploadFormats } from '../application/RecordingGateway.ts';
 
@@ -20,6 +21,11 @@ function uploadError(cause: unknown): Error {
   const status = cause instanceof HttpError ? cause.status : undefined;
   if (status === undefined) return new Error('Сервер недоступен. Проверьте, что бэкенд запущен, и повторите загрузку.');
   return new Error(uploadErrors[status] ?? 'Сервер не смог принять файл. Повторите загрузку.');
+}
+
+// The server keeps role as null when it is unknown, not as an empty string.
+function serverParticipants(participants: ParticipantLine[]) {
+  return participants.map(({ name, role }) => role ? { name, role } : { name });
 }
 
 function parse(data: unknown): Record<string, unknown> | null {
@@ -52,6 +58,7 @@ export class ApiRecordingGateway implements RecordingGateway {
     body.set('title', input.title);
     body.set('lang', serverLanguage[input.language]);
     if (input.date) body.set('meeting_date', input.date);
+    if (input.participants?.length) body.set('participants', JSON.stringify(serverParticipants(input.participants)));
     return body;
   }
 
@@ -95,6 +102,13 @@ export class ApiRecordingGateway implements RecordingGateway {
     const next = parse(response)?.offset;
     if (typeof next !== 'number') throw new Error('Сервер не подтвердил получение звука.');
     return next;
+  }
+
+  async updateParticipants(runId: string, participants: ParticipantLine[]): Promise<void> {
+    await this.http.request<unknown>({
+      method: 'PATCH', path: `/api/runs/${encodeURIComponent(runId)}/participants`,
+      body: { participants: serverParticipants(participants) },
+    });
   }
 
   async finish(runId: string): Promise<void> {

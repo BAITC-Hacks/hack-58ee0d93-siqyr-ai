@@ -1,0 +1,73 @@
+{
+  "split": "dev",
+  "model": "qwen3:4b",
+  "base_url": "http://127.0.0.1:11434/v1",
+  "response_format": "json_object",
+  "max_tokens": 1024,
+  "raw": {
+    "d01": {
+      "error": "ValueError: LLM вернула пустой ответ.",
+      "model_responses": [
+        "",
+        ""
+      ],
+      "events": [
+        {
+          "run_id": "synthetic-d01",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T09:56:27.440232Z"
+        },
+        {
+          "run_id": "synthetic-d01",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T09:56:27.440312Z"
+        },
+        {
+          "run_id": "synthetic-d01",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Повторно запрашиваю корректный JSON.",
+          "data": {
+            "stage": "extract",
+            "attempt": 2
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T09:56:59.127224Z"
+        },
+        {
+          "run_id": "synthetic-d01",
+          "seq": 0,
+          "type": "error",
+          "agent": "orchestrator",
+          "content": "Не удалось подготовить протокол.",
+          "data": {
+            "stage": "extract",
+            "code": "ValueError"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T09:57:29.020548Z"
+        }
+      ]
+    }
+  }
+}

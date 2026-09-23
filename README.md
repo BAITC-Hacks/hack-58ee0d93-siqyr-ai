@@ -37,6 +37,8 @@ bash scripts/setup.sh --download-models    # ollama pull qwen3:4b / qwen3:1.7b, 
 Откройте http://127.0.0.1:5174. Подробнее: [frontend/README.md](frontend/README.md).
 Фронтенд подключён к API для входа по логину и паролю. Данные встреч и поручений пока остаются в браузере; их API, SSE и ИИ будут подключены отдельно.
 
+Режимы (`.env`): `AGENT_MODE=mock|real`, `STT_MODE=mock|real`, `DEMO_MODE=live|replay`. Пользователь выбрал `gpt-6-luna` для вымышленных тестов и отложил локальную LLM. Для встроенного серверного demo задайте `LLM_PROVIDER=dev_openai` и `LLM_BASE_URL=https://api.openai.com/v1`; загрузки записей в этом профиле блокируются. Локальная LLM остаётся отдельной необязательной настройкой с явно выбранными именами локальных моделей.
+
 Docker: `docker compose up --build` после настройки `.env`; API — http://localhost:8000/api/health, фронтенд — http://localhost:5173.
 
 Затем в `.env`: `STT_MODE=real`, `AGENT_MODE=real`, `LLM_BASE_URL=http://127.0.0.1:11434/v1`. Запустите `ollama serve` и `bash scripts/run_local.sh --offline`. Своя запись: `bash scripts/demo_e2e.sh --file запись.wav --meeting-date 2026-09-23 --mode real`.
@@ -49,7 +51,7 @@ Docker: `docker compose up --build` после настройки `.env`; API �
 | `DEMO_MODE` | `live` | `replay` — повтор сохранённого прогона, помечен `source_mode=replay` |
 | `LLM_PROVIDER` | `local` | `dev_openai` разрешён только для синтетических запусков; облачного fallback нет |
 | `LLM_BASE_URL` | пусто | обязателен для `AGENT_MODE=real`; пусто — real-запуск останавливается |
-| `MODEL_MAIN`, `MODEL_FAST` | `qwen3:4b`, `qwen3:1.7b` | модели Ollama |
+| `MODEL_MAIN`, `MODEL_FAST` | `gpt-6-luna` | модель для разрешённых вымышленных тестов; для локального профиля задайте локальные модели явно |
 | `STT_MODEL_DIR`, `DIARIZATION_MODEL_DIR` | `models/stt`, `models/diarization` | веса; `models/` не коммитится |
 | `DATA_DIR` | `data/runtime` | SQLite, загрузки, экспорты; удалить папку = удалить все данные |
 | `MAX_UPLOAD_MB`, `MAX_QUEUE` | `100`, `3` | лимит файла (413) и очереди при одном worker (429) |

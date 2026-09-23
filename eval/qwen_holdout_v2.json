@@ -1,0 +1,313 @@
+{
+  "split": "holdout",
+  "model": "qwen3:4b",
+  "base_url": "http://127.0.0.1:11434/v1",
+  "api": "ollama_native",
+  "format": "product_schema",
+  "think": false,
+  "prompt_sha256": "fee0af7f8ef7bdff64e92c1b4277fd06be62431b334d8852df697f3b01ee30de",
+  "num_predict": 1024,
+  "raw": {
+    "h01": {
+      "proposal": {
+        "run_id": "synthetic-h01",
+        "summary": "Көрменің атауы туралы ойланыс жүзеге асқан, бірақ әзірше шешім және тапсырма жоқ.",
+        "decisions": [],
+        "speakers": {},
+        "segments": [
+          {
+            "start": 0.0,
+            "end": 6.0,
+            "speaker": "SPEAKER_00",
+            "text": "Көрменің атауы туралы ойландық, бірақ әзірше шешім де, тапсырма да жоқ.",
+            "lang": "kk"
+          }
+        ],
+        "assignments": []
+      },
+      "model_responses": [
+        "{\n  \"summary\": \"Көрменің атауы туралы ойланыс жүзеге асқан, бірақ әзірше шешім және тапсырма жоқ.\",\n  \"decisions\": [],\n  \"speakers\": {\n    },\n  \"assignments\": []\n  }"
+      ],
+      "events": [
+        {
+          "run_id": "synthetic-h01",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:11:08.896112Z"
+        },
+        {
+          "run_id": "synthetic-h01",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:11:08.896147Z"
+        },
+        {
+          "run_id": "synthetic-h01",
+          "seq": 0,
+          "type": "tool_result",
+          "agent": "orchestrator",
+          "content": "Черновик проверен по исходным репликам.",
+          "data": {
+            "stage": "validate",
+            "assignments": 0,
+            "usage_available": false
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:11:12.543466Z"
+        }
+      ]
+    },
+    "h02": {
+      "proposal": {
+        "run_id": "synthetic-h02",
+        "summary": "Совещание по проверке таблицы сказочных птиц. Лазурь предлагает сверить таблицу с 4 октября 2026 года, но уточняет, что окончательный срок не согласован, предложив 8 октября 2026 года.",
+        "decisions": [
+          "Срок проверки таблицы сказочных птиц не согласован"
+        ],
+        "speakers": {},
+        "segments": [
+          {
+            "start": 0.0,
+            "end": 5.0,
+            "speaker": "SPEAKER_00",
+            "text": "Лазурь, сверь таблицу сказочных птиц. Срок предлагаю 4 октября 2026 года.",
+            "lang": "ru"
+          },
+          {
+            "start": 5.0,
+            "end": 10.0,
+            "speaker": "SPEAKER_00",
+            "text": "Мне кажется, лучше 8 октября 2026 года, но окончательно срок не согласован.",
+            "lang": "ru"
+          }
+        ],
+        "assignments": [
+          {
+            "assignee": "Лазурь",
+            "task": "Сверить таблицу сказочных птиц",
+            "deadline": null,
+            "deadline_text": "4 октября 2026 года",
+            "priority": "normal",
+            "category": null,
+            "source_segments": [
+              0
+            ]
+          }
+        ]
+      },
+      "model_responses": [
+        "{\n  \"summary\": \"Совещание по проверке таблицы сказочных птиц. Лазурь предлагает сверить таблицу с 4 октября 2026 года, но уточняет, что окончательный срок не согласован, предложив 8 октября 2026 года.\",\n  \"decisions\": [\n    \"Срок проверки таблицы сказочных птиц не согласован\"\n  ],\n  \"speakers\": {\n    },\n  \"assignments\": [\n    {\n      \"assignee\": \"Лазурь\",\n      \"task\": \"Сверить таблицу сказочных птиц\",\n      \"deadline_text\": \"4 октября 2026 года\",\n      \"deadline\": null,\n      \"source_segments\": [\n        0\n      ],\n      \"evidence\": [\n        {\n          \"segment_index\": 0,\n          \"quote\": \"Лазурь\",\n          \"field\": \"assignee\"\n        },\n        {\n          \"segment_index\": 0,\n          \"quote\": \"сверь таблицу сказочных птиц\",\n          \"field\": \"task\"\n        },\n        {\n          \"segment_index\": 0,\n          \"quote\": \"4 октября 2026 года\",\n          \"field\": \"deadline\"\n        }\n      ]\n    }\n  ]\n}"
+      ],
+      "events": [
+        {
+          "run_id": "synthetic-h02",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:11:12.544055Z"
+        },
+        {
+          "run_id": "synthetic-h02",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:11:12.544072Z"
+        },
+        {
+          "run_id": "synthetic-h02",
+          "seq": 0,
+          "type": "tool_result",
+          "agent": "orchestrator",
+          "content": "Черновик проверен по исходным репликам.",
+          "data": {
+            "stage": "validate",
+            "assignments": 1,
+            "usage_available": false
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:11:21.414378Z"
+        }
+      ]
+    },
+    "h03": {
+      "proposal": {
+        "run_id": "synthetic-h03",
+        "summary": "Меруерт должен собрать скриншоты экрана до 2026-10-06, срок был изменён на 2026-10-09 и подтверждён.",
+        "decisions": [
+          "Срок меняем на 2026-10-09, келісілді."
+        ],
+        "speakers": {},
+        "segments": [
+          {
+            "start": 0.0,
+            "end": 5.0,
+            "speaker": "SPEAKER_00",
+            "text": "Меруерт, экранның скриншоттарын 2026-10-06 дейін жина.",
+            "lang": "rukk"
+          },
+          {
+            "start": 5.0,
+            "end": 10.0,
+            "speaker": "SPEAKER_01",
+            "text": "Срок меняем на 2026-10-09, келісілді.",
+            "lang": "rukk"
+          }
+        ],
+        "assignments": [
+          {
+            "assignee": "Меруерт",
+            "task": "Экранның скриншоттарын жина",
+            "deadline": "2026-10-06",
+            "deadline_text": "2026-10-06",
+            "priority": "normal",
+            "category": null,
+            "source_segments": [
+              0
+            ]
+          }
+        ]
+      },
+      "model_responses": [
+        "{\n  \"summary\": \"Меруерт должен собрать скриншоты экрана до 2026-10-06, срок был изменён на 2026-10-09 и подтверждён.\",\n  \"decisions\": [\n    \"Срок меняем на 2026-10-09, келісілді.\"\n  ],\n  \"speakers\": {\n    },\n\n  \"assignments\": [\n    {\n      \"assignee\": \"Меруерт\",\n      \"task\": \"Экранның скриншоттарын жина\",\n      \"deadline_text\": \"2026-10-06\",\n      \"deadline\": \"2026-10-06\",\n      \"source_segments\": [\n        0\n      ],\n      \"evidence\": [\n        {\n          \"segment_index\": 0,\n          \"quote\": \"Меруерт\",\n          \"field\": \"assignee\"\n        },\n        {\n          \"segment_index\": 0,\n          \"quote\": \"экранның скриншоттарын 2026-10-06 дейін жина\",\n          \"field\": \"task\"\n        },\n        {\n          \"segment_index\": 0,\n          \"quote\": \"2026-10-06\",\n          \"field\": \"deadline\"\n        }\n      ]\n    }\n  ]\n}"
+      ],
+      "events": [
+        {
+          "run_id": "synthetic-h03",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:11:21.415336Z"
+        },
+        {
+          "run_id": "synthetic-h03",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:11:21.415368Z"
+        },
+        {
+          "run_id": "synthetic-h03",
+          "seq": 0,
+          "type": "tool_result",
+          "agent": "orchestrator",
+          "content": "Черновик проверен по исходным репликам.",
+          "data": {
+            "stage": "validate",
+            "assignments": 1,
+            "usage_available": false
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:11:34.965782Z"
+        }
+      ]
+    },
+    "h04": {
+      "error": "ValueError: Цитата отсутствует в raw-транскрипте.",
+      "model_responses": [
+        "{\n  \"summary\": \"Совещание по вопросу о том, чтобы отправить чертежи для «Қиял зертханасы» (Исследовательский центр «Мечты») на встречу. Упоминается, что представители не участвуют в собрании.\",\n  \"decisions\": [\n    \"Отправить чертежи «Қиял зертханасы» на встречу\"\n  ],\n  \"speakers\": {\n    },\n\n  \"assignments\": [\n    {\n      \"assignee\": \"Айбар\",\n      \"task\": \"Отправить чертежи «Қиял зертханасы»\",\n      \"deadline_text\": null,\n      \"deadline\": null,\n      \"source_segments\": [\n        0\n      ],\n      \"evidence\": [\n        {\n          \"segment_index\": 0,\n          \"quote\": \"Қиял зертханасы ертегі шамының сызбасын жіберсін\",\n          \"field\": \"task\"\n        },\n        {\n          \"segment_index\": 0,\n          \"quote\": \"Айбар\",\n          \"field\": \"assignee\"\n        }\n      ]\n    }\n  ]\n}",
+        "{\n  \"summary\": \"Совещание по вопросу о том, чтобы отправить чертежи для «Қиял зертханасы» (Исследовательский центр «Мечты») на встречу. Упоминается, что представители не участвуют в собрании.\",\n  \"decisions\": [\n    \"Отправить чертежи «Қиял зертханасы» на встречу\"\n  ],\n  \"speakers\": {},\n  \"assignments\": [\n    {\n      \"assignee\": \"Айбар\",\n      \"task\": \"Отправить чертежи «Қиял зертханасы»\",\n      \"deadline_text\": null,\n      \"deadline\": null,\n      \"source_segments\": [\n        0\n      ],\n      \"evidence\": [\n        {\n          \"segment_index\": 0,\n          \"quote\": \"Қиял зертханасы ертегі шамының сызбасын жіберсін\",\n          \"field\": \"task\"\n        },\n        {\n          \"segment_index\": 0,\n          \"quote\": \"Айбар\",\n          \"field\": \"assignee\"\n        }\n      ]\n    }\n  ]\n}"
+      ],
+      "events": [
+        {
+          "run_id": "synthetic-h04",
+          "seq": 0,
+          "type": "agent_start",
+          "agent": "orchestrator",
+          "content": "Готовлю черновик протокола.",
+          "data": {
+            "stage": "extract"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:11:34.966966Z"
+        },
+        {
+          "run_id": "synthetic-h04",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Извлекаю поручения, решения и резюме.",
+          "data": {
+            "stage": "extract",
+            "attempt": 1
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:11:34.966981Z"
+        },
+        {
+          "run_id": "synthetic-h04",
+          "seq": 0,
+          "type": "tool_call",
+          "agent": "orchestrator",
+          "content": "Повторно запрашиваю корректный JSON.",
+          "data": {
+            "stage": "extract",
+            "attempt": 2
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:11:43.491750Z"
+        },
+        {
+          "run_id": "synthetic-h04",
+          "seq": 0,
+          "type": "error",
+          "agent": "orchestrator",
+          "content": "Не удалось подготовить протокол.",
+          "data": {
+            "stage": "extract",
+            "code": "ValueError"
+          },
+          "tokens": 0,
+          "cost_usd": 0.0,
+          "ts": "2026-09-23T10:11:52.675990Z"
+        }
+      ]
+    }
+  }
+}

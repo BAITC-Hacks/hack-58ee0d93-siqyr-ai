@@ -1,3 +1,4 @@
+import { usePermission } from '@/modules/auth/presentation/usePermission';
 import type { Meeting } from '@/modules/meetings/domain/meeting.types';
 import { formatDate } from '@/shared/lib/formatDate';
 import { ActionIcon, Button, Group, Menu, Modal, Select, Text, TextInput, UnstyledButton } from '@mantine/core';
@@ -35,6 +36,7 @@ function assignmentCount(count: number): string {
 
 export default function MeetingsPage() {
   const { meetings, loading, error, search, setSearch, kind, setKind, view, setView, deleting, setDeleting, deleteError, setDeleteError, deletingNow, visibleMeetings, taskCounts, hasFilters, clearFilters, confirmDelete } = useMeetingsModel();
+  const canCreate = usePermission('meetings:write');
   const hasExamples = meetings.some((meeting) => meeting.kind === 'example');
 
   return (
@@ -44,7 +46,7 @@ export default function MeetingsPage() {
           <h1 className={styles.heading}>Встречи</h1>
           <p className={styles.subtitle}>Записи, черновики и материалы совещаний</p>
         </div>
-        <Group gap="sm"><Button component={Link} to="/meetings/live" variant="default" leftSection={<Mic2 size={18} />}>Живой разговор</Button><Button component={Link} to="/meetings/new" leftSection={<Plus size={18} />} className={styles.newButton}>Новая встреча</Button></Group>
+        <Group gap="sm"><Button component={Link} to="/meetings/live" variant="default" leftSection={<Mic2 size={18} />}>Живой разговор</Button>{canCreate && <Button component={Link} to="/meetings/new" leftSection={<Plus size={18} />} className={styles.newButton}>Новая встреча</Button>}</Group>
       </div>
 
       {error && <div className={styles.errorBanner} role="alert">Не удалось загрузить встречи: {error}</div>}
@@ -83,8 +85,8 @@ export default function MeetingsPage() {
         {loading ? <div className={styles.empty}>Загружаем встречи…</div> : visibleMeetings.length === 0 ? (
           <div className={styles.empty}>
             <strong>{hasFilters ? 'Ничего не найдено' : 'Пока нет встреч'}</strong>
-            <span>{hasFilters ? 'Измените запрос или фильтр.' : 'Создайте встречу, чтобы начать работу.'}</span>
-            {hasFilters ? <Button variant="subtle" size="sm" onClick={clearFilters}>Сбросить фильтры</Button> : <Button component={Link} to="/meetings/new" variant="light" size="sm">Создать встречу</Button>}
+            <span>{hasFilters ? 'Измените запрос или фильтр.' : canCreate ? 'Создайте встречу, чтобы начать работу.' : 'Встречи добавляют редактор или секретарь департамента.'}</span>
+            {hasFilters ? <Button variant="subtle" size="sm" onClick={clearFilters}>Сбросить фильтры</Button> : canCreate && <Button component={Link} to="/meetings/new" variant="light" size="sm">Создать встречу</Button>}
           </div>
         ) : visibleMeetings.map((meeting) => {
           const taskCount = taskCounts.get(meeting.id) ?? 0;
