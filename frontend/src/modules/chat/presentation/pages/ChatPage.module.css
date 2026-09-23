@@ -3,6 +3,9 @@
 .newChat{justify-content:flex-start;height:40px;padding:0 12px;color:var(--ink)}
 .historyLabel{margin:26px 12px 12px;text-transform:uppercase;letter-spacing:.08em}
 .historyScroll{min-height:0;flex:1}
+.historyRow{display:flex;align-items:center;gap:2px}
+.historyRow .historyItem{min-width:0;flex:1}
+.historyRow>button:not(:first-child){flex:none}
 .historyItem{width:100%;min-height:39px;display:flex;align-items:center;gap:10px;border:0;border-radius:8px;padding:7px 11px;background:transparent;color:var(--ink);text-align:left;cursor:pointer}
 .historyItem span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .historyItem:hover,.historyItemActive{background:#e9edf5}

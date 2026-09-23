@@ -15,6 +15,7 @@ from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, 
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from openai import OpenAIError
 from pydantic import ValidationError
 from sqlalchemy import update
 from sqlmodel import select
@@ -31,6 +32,9 @@ from .mailer import send_due
 from .models import Assignment, Department, EcpChallenge, EmailDelivery, ExternalIdentity, Membership, Notification, Organization, Run, User, utcnow
 from .pipeline import Runtime
 from .readiness import as_dicts, blocking as unready
+from .rag import RagEngine
+from .rag_models import RagConversation, RagMessage
+from .rag_schemas import BrowserSync, ChatAsk, ChatConversationCreate, ChatConversationUpdate
 from .jira import register_jira_routes
 from .profile import register_profile_routes
 from .profile_models import bump_token_version
@@ -84,6 +88,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         runtime = Runtime(settings)
         app.state.runtime = runtime
         app.state.auth = Auth(settings, runtime.db)
+        app.state.rag = RagEngine(runtime.db, settings)
         llm.configure(runtime.llm)
         try:
             if settings.seed:
@@ -114,6 +119,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def principal(authorization: str | None = Header(None)) -> Principal:
         return auth().identify(authorization)
 
+    def rag() -> RagEngine:
+        return app.state.rag
+
     def require_run(run_id: str, actor: Principal) -> Run:
         run = runtime().get_run(run_id)
         if run is None or not actor.can(run.department_id):
@@ -141,11 +149,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/api/health")
     def health() -> dict:
+        rag_health = rag().ai.health()
         return {"status": "ok", "agent_mode": settings.agent_mode, "stt_mode": settings.stt_mode,
                 "demo_mode": settings.demo_mode, "auth_mode": settings.auth_mode, "llm": "configured" if settings.llm_base_url else "unconfigured",
                 "llm_provider": settings.llm_provider, "llm_model": settings.model_main, "today": today(settings).isoformat(),
                 "email": "configured" if settings.smtp_host else "unconfigured",
-                "ready": not unready(settings), "problems": as_dicts(unready(settings))}
+                "ready": not unready(settings), "problems": as_dicts(unready(settings)),
+                "rag": {"service": rag_health is not None, "models_present": bool(rag_health and rag_health.get("models_present")),
+                        "llm_local": bool(rag_health and rag_health.get("llm_local"))}}
 
     def user_view(actor: Principal) -> dict:
         return {"id": actor.user.id, "username": actor.user.username, "display_name": actor.user.display_name,
@@ -678,6 +689,56 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not actor.user.is_system_admin:
             raise HTTPException(403, "Только системный администратор может запускать общую проверку сроков.")
         return {**check_reminders(runtime().db, settings), "email": send_due(runtime().db, settings)}
+
+    @app.post("/api/chat/sync")
+    async def sync_chat_sources(body: BrowserSync, actor: Principal = Depends(principal)):
+        try:
+            return await asyncio.to_thread(rag().sync_browser, actor.user.id, body.meetings)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from None
+        except RuntimeError as exc:
+            raise HTTPException(503, str(exc)) from None
+
+    @app.get("/api/chat/conversations")
+    def chat_conversations(actor: Principal = Depends(principal)):
+        return rag().conversations(actor.user.id)
+
+    @app.post("/api/chat/conversations", status_code=201)
+    def create_chat(body: ChatConversationCreate, actor: Principal = Depends(principal)):
+        if not body.title.strip():
+            raise HTTPException(400, "Укажите название чата.")
+        return rag().create_conversation(actor.user.id, body.title)
+
+    @app.patch("/api/chat/conversations/{conversation_id}")
+    def rename_chat(conversation_id: str, body: ChatConversationUpdate, actor: Principal = Depends(principal)):
+        if not body.title.strip():
+            raise HTTPException(400, "Укажите название чата.")
+        return rag().rename_conversation(actor.user.id, conversation_id, body.title)
+
+    @app.get("/api/chat/conversations/{conversation_id}")
+    def chat_messages(conversation_id: str, actor: Principal = Depends(principal)):
+        return {"id": conversation_id, "messages": rag().messages(actor.user.id, conversation_id)}
+
+    @app.delete("/api/chat/conversations/{conversation_id}", status_code=204)
+    def delete_chat(conversation_id: str, actor: Principal = Depends(principal)):
+        with runtime().db.session() as session:
+            conversation = session.get(RagConversation, conversation_id)
+            if conversation is None or conversation.owner_id != actor.user.id:
+                raise HTTPException(404, "Чат не найден.")
+            for message in session.exec(select(RagMessage).where(RagMessage.conversation_id == conversation_id)).all():
+                session.delete(message)
+            session.flush()
+            session.delete(conversation)
+            session.commit()
+
+    @app.post("/api/chat/messages")
+    async def ask_chat(body: ChatAsk, actor: Principal = Depends(principal)):
+        with runtime().db.session() as session:
+            allowed = {run.id for run in session.exec(select(Run)).all() if actor.can(run.department_id)}
+        try:
+            return await rag().ask(actor.user.id, allowed, body.question.strip(), body.conversation_id)
+        except (RuntimeError, OpenAIError) as exc:
+            raise HTTPException(503, f"RAG-чат недоступен: {exc}") from None
 
     register_profile_routes(app, settings, principal)
     register_jira_routes(app, settings, principal, require_run)

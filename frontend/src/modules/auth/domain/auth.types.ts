@@ -1,4 +1,5 @@
-export type SignInMethod = 'password' | 'eds' | 'keycloak';
+export type SignInMethod = 'password' | 'eds' | 'keycloak' | 'local';
+export const LOCAL_WORKSPACE_ID = 'siqyrai-local-browser-workspace';
 
 export interface AuthPrincipal {
   readonly id: string;

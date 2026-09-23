@@ -4,6 +4,6 @@ import type { AuthSession, PasswordCredentials } from '../domain/auth.types.ts';
 export interface AuthGateway {
   restoreSession(signal: AbortSignal): Promise<AuthSession | null>;
   signInWithPassword(credentials: PasswordCredentials, signal: AbortSignal): Promise<AuthSession>;
-  signInWithProvider(provider: 'eds' | 'keycloak', returnPath: string, signal: AbortSignal): Promise<AuthSession>;
+  signInWithProvider(provider: 'eds' | 'keycloak' | 'local', returnPath: string, signal: AbortSignal): Promise<AuthSession>;
   signOut(signal: AbortSignal): Promise<void>;
 }

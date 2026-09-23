@@ -1,0 +1,16 @@
+.page { width: 100%; max-width: 1500px; margin: 0 auto; padding: 4px 12px 32px; }
+.heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px 28px; align-items: center; padding: 12px 0 18px; border-bottom: 1px solid var(--line); }
+.heading h1 { font-size: clamp(25px, 2.3vw, 34px); letter-spacing: -.035em; overflow-wrap: anywhere; }
+.liveDot,.idleDot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 9px; background: var(--muted); }
+.liveDot { background: #4d8b6e; box-shadow: 0 0 0 4px #e5eee6; }
+.people { grid-column: 1 / -1; }
+.tabs { margin-top: 16px; }
+.pane { min-height: 300px; padding: 18px 6px 20px; }
+.empty { max-width: 530px; margin: 34px auto; padding: 24px; display: grid; justify-items: center; gap: 14px; text-align: center; }
+.empty h2 { font-size: 23px; font-weight: 550; }
+.empty > svg { color: var(--accent); }
+.utterance { padding: 20px 24px; border-bottom: 1px solid var(--line); border-radius: 10px; }
+.utteranceText,.interimText { margin-top: 8px; font-size: 18px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+.interimText { color: var(--muted); }
+.audio { width: min(100%, 440px); margin-top: 10px; }
+@media (max-width: 720px) { .page { padding: 0 4px 24px; } .heading { grid-template-columns: 1fr; } .actions { justify-content: flex-start; } .people { grid-column: 1; } .utterance { padding: 16px 8px; } }

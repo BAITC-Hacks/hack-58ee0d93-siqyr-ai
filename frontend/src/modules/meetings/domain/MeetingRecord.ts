@@ -15,7 +15,7 @@ export class MeetingRecord {
       ...input, id: identity.nextId(), createdAt: identity.now().toISOString(),
       title: input.title.trim(), organization: input.organization.trim(),
       kind: 'local', status: input.source ? 'pending' : 'draft',
-      summary: '', participants: [], transcript: [],
+      summary: '', participants: input.participants ?? [], transcript: input.transcript ?? [],
     }).change({});
   }
 
@@ -44,7 +44,8 @@ export class MeetingRecord {
   withSegment(input: SegmentInput, identity: Identity): MeetingRecord {
     if (!input.speaker.trim() || !input.text.trim()) throw new DomainError('Укажите говорящего и текст реплики.');
     if (input.id && !this.data.transcript.some((segment) => segment.id === input.id)) throw new DomainError('Реплика не найдена.');
-    const next = { id: input.id || identity.nextId(), speaker: input.speaker.trim(), role: input.role.trim(), text: input.text.trim(), section: input.section?.trim() || undefined };
+    const next = { id: input.id || identity.nextId(), speaker: input.speaker.trim(), role: input.role.trim(), text: input.text.trim(), section: input.section?.trim() || undefined,
+      offsetMs: input.id ? this.data.transcript.find((segment) => segment.id === input.id)?.offsetMs : undefined };
     const transcript = input.id ? this.data.transcript.map((segment) => segment.id === input.id ? next : segment) : [...this.data.transcript, next];
     return new MeetingRecord({ ...this.data, transcript });
   }

@@ -4,6 +4,8 @@ import { demoRecords } from '@/infrastructure/persistence/demo/createDemoRecords
 import { MeetingService } from '@/modules/meetings/application/MeetingService';
 import { BrowserMeetingExporter } from '@/modules/meetings/infrastructure/BrowserMeetingExporter';
 import { ApiRecordingGateway } from '@/modules/recording/infrastructure/ApiRecordingGateway';
+import { LOCAL_WORKSPACE_ID } from '@/modules/auth/domain/auth.types';
+import { storedAccessToken } from '@/modules/auth/infrastructure/ApiAuthGateway';
 import { BrowserRecorder } from '@/modules/recording/infrastructure/BrowserRecorder';
 import { SettingsService } from '@/modules/settings/application/SettingsService';
 import { TaskService } from '@/modules/tasks/application/TaskService';
@@ -24,7 +26,8 @@ export function createServices(principalId: string): WorkspaceServices & { close
     tasks: new TaskService(repository, identity),
     settings: new SettingsService(repository),
     recorder: new BrowserRecorder(),
-    recordings: apiUrl ? new ApiRecordingGateway(createHttpClient(), apiUrl) : null,
+    recordings: apiUrl && principalId !== LOCAL_WORKSPACE_ID
+      ? new ApiRecordingGateway(createHttpClient(), apiUrl, () => storedAccessToken(window.sessionStorage)) : null,
     exporter: new BrowserMeetingExporter(),
   };
 }

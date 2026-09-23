@@ -32,10 +32,11 @@ export default function LoginPage() {
       </form>
       <div className={styles.divider}><span>или</span></div>
       <div className={styles.alternatives} role="group" aria-label="Другие способы входа">
+        <Button type="button" variant="light" className={styles.secondary} fullWidth loading={pending === 'local'} disabled={pending !== null && pending !== 'local'} onClick={() => void signIn('local')}>Продолжить локально</Button>
         <Button type="button" variant="default" className={styles.secondary} fullWidth disabled title="Вход с ЭЦП пока не настроен">Войти с ЭЦП</Button>
         <Button type="button" variant="default" className={styles.secondary} fullWidth disabled title="Корпоративный вход пока не настроен">Войти через Keycloak</Button>
       </div>
-      <p className={styles.message}>Вход с ЭЦП и через Keycloak пока не настроен.</p>
+      <p className={styles.message}>В локальном пространстве запись остаётся только в этом браузере. Серверная расшифровка недоступна. Вход с ЭЦП и через Keycloak пока не настроен.</p>
     </section>
   </main>;
 }

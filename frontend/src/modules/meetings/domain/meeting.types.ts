@@ -14,6 +14,7 @@ export interface Segment {
   role: string;
   text: string;
   section?: string;
+  offsetMs?: number;
 }
 
 export interface MeetingSource {
@@ -39,9 +40,12 @@ export interface Meeting {
   source?: MeetingSource;
   /** Server run that transcribes the recording streamed from this browser. */
   readonly backendRunId?: string;
+  /** Captured from the live conversation screen, including browser-only recordings. */
+  readonly captureKind?: 'conversation';
 }
 
-export type CreateMeetingInput = Pick<Meeting, 'title' | 'organization' | 'date' | 'language' | 'source' | 'backendRunId'>;
+export type CreateMeetingInput = Pick<Meeting, 'title' | 'organization' | 'date' | 'language' | 'source' | 'backendRunId' | 'captureKind'>
+  & Partial<Pick<Meeting, 'participants' | 'transcript'>>;
 export type MeetingChanges = Partial<Pick<Meeting, 'title' | 'organization' | 'date' | 'language' | 'summary'>>;
 export type SegmentInput = Omit<Segment, 'id'> & { id?: string };
 

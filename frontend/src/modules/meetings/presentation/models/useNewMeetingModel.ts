@@ -8,10 +8,17 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { mediaSourceError } from '../../domain/mediaSource';
 import { parseParticipantLines } from '../../domain/participantLines';
+import type { Person, Segment } from '../../domain/meeting.types';
 import { useMeetingCommands } from '../useMeetingCommands';
 type IntakeMode = 'upload' | 'record' | 'draft';
+export interface ConversationCapture { participants: Person[]; transcript: Segment[] }
 
-export function useNewMeetingModel(initialMode: IntakeMode = 'upload') {
+function localToday(): string {
+  const now = new Date();
+  return [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
+}
+
+export function useNewMeetingModel(initialMode: IntakeMode = 'upload', autoConversation = false, navigateAfterSave = true) {
   const navigate = useNavigate();
   const { settings, loading } = useWorkspace();
   const { createMeeting, saveParticipants } = useMeetingCommands();
@@ -32,9 +39,9 @@ export function useNewMeetingModel(initialMode: IntakeMode = 'upload') {
   const initializedRef = useRef(false);
   const form = useForm({
     initialValues: {
-      title: '',
-      organization: settings.organization || '',
-      date: '',
+      title: autoConversation ? `Разговор · ${new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }).format(new Date())}` : '',
+      organization: settings.organization || (autoConversation ? 'Личное пространство' : ''),
+      date: autoConversation ? localToday() : '',
       language: settings.defaultLanguage,
       participants: '',
     },
@@ -47,7 +54,7 @@ export function useNewMeetingModel(initialMode: IntakeMode = 'upload') {
   useEffect(() => {
     if (!loading && !initializedRef.current) {
       initializedRef.current = true;
-      form.setFieldValue('organization', settings.organization || '');
+      form.setFieldValue('organization', settings.organization || (autoConversation ? 'Личное пространство' : ''));
       form.setFieldValue('language', settings.defaultLanguage);
     }
   }, [loading, settings.organization, settings.defaultLanguage]);
@@ -115,54 +122,77 @@ export function useNewMeetingModel(initialMode: IntakeMode = 'upload') {
     if (text.trim()) await saveParticipants(id, text).catch(() => {});
   }
 
-  async function beginRecording() {
-    if (!consent) { setSubmitError('Сначала подтвердите, что участники уведомлены о записи.'); return; }
+  async function beginRecording(existingRunId?: string, consentAlreadyGiven = false) {
+    if (!consent && !consentAlreadyGiven) { setSubmitError('Сначала подтвердите, что участники уведомлены о записи.'); return; }
     setSubmitError('');
     const gateway = services.recordings;
-    if (!gateway) { void recorder.start(); return; }
-    // The server run needs the meeting title before the first chunk arrives.
     if (form.validate().hasErrors) return;
     setSaving(true);
     try {
+      if (!gateway) { await recorder.start(); return; }
       const participants = parseParticipantLines(form.values.participants);
-      const runId = await gateway.create({ title: form.values.title.trim(), date: form.values.date || null, language: form.values.language, participants });
+      const runId = existingRunId ?? await gateway.create({ title: form.values.title.trim(), date: form.values.date || null, language: form.values.language, participants });
       runIdRef.current = runId;
+      if (existingRunId && participants.length) await gateway.updateParticipants(runId, participants);
       sentParticipantsRef.current = JSON.stringify(participants);
       let offset = 0;
       await recorder.start(async (chunk) => { offset = await gateway.sendChunk(runId, chunk, offset); });
-    } catch {
-      setSubmitError('Не удалось начать запись на сервере. Проверьте, что бэкенд запущен.');
+    } catch (cause) {
+      setSubmitError(cause instanceof Error ? cause.message : 'Не удалось начать запись на сервере.');
     } finally {
       setSaving(false);
     }
   }
 
-  async function finishRecording() {
+  async function saveConversationLocally(capture?: ConversationCapture): Promise<string> {
+    const blob = services.recorder.getSnapshot().blob;
+    if (!blob || blob.size === 0) throw new Error('Запись пуста. Запишите звук ещё раз.');
+    const values = form.values;
+    const id = await createMeeting({
+      title: values.title.trim(), organization: values.organization.trim(), date: values.date || null, language: values.language,
+      captureKind: 'conversation', participants: capture?.participants ?? [], transcript: capture?.transcript ?? [],
+      source: { name: `Разговор ${new Date().toLocaleString('ru-RU')}.${blob.type.includes('mp4') ? 'm4a' : 'webm'}`, size: blob.size, type: blob.type, blob },
+    });
+    if (navigateAfterSave) navigate(`/meetings/${id}`);
+    return id;
+  }
+
+  async function finishRecording(capture?: ConversationCapture): Promise<string | undefined> {
     recorder.stop();
     const gateway = services.recordings;
     const runId = runIdRef.current;
-    if (!gateway || !runId) return;
     setSaving(true);
     setSubmitError('');
     try {
       await services.recorder.drain();
+      const blob = services.recorder.getSnapshot().blob;
+      if (!blob || blob.size === 0) throw new Error('Запись пуста. Запишите звук ещё раз.');
+      if (!gateway) return capture ? await saveConversationLocally(capture) : undefined;
+      if (!runId) throw new Error('Серверная запись не была создана. Сохраните звук локально.');
       // The recording matters more than the name hints: voices can still be mapped to people on review.
       await syncParticipants().catch(() => {});
       await gateway.finish(runId);
       runIdRef.current = null;
-      const blob = services.recorder.getSnapshot().blob;
       const values = form.values;
       const id = await createMeeting({
         title: values.title.trim(), organization: values.organization.trim(), date: values.date || null, language: values.language,
-        backendRunId: runId,
-        ...(blob ? { source: { name: `Запись ${new Date().toLocaleString('ru-RU')}.webm`, size: blob.size, type: blob.type, blob } } : {}),
+        backendRunId: runId, captureKind: 'conversation', participants: capture?.participants ?? [], transcript: capture?.transcript ?? [],
+        source: { name: `Разговор ${new Date().toLocaleString('ru-RU')}.webm`, size: blob.size, type: blob.type, blob },
       });
       await saveLocalParticipants(id, values.participants);
-      navigate(`/meetings/${id}`);
+      if (navigateAfterSave) navigate(`/meetings/${id}`);
+      return id;
     } catch (cause) {
       setSubmitError(cause instanceof Error ? cause.message : 'Не удалось завершить запись.');
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
+  }
+
+  async function keepRecordingLocally(capture?: ConversationCapture): Promise<string | undefined> {
+    setSaving(true);
+    setSubmitError('');
+    try { return await saveConversationLocally(capture); }
+    catch (cause) { setSubmitError(cause instanceof Error ? cause.message : 'Не удалось сохранить запись в браузере.'); }
+    finally { setSaving(false); }
   }
 
   async function onSave(values: typeof form.values) {
@@ -219,5 +249,5 @@ export function useNewMeetingModel(initialMode: IntakeMode = 'upload') {
   const sourceForPreview = mode === 'upload' ? file : recorder.blob;
   const showConsent = mode !== 'draft';
 
-  return { recorder, streaming, formats, beginRecording, finishRecording, mode, file, fileError, consent, setConsent, submitError, setSubmitError, saving, previewUrl, form, onFileChange, changeMode, onSave, activeRecording, sourceForPreview, showConsent, participantsError, onParticipantsBlur };
+  return { recorder, streaming, formats, beginRecording, finishRecording, keepRecordingLocally, mode, file, fileError, consent, setConsent, submitError, setSubmitError, saving, previewUrl, form, onFileChange, changeMode, onSave, activeRecording, sourceForPreview, showConsent, participantsError, onParticipantsBlur };
 }

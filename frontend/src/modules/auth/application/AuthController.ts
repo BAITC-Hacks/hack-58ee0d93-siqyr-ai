@@ -70,7 +70,7 @@ export class AuthController {
   signInWithPassword = (credentials: PasswordCredentials): Promise<boolean> =>
     this.signIn((signal) => this.gateway.signInWithPassword({ username: credentials.username.trim(), password: credentials.password }, signal));
 
-  signInWithProvider = (provider: 'eds' | 'keycloak', returnPath: string): Promise<boolean> =>
+  signInWithProvider = (provider: 'eds' | 'keycloak' | 'local', returnPath: string): Promise<boolean> =>
     this.signIn((signal) => this.gateway.signInWithProvider(provider, safeReturnPath(returnPath), signal));
 
   signOut = async (): Promise<void> => {

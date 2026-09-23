@@ -12,7 +12,7 @@ class RequestLimits:
         self.hits: dict[str, deque] = {}
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] != "http" or scope["method"] != "POST" or scope["path"] not in {"/api/runs", "/api/auth/login", "/api/auth/ecp/challenge", "/api/auth/ecp/verify"}:
+        if scope["type"] != "http" or scope["method"] != "POST" or scope["path"] not in {"/api/runs", "/api/auth/login", "/api/auth/ecp/challenge", "/api/auth/ecp/verify", "/api/chat/sync", "/api/chat/messages"}:
             return await self.app(scope, receive, send)
         headers = dict(scope["headers"])
         ip = (scope.get("client") or ("unknown",))[0]
@@ -31,7 +31,9 @@ class RequestLimits:
                 return await response(scope, receive, send)
             hits.append(now)
         # Bounded multipart overhead; the route enforces the exact file limit.
-        body_limit = self.settings.max_upload_mb * 1024 * 1024 + 1024 * 1024
+        body_limit = (12 * 1024 * 1024 if scope["path"] == "/api/chat/sync" else
+                      1024 * 1024 if scope["path"] == "/api/chat/messages" else
+                      self.settings.max_upload_mb * 1024 * 1024 + 1024 * 1024)
         total = 0
 
         async def limited_receive():

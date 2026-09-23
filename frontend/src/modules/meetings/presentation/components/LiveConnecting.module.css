@@ -1,0 +1,21 @@
+.root { min-height: min(710px, calc(100dvh - 145px)); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 20px 62px; text-align: center; }
+.art { width: min(360px, 100%); }
+.art svg { display: block; width: 100%; overflow: visible; }
+.eyebrow { margin-top: 4px; color: var(--accent); font-size: 11px; font-weight: 750; letter-spacing: .22em; }
+.root h1 { margin: 15px 0 10px; font-size: clamp(26px, 3vw, 34px); letter-spacing: -.035em; }
+.description { max-width: 440px; font-size: 15px; }
+.pulse { display: flex; gap: 7px; margin-top: 26px; }
+.pulse i { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); animation: pulse 1.4s ease-in-out infinite; }
+.pulse i:nth-child(2) { animation-delay: .18s; }
+.pulse i:nth-child(3) { animation-delay: .36s; }
+.float { animation: float 4s ease-in-out infinite; }
+.shadow { transform-origin: 180px 267px; animation: shadow 4s ease-in-out infinite; }
+.orbitBack,.orbitFront { transform-origin: 180px 145px; animation: orbit 12s linear infinite; }
+.orbitBack { animation-direction: reverse; animation-duration: 18s; }
+.wave { transform-box: fill-box; transform-origin: center; animation: wave 1.4s ease-in-out infinite alternate; }
+@keyframes float { 50% { transform: translateY(-9px); } }
+@keyframes shadow { 50% { transform: scaleX(.8); opacity: .6; } }
+@keyframes orbit { to { transform: rotate(360deg); } }
+@keyframes wave { to { transform: scaleY(.45); opacity: .7; } }
+@keyframes pulse { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .float,.shadow,.orbitBack,.orbitFront,.wave,.pulse i { animation: none; } .root { min-height: 320px; } }

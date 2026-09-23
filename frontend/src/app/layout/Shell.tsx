@@ -4,7 +4,7 @@ import { useAuth } from '@/modules/auth/presentation/AuthProvider';
 import { canAccess } from '@/modules/auth/domain/accessPolicy';
 import { roleLabel } from '@/modules/auth/domain/departmentAccess';
 import { pagePolicies, workspaceNavigation } from '../routing/access';
-import { Burger, Button, Drawer, Group, Menu, Modal, Text } from '@mantine/core';
+import { Burger, Button, Drawer, Group, Menu, Modal, Text, UnstyledButton } from '@mantine/core';
 import { CalendarDays, CheckSquare2, ChevronDown, LogOut, MessageSquareText, Mic2, PanelLeftClose, PanelLeftOpen, Plug2, Settings2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useBlocker, useLocation } from 'react-router-dom';
@@ -56,7 +56,7 @@ export default function Shell() {
 
   const sidebar = (
     <div className={styles.sidebarInner}>
-      <NavLink to="/meetings" className={styles.brand} onClick={() => setDrawerOpen(false)} aria-label="На страницу встреч">
+      <NavLink to="/meetings/live" className={styles.brand} onClick={() => setDrawerOpen(false)} aria-label="На страницу разговоров">
         <img className={styles.brandMark} src="/brand-mark.png" alt="" aria-hidden="true" />
         <span className={styles.brandText}>Siqyr<span className={styles.brandDot}>AI</span></span>
       </NavLink>
@@ -132,19 +132,19 @@ export default function Shell() {
         <header className={styles.topbar}>
           <div className={styles.topbarLeft}>
             <Burger className={styles.mobileBurger} opened={drawerOpen} onClick={() => setDrawerOpen((value) => !value)} size="sm" aria-label="Открыть меню" />
-            <button type="button" className={styles.sidebarToggle} onClick={() => setSidebarCollapsed((collapsed) => !collapsed)} aria-label={sidebarCollapsed ? 'Развернуть боковое меню' : 'Свернуть боковое меню'} aria-expanded={!sidebarCollapsed} title={sidebarCollapsed ? 'Развернуть боковое меню' : 'Свернуть боковое меню'}>
+            <UnstyledButton type="button" className={styles.sidebarToggle} onClick={() => setSidebarCollapsed((collapsed) => !collapsed)} aria-label={sidebarCollapsed ? 'Развернуть боковое меню' : 'Свернуть боковое меню'} aria-expanded={!sidebarCollapsed} title={sidebarCollapsed ? 'Развернуть боковое меню' : 'Свернуть боковое меню'}>
               {sidebarCollapsed ? <PanelLeftOpen size={20} strokeWidth={1.8} aria-hidden="true" /> : <PanelLeftClose size={20} strokeWidth={1.8} aria-hidden="true" />}
-            </button>
+            </UnstyledButton>
             <span className={styles.mobilePageName}>{pageName(pathname)}</span>
           </div>
           <div className={styles.topbarRight}>
             <Menu position="bottom-end" width={200} shadow="sm" withinPortal>
               <Menu.Target>
-                <button type="button" className={styles.account} aria-label={`Профиль: ${displayName}`}>
+                <UnstyledButton type="button" className={styles.account} aria-label={`Профиль: ${displayName}`}>
                   <span className={styles.avatar}>{initials}</span>
                   <span className={styles.accountName}>{displayName}</span>
                   <ChevronDown size={16} strokeWidth={1.8} aria-hidden="true" />
-                </button>
+                </UnstyledButton>
               </Menu.Target>
               <Menu.Dropdown>
                 <Menu.Label>{displayName}</Menu.Label>

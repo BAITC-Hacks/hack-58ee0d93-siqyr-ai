@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 # Запуск демо на ноутбуке: API 127.0.0.1:8000 + frontend 127.0.0.1:5174. Ничего не скачивает.
-#   bash scripts/run_local.sh [--profile laptop] [--offline] [--api-only] [--port 8000]
+#   bash scripts/run_local.sh [--profile laptop] [--offline] [--with-rag] [--api-only] [--port 8000]
 # --offline  запрет сетевых обращений библиотек (HF, телеметрия, tracing); LLM только на loopback.
 # Режимы и модели — из .env (AGENT_MODE, STT_MODE, LLM_*). Остановка: Ctrl+C.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-OFFLINE=0; API_ONLY=0; PORT=8000
+OFFLINE=0; WITH_RAG=0; API_ONLY=0; PORT=8000
 while [ $# -gt 0 ]; do
   case "$1" in
     --profile) shift ;;
     --offline) OFFLINE=1 ;;
+    --with-rag) WITH_RAG=1 ;;
     --api-only) API_ONLY=1 ;;
     --port) PORT="$2"; shift ;;
     -h|--help) sed -n '2,6p' "$0"; exit 0 ;;
@@ -38,8 +39,26 @@ if port_busy "$PORT"; then echo "Порт $PORT занят: остановите
 if [ "$API_ONLY" = 0 ] && port_busy 5174; then echo "Порт 5174 занят: остановите прежний frontend или используйте --api-only." >&2; exit 1; fi
 
 PIDS=()
-cleanup() { for pid in "${PIDS[@]:-}"; do kill "$pid" 2>/dev/null || true; done; wait 2>/dev/null || true; }
+RAG_SOCKET=""
+cleanup() { for pid in "${PIDS[@]:-}"; do kill "$pid" 2>/dev/null || true; done; wait 2>/dev/null || true; if [ -n "$RAG_SOCKET" ]; then rm -f "$RAG_SOCKET"; fi; }
 trap cleanup EXIT INT TERM
+
+if [ "$WITH_RAG" = 1 ]; then
+  RAG_SOCKET=$("$VPY" -c 'from backend.app.config import Settings; print(Settings().rag_ai_socket)')
+  mkdir -p "$(dirname "$RAG_SOCKET")"
+  if [ -S "$RAG_SOCKET" ]; then
+    if "$VPY" -c 'import httpx,sys; c=httpx.Client(transport=httpx.HTTPTransport(uds=sys.argv[1]),base_url="http://rag-ai",timeout=1,trust_env=False); sys.exit(0 if c.get("/internal/health").status_code==200 else 1)' "$RAG_SOCKET" 2>/dev/null; then
+      echo "Внутренний AI-сервис уже запущен: $RAG_SOCKET" >&2; exit 1
+    fi
+    rm -f "$RAG_SOCKET"
+  fi
+  umask 077
+  "$VPY" -m uvicorn backend.agents.rag_service:app --uds "$RAG_SOCKET" --workers 1 &
+  PIDS+=($!)
+  for _ in $(seq 1 60); do [ -S "$RAG_SOCKET" ] && break; sleep 0.5; done
+  if [ ! -S "$RAG_SOCKET" ]; then echo "AI-сервис RAG не запустился." >&2; exit 1; fi
+  echo "RAG AI: Unix socket $RAG_SOCKET"
+fi
 
 # Один worker: SSE-рассылка и очередь обработки живут в процессе.
 "$VPY" -m uvicorn backend.app.main:app --host 127.0.0.1 --port "$PORT" --workers 1 &
