@@ -26,6 +26,7 @@ from backend.app.config import settings as app_settings  # noqa: E402
 from backend.shared.schemas import RunInput  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
+_TRUSTED_INPUTS_SHA256 = "6d9cb5fc80a43a12300c8ffb99436a84e805c7cf0b04e90f5486ae65227172fb"
 
 
 def _input(case_id: str) -> RunInput:
@@ -34,8 +35,11 @@ def _input(case_id: str) -> RunInput:
 
 
 def _synthetic_cases(split: str) -> list[str]:
+    raw_inputs = (HERE / "inputs.json").read_bytes()
+    if hashlib.sha256(raw_inputs).hexdigest() != _TRUSTED_INPUTS_SHA256:
+        raise ValueError("Synthetic inputs changed; hosted evaluation requires a new manual review")
     manifest = json.loads((HERE / "manifest.json").read_text(encoding="utf-8"))
-    inputs = json.loads((HERE / "inputs.json").read_text(encoding="utf-8"))
+    inputs = json.loads(raw_inputs)
     records = {item["id"]: item for item in manifest["cases"]}
     if not manifest.get("synthetic") or set(records) != set(inputs):
         raise ValueError("Synthetic manifest is missing or does not match inputs")
@@ -131,6 +135,27 @@ async def guard() -> int:
         unagreed_result = runner._parse(_d04_valid(), unagreed)
         good = unagreed_result.assignments[0].deadline is None
         print(f"{'PASS' if good else 'FAIL'} unagreed_revision_keeps_null_date")
+        passed += bool(good)
+        failures += not good
+        proposed_source = RunInput.model_validate({
+            "run_id": "synthetic-proposed-date", "title": "Вымышленный список",
+            "meeting_date": "2026-09-23", "lang": "ru", "segments": [{
+                "start": 0, "end": 2, "speaker": "SPEAKER_00",
+                "text": "Айбар, предлагаю тебе сделать список к 5 октября 2026 года. "
+                        "Решение по сроку пока не принято.",
+            }],
+        })
+        proposed_reply = _reply([{
+            "assignee": "Айбар", "task": "Сделать список",
+            "deadline_text": "к 5 октября 2026 года", "deadline": "2026-10-05",
+            "source_segments": [0], "evidence": [
+                _e(0, "Айбар", "assignee"), _e(0, "сделать список", "task"),
+                _e(0, "к 5 октября 2026 года", "deadline"),
+            ],
+        }])
+        proposed_result = runner._parse(proposed_reply, proposed_source)
+        good = proposed_result.assignments[0].deadline is None
+        print(f"{'PASS' if good else 'FAIL'} proposed_absolute_date_keeps_null")
         passed += bool(good)
         failures += not good
         await exercise("unknown_owner_v01", "d02", [_reply([{

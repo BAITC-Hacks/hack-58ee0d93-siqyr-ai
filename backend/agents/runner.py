@@ -133,6 +133,19 @@ def _agreed_revision(text: str) -> bool:
     ))
 
 
+def _unagreed_proposal(text: str) -> bool:
+    """A proposed or explicitly unresolved date is not an approved deadline."""
+    normalized = _normalized(text)
+    unresolved = any(phrase in normalized for phrase in (
+        "предлагаю", "предлагаем", "предлагается", "предложили", "предложена",
+        "предложено", "решение по сроку пока не принято", "срок не утвержден",
+        "срок не утверждён", "срок не согласован", "не согласовано",
+        "ұсынамын", "ұсынамыз", "ұсыныс", "келіспедік", "келіскен жоқ",
+        "келісілген жоқ", "бекітілмеді",
+    ))
+    return unresolved and not _agreed_revision(text)
+
+
 def _deadline_matches_quotes(value: str, quotes: list[tuple[int, str]], source: RunInput) -> bool:
     # Multiple conflicting phrases may be joined with ';' or newlines. Each must
     # be a verbatim normalized span of a cited raw segment, and every quote used.
@@ -323,7 +336,11 @@ def _parse(content: str, source: RunInput) -> Proposal:
             # null or stale date without inferring from the meeting date.
             parsed_date = next(iter(final_dates))
         elif parsed_date and (not deadline_text or parsed_date not in cited_dates or
-                              len(cited_dates) != 1):
+                              len(cited_dates) != 1 or any(
+                                  parsed_date in _absolute_dates(quote)
+                                  and _unagreed_proposal(source.segments[index].text)
+                                  for index, quote in date_quotes
+                              )):
             # Date of meeting is not verified in v0.1: relative dates stay as text.
             parsed_date = None
         assignments.append(AssignmentDraft(
