@@ -1,0 +1,21 @@
+{
+  "source": "alibiserikbay/kazakh-russian-mixed-stt (local ADM copy)",
+  "acoustic_model": "asr/rukk",
+  "sample_rate_hz": 16000,
+  "decoder": "greedy CTC",
+  "files": {
+    "asr/rukk/model.pt": {
+      "sha256": "92fe1791d7c93f385fc10a959dd216caa98c6a571df72f11d1605c6327393b88",
+      "bytes": 756007202
+    },
+    "asr/rukk/tokens.lst": {
+      "sha256": "d6e8335d2268efc64e3e5e4dfaeadc749998248f126aa6a9f2a3190c317db4d1",
+      "bytes": 266
+    },
+    "vad/vad.onnx": {
+      "sha256": "a35ebf52fd3ce5f1469b2a36158dba761bc47b973ea3382b3186ca15b1f5af28",
+      "bytes": 1807522
+    }
+  },
+  "storage": "Local working checkout only; binary files excluded from Git."
+}
