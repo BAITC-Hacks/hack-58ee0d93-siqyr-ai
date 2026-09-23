@@ -1,0 +1,8 @@
+{
+  "fixture": "data/seed/demo_meeting.json",
+  "sha256": "f3654f92627ff3dac6a13e5e7bd7c4183413d7f4fa8a2c36a39a39c615768efc",
+  "synthetic": true,
+  "origin": "scripted",
+  "scope": "OpenAI RAG development only",
+  "review": "Fixture uses fictional Testova, Demov, and Primerova names and a fictional portal scenario; no uploaded recording."
+}

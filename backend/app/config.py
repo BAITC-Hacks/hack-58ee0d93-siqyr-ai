@@ -46,7 +46,7 @@ class Settings:
     llm_provider: str = field(default_factory=lambda: _env("LLM_PROVIDER", "local"))
     llm_base_url: str = field(default_factory=lambda: _env("LLM_BASE_URL"))  # обязательный явный endpoint
     llm_allowed_hosts: list[str] = field(default_factory=lambda: [host.strip().lower() for host in _env("LLM_ALLOWED_HOSTS").split(",") if host.strip()])
-    llm_api_key: str = field(default_factory=lambda: _env("LLM_API_KEY"))
+    llm_api_key: str = field(default_factory=lambda: _env("LLM_API_KEY") or (_env("OPEN_AI_TOKEN") if _env("LLM_PROVIDER", "local") == "dev_openai" else ""))
     model_main: str = field(default_factory=lambda: _env("MODEL_MAIN", "gpt-6-luna"))
     model_fast: str = field(default_factory=lambda: _env("MODEL_FAST", "gpt-6-luna"))
     price_in_per_1m: float = field(default_factory=lambda: _float("PRICE_IN_PER_1M", 0))
@@ -57,6 +57,10 @@ class Settings:
     rag_reranker_dir: Path = field(default_factory=lambda: _path("RAG_RERANKER_DIR", "models/rag/reranker"))
     rag_device: str = field(default_factory=lambda: _env("RAG_DEVICE", "cpu"))
     rag_ai_socket: Path = field(default_factory=lambda: _path("RAG_AI_SOCKET", "data/runtime/rag-ai.sock"))
+    rag_provider: str = field(default_factory=lambda: _env("RAG_PROVIDER", "local"))  # local | dev_openai
+    rag_embedding_model: str = field(default_factory=lambda: _env("RAG_EMBED_MODEL"))
+    rag_embedding_dimensions: int = field(default_factory=lambda: _int("RAG_EMBED_DIMENSIONS", 1024))
+    rag_rerank_model: str = field(default_factory=lambda: _env("RAG_RERANK_MODEL"))
 
     # Веса скачивает scripts/setup.sh; в работе ничего не скачивается.
     stt_model_dir: Path = field(default_factory=lambda: _path("STT_MODEL_DIR", "models/stt"))

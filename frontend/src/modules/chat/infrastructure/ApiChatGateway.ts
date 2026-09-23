@@ -1,7 +1,8 @@
 import { HttpError, type HttpClient } from '@/shared/application/HttpClient';
 import type { Meeting } from '@/modules/meetings/domain/meeting.types';
 import type { Task } from '@/modules/tasks/domain/task.types';
-import type { ChatGateway, ChatConversation, ChatMessage } from '../application/ChatGateway';
+import { workingRecords } from '@/modules/workspace/domain/workingRecords';
+import type { ChatGateway, ChatConversation, ChatMessage, RagMode } from '../application/ChatGateway';
 
 function explain(error: unknown): Error {
   if (error instanceof HttpError) {
@@ -16,6 +17,12 @@ export class ApiChatGateway implements ChatGateway {
   private readonly http: HttpClient;
 
   constructor(http: HttpClient) { this.http = http; }
+  async mode(): Promise<RagMode> {
+    try {
+      const health = await this.http.request<{ rag: RagMode }>({ method: 'GET', path: '/api/health' });
+      return health.rag;
+    } catch (error) { throw explain(error); }
+  }
   async create(title = 'Новый чат'): Promise<ChatConversation> {
     try { return await this.http.request<ChatConversation>({ method: 'POST', path: '/api/chat/conversations', body: { title } }); }
     catch (error) { throw explain(error); }
@@ -38,10 +45,12 @@ export class ApiChatGateway implements ChatGateway {
   }
 
   async sync(meetings: Meeting[], tasks: Task[]): Promise<void> {
-    const body = { meetings: meetings.filter((meeting) => meeting.kind !== 'example').map((meeting) => ({
+    if ((await this.mode()).provider === 'dev_openai') return;
+    const working = workingRecords(meetings, tasks);
+    const body = { meetings: working.meetings.map((meeting) => ({
       id: meeting.id, title: meeting.title, status: meeting.status, date: meeting.date, summary: meeting.summary,
       transcript: meeting.transcript.map(({ id, speaker, text }) => ({ id, speaker, text })),
-      tasks: tasks.filter((task) => task.meetingId === meeting.id).map(({ title, assignee, deadlineText, status }) =>
+      tasks: working.tasks.filter((task) => task.meetingId === meeting.id).map(({ title, assignee, deadlineText, status }) =>
         ({ title, assignee, deadline_text: deadlineText, status })),
     })) };
     try { await this.http.request({ method: 'POST', path: '/api/chat/sync', body, timeout: 180_000 }); }

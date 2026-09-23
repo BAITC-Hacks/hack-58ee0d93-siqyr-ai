@@ -14,12 +14,12 @@ const uploadErrors: Record<number, string> = {
   413: 'Файл больше, чем принимает сервер. Выберите запись меньшего размера.',
   415: 'Сервер не принял файл: это не аудио- или видеозапись поддерживаемого формата либо файл повреждён.',
   429: 'Сервер занят обработкой других встреч. Повторите через минуту.',
-  503: 'Распознавание на сервере сейчас недоступно: модели не подготовлены.',
+  503: 'Обработка записи сейчас недоступна. Попробуйте позже.',
 };
 
 function uploadError(cause: unknown): Error {
   const status = cause instanceof HttpError ? cause.status : undefined;
-  if (status === undefined) return new Error('Сервер недоступен. Проверьте, что бэкенд запущен, и повторите загрузку.');
+  if (status === undefined) return new Error('Не удалось связаться с сервером. Проверьте подключение и повторите загрузку.');
   return new Error(uploadErrors[status] ?? 'Сервер не смог принять файл. Повторите загрузку.');
 }
 
@@ -64,7 +64,7 @@ export class ApiRecordingGateway implements RecordingGateway {
 
   async create(input: RecordingRunInput): Promise<string> {
     const created = parse(await this.http.request<unknown>({ method: 'POST', path: '/api/runs/recordings', body: this.runForm(input) }));
-    if (typeof created?.run_id !== 'string') throw new Error('Сервер не вернул идентификатор записи.');
+    if (typeof created?.run_id !== 'string') throw new Error('Не удалось начать запись. Попробуйте ещё раз.');
     return created.run_id;
   }
 
@@ -77,7 +77,7 @@ export class ApiRecordingGateway implements RecordingGateway {
     } catch (cause) {
       throw uploadError(cause);
     }
-    if (typeof created?.run_id !== 'string') throw new Error('Сервер не вернул идентификатор встречи.');
+    if (typeof created?.run_id !== 'string') throw new Error('Не удалось принять запись. Попробуйте загрузить файл ещё раз.');
     return created.run_id;
   }
 
@@ -86,7 +86,7 @@ export class ApiRecordingGateway implements RecordingGateway {
     const extensions: unknown = body?.extensions;
     if (typeof body?.accept !== 'string' || typeof body.max_upload_mb !== 'number' || !Array.isArray(extensions)
       || !extensions.every((item): item is string => typeof item === 'string')) {
-      throw new Error('Сервер вернул неизвестный список форматов.');
+      throw new Error('Не удалось получить список поддерживаемых форматов.');
     }
     return { accept: body.accept, extensions, maxBytes: body.max_upload_mb * 1024 * 1024 };
   }
@@ -100,7 +100,7 @@ export class ApiRecordingGateway implements RecordingGateway {
     // The server accepts a repeat of an already stored chunk at the same offset, so one retry is safe.
     try { response = await send(); } catch { response = await send(); }
     const next = parse(response)?.offset;
-    if (typeof next !== 'number') throw new Error('Сервер не подтвердил получение звука.');
+    if (typeof next !== 'number') throw new Error('Не удалось передать звук. Проверьте подключение и попробуйте снова.');
     return next;
   }
 

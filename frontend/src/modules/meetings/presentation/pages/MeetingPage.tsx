@@ -17,6 +17,12 @@ function Initials({ name }: { name: string }) {
   return <span className={styles.initials} aria-hidden="true">{initials || '—'}</span>;
 }
 
+function countText(count: number, forms: [string, string, string]) {
+  const mod100 = count % 100;
+  const mod10 = count % 10;
+  return `${count} ${mod100 >= 11 && mod100 <= 14 ? forms[2] : mod10 === 1 ? forms[0] : mod10 >= 2 && mod10 <= 4 ? forms[1] : forms[2]}`;
+}
+
 export default function MeetingPage() {
   const { meeting, meetingTasks, loading, error, tab, metadataOpen, setMetadataOpen, participantsOpen, setParticipantsOpen, exportOpen, setExportOpen, includeTranscript, setIncludeTranscript, taskOpen, setTaskOpen, editingTask, setEditingTask, editingSegment, setEditingSegment, transcriptQuery, setTranscriptQuery, summaryDraft, setSummaryDraft, summaryEditing, setSummaryEditing, metadata, setMetadata, peopleDraft, setPeopleDraft, segmentDraft, setSegmentDraft, busy, localError, setLocalError, sourceUrl, selectTab, saveMeeting, startSegment, saveSegment, saveParticipants, downloadDocx, printProtocol } = useMeetingModel();
 
@@ -41,7 +47,7 @@ export default function MeetingPage() {
     {pending && !meeting.backendRunId && <div className={styles.pending}><FileAudio size={17} /><div><strong>Запись сохранена в этом браузере.</strong><span>Расшифровка появится после подключения обработки. Сводку и поручения можно заполнить вручную.</span></div></div>}
 
     <div className={styles.workspace}>
-      <aside className={styles.outline} aria-label="Разделы встречи"><div className={styles.railTitle}>ДОКУМЕНТ</div><nav>{tabs.map((item, index) => <UnstyledButton type="button" key={item.id} className={`${styles.outlineItem} ${tab === item.id ? styles.active : ''}`} onClick={() => selectTab(item.id)}><span className={styles.outlineNumber}>{String(index + 1).padStart(2, '0')}</span><span><strong>{item.label}</strong><small>{item.detail}</small></span></UnstyledButton>)}</nav><div className={styles.outlineFoot}>{meeting.transcript.length} реплик · {meetingTasks.length} поручений</div></aside>
+      <aside className={styles.outline} aria-label="Разделы встречи"><div className={styles.railTitle}>ДОКУМЕНТ</div><nav>{tabs.map((item, index) => <UnstyledButton type="button" key={item.id} className={`${styles.outlineItem} ${tab === item.id ? styles.active : ''}`} onClick={() => selectTab(item.id)}><span className={styles.outlineNumber}>{String(index + 1).padStart(2, '0')}</span><span><strong>{item.label}</strong><small>{meeting.kind === 'example' && item.id === 'protocol' ? 'Пример документа' : item.detail}</small></span></UnstyledButton>)}</nav><div className={styles.outlineFoot}>{countText(meeting.transcript.length, ['реплика', 'реплики', 'реплик'])} · {countText(meetingTasks.length, ['поручение', 'поручения', 'поручений'])}</div></aside>
       <div className={styles.mobileTabs} role="tablist" aria-label="Разделы встречи">{tabs.map((item) => <UnstyledButton type="button" role="tab" aria-label={item.label} aria-selected={tab === item.id} key={item.id} className={tab === item.id ? styles.mobileActive : ''} onClick={() => selectTab(item.id)}>{item.id === 'transcript' ? 'Текст' : item.id === 'tasks' ? 'Задачи' : item.label}</UnstyledButton>)}</div>
 
       <article className={styles.paper}>
@@ -56,7 +62,7 @@ export default function MeetingPage() {
         </>}
 
         {tab === 'transcript' && <>
-          <div className={styles.documentTop}><span>02 / РАСШИФРОВКА</span><span>{meeting.transcript.length} реплик</span></div>
+          <div className={styles.documentTop}><span>02 / РАСШИФРОВКА</span><span>{countText(meeting.transcript.length, ['реплика', 'реплики', 'реплик'])}</span></div>
           <div className={styles.tabHeading}><div><p className={styles.kicker}>ИСТОЧНИК ВСТРЕЧИ</p><h2>Расшифровка</h2><p>Реплики доступны для ручной правки. Изменения сохраняются в этой встрече.</p></div><Button variant="default" size="sm" leftSection={<Plus size={15} />} onClick={() => startSegment()}>Добавить реплику</Button></div>
           {meeting.source && <div className={styles.source}><FileAudio size={19} /><div><strong>{meeting.source.name}</strong><span>{sourceKind} · {(meeting.source.size / 1024 / 1024).toFixed(1)} МБ</span></div></div>}
           {sourceUrl && meeting.source?.type.startsWith('audio/') && <audio className={styles.player} controls src={sourceUrl}>Ваш браузер не поддерживает воспроизведение аудио.</audio>}

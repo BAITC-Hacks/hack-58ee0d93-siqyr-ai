@@ -100,7 +100,7 @@ export default function MeetingsPage() {
               </div>
             </div>
             <span className={styles.dateCell}>{formatDate(meeting.date)}</span>
-            <span className={styles.statusCell}><span className={`${styles.status} ${meeting.status === 'draft' ? styles.statusDraft : ''}`}>{statusText[meeting.status]}</span></span>
+            <span className={styles.statusCell}><span className={`${styles.status} ${meeting.status === 'draft' ? styles.statusDraft : ''}`}>{meeting.kind === 'example' ? 'Для ознакомления' : statusText[meeting.status]}</span></span>
             <span className={styles.taskCell}>{assignmentCount(taskCount)}</span>
             <div className={styles.actions}>
               <Link to={`/meetings/${meeting.id}`} className={styles.rowAction}>{meeting.status === 'draft' ? 'Проверить' : 'Открыть'}</Link>

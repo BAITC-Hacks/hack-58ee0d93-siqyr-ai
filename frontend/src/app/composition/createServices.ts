@@ -30,7 +30,7 @@ export function createServices(principalId: string): WorkspaceServices & { close
     tasks: new TaskService(repository, identity),
     settings: new SettingsService(repository),
     recorder: new BrowserRecorder(),
-    recordings: apiUrl && principalId !== LOCAL_WORKSPACE_ID
+    recordings: localApi && principalId !== LOCAL_WORKSPACE_ID
       ? new ApiRecordingGateway(createHttpClient(), apiUrl, () => storedAccessToken(window.sessionStorage)) : null,
     chat: localApi && principalId !== LOCAL_WORKSPACE_ID ? new ApiChatGateway(createHttpClient()) : null,
     exporter: new BrowserMeetingExporter(),

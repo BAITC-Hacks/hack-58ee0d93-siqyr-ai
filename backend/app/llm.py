@@ -82,6 +82,18 @@ class LLM:
                 session.commit()
         return Completion(content, tokens, cost)
 
+    async def embed(self, texts: list[str], *, model: str, dimensions: int) -> list[list[float]]:
+        """Embeddings for the explicit synthetic OpenAI development profile."""
+        if self.settings.llm_provider != "dev_openai" or urlsplit(self.settings.llm_base_url).hostname != "api.openai.com":
+            raise RuntimeError("OpenAI embeddings разрешены только в профиле dev_openai.")
+        if not self.settings.llm_api_key or not model:
+            raise RuntimeError("Для OpenAI embeddings задайте OPEN_AI_TOKEN и RAG_EMBED_MODEL.")
+        if self.sync_client is None:
+            self.sync_client = OpenAI(api_key=self.settings.llm_api_key, base_url=self.settings.llm_base_url,
+                                      default_headers={"Accept-Encoding": "identity"}, max_retries=0, timeout=60)
+        response = await asyncio.to_thread(self.sync_client.embeddings.create, model=model, input=texts, dimensions=dimensions)
+        return [[float(value) for value in item.embedding] for item in sorted(response.data, key=lambda item: item.index)]
+
     async def close(self):
         if self.client is not None:
             await self.client.close()

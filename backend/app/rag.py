@@ -14,7 +14,7 @@ from fastapi import HTTPException
 import httpx
 from sqlmodel import select
 
-from .config import Settings
+from .config import Settings, ROOT
 from .db import Database
 from .models import Run, utcnow
 from .rag_models import RagChunk, RagConversation, RagDocument, RagMessage
@@ -24,6 +24,11 @@ from .readiness import LOOPBACK
 INDEX_VERSION = 1
 EMBED_MODEL = "BAAI/bge-m3"
 RERANK_MODEL = "BAAI/bge-reranker-v2-m3"
+DEV_QUESTIONS = (
+    "Какие поручения получила Дана Примерова?",
+    "Какой срок у отчёта Ерлана Демова?",
+    "Кто готовит презентацию для министерства?",
+)
 TOKEN = re.compile(r"[\wәіңғүұқөһ]+", re.UNICODE)
 CITATION = re.compile(r"\[(\d+)\]")
 
@@ -127,6 +132,29 @@ def run_passages(run: Run) -> list[Passage]:
     return result
 
 
+def verified_demo_fixture() -> dict:
+    source = ROOT / "data/seed/demo_meeting.json"
+    manifest = json.loads((ROOT / "data/seed/rag_openai_manifest.json").read_text(encoding="utf-8"))
+    if not manifest.get("synthetic") or manifest.get("origin") != "scripted" or \
+       hashlib.sha256(source.read_bytes()).hexdigest() != manifest.get("sha256"):
+        raise RuntimeError("Вымышленный fixture не совпадает с проверенным manifest.")
+    fixture = json.loads(source.read_text(encoding="utf-8"))
+    if fixture.get("synthetic") is not True:
+        raise RuntimeError("Fixture не помечен как вымышленный.")
+    return fixture
+
+
+def fixture_passages() -> list[Passage]:
+    fixture = verified_demo_fixture()
+    result: list[Passage] = []
+    for index, segment in enumerate(fixture["segments"]):
+        result += split_passage(f"Реплика {index + 1}, {segment['speaker']}: {segment['text']}", index, segment["start"])
+    for task in fixture["expected"]["assignments"]:
+        result += split_passage(f"Поручение: {task['task']}. Ответственный: {task['assignee']}. "
+                                f"Срок: {task['deadline_text']} ({task['deadline']}).")
+    return result
+
+
 def cosine(left: list[float], right: list[float]) -> float:
     if len(left) != len(right) or not left:
         return -1.0
@@ -140,7 +168,9 @@ class RagEngine:
         self.ai = ai or RagAiClient(settings)
 
     def _index(self, owner_id: str, kind: str, source_id: str, department_id: str | None, title: str, status: str, passages: list[Passage]) -> bool:
-        version = f"{INDEX_VERSION}:{model_version(self.settings.rag_embedding_dir)}"
+        model = (f"openai:{self.settings.rag_embedding_model}:{self.settings.rag_embedding_dimensions}"
+                 if self.settings.rag_provider == "dev_openai" else model_version(self.settings.rag_embedding_dir))
+        version = f"{INDEX_VERSION}:{model}"
         digest = fingerprint(passages)
         with self.db.session() as session:
             document = session.exec(select(RagDocument).where(RagDocument.owner_id == owner_id, RagDocument.kind == kind, RagDocument.source_id == source_id)).first()
@@ -169,6 +199,10 @@ class RagEngine:
         return True
 
     def sync_browser(self, owner_id: str, meetings: list[BrowserMeeting]) -> dict:
+        if self.settings.rag_provider == "dev_openai":
+            if meetings:
+                raise HTTPException(403, "В OpenAI demo нельзя отправлять встречи из браузера; используются только серверные вымышленные fixtures.")
+            return {"indexed": 0, "meetings": 0}
         seen: set[str] = set()
         indexed = 0
         for meeting in meetings:
@@ -186,6 +220,9 @@ class RagEngine:
         return {"indexed": indexed, "meetings": len(meetings)}
 
     def sync_runs(self, owner_id: str, allowed_run_ids: set[str]) -> int:
+        if self.settings.rag_provider == "dev_openai":
+            fixture = verified_demo_fixture()
+            return int(self._index(owner_id, "fixture", fixture["id"], None, fixture["title"], "вымышленный пример", fixture_passages()))
         indexed = 0
         with self.db.session() as session:
             runs = session.exec(select(Run)).all()
@@ -199,7 +236,8 @@ class RagEngine:
     def search(self, owner_id: str, allowed_run_ids: set[str], question: str) -> list[tuple[RagDocument, RagChunk]]:
         with self.db.session() as session:
             documents = {d.id: d for d in session.exec(select(RagDocument).where(RagDocument.owner_id == owner_id)).all()
-                         if d.kind == "browser" or d.source_id in allowed_run_ids}
+                         if (self.settings.rag_provider == "dev_openai" and d.kind == "fixture") or
+                            (self.settings.rag_provider == "local" and (d.kind == "browser" or d.source_id in allowed_run_ids))}
             chunks = session.exec(select(RagChunk)).all()
         chunks = [chunk for chunk in chunks if chunk.document_id in documents]
         if not chunks:
@@ -247,6 +285,8 @@ class RagEngine:
 
     async def ask(self, owner_id: str, allowed_run_ids: set[str], question: str, conversation_id: str | None) -> dict:
         self.guard_local_llm()
+        if self.settings.rag_provider == "dev_openai" and question not in DEV_QUESTIONS:
+            raise HTTPException(400, "Для OpenAI demo выберите один из подготовленных вопросов по вымышленному образцу.")
         if conversation_id:
             history = self.messages(owner_id, conversation_id)
         else:
@@ -295,5 +335,8 @@ class RagEngine:
 
     def guard_local_llm(self) -> None:
         host = urlsplit(self.settings.llm_base_url).hostname
-        if self.settings.llm_provider != "local" or host not in LOOPBACK:
+        if self.settings.rag_provider == "dev_openai":
+            if self.settings.llm_provider != "dev_openai" or host != "api.openai.com" or not self.settings.llm_api_key:
+                raise HTTPException(503, "OpenAI demo требует явные LLM_PROVIDER=dev_openai, LLM_BASE_URL и OPEN_AI_TOKEN.")
+        elif self.settings.rag_provider != "local" or self.settings.llm_provider != "local" or host not in LOOPBACK:
             raise HTTPException(503, "RAG-чат требует локальный LLM_BASE_URL на этом сервере; облачная отправка запрещена.")

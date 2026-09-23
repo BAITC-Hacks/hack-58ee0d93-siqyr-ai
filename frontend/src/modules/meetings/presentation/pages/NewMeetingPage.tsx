@@ -25,7 +25,7 @@ export default function NewMeetingPage() {
         <div>
           <p className={styles.eyebrow}>НОВАЯ ВСТРЕЧА</p>
           <h1>Добавить встречу</h1>
-          <p>Укажите контекст и добавьте источник. {streaming ? 'Запись распознаёт локальный сервер, карточка встречи хранится в этом браузере.' : 'Данные сохраняются только в этом браузере.'}</p>
+          <p>Укажите контекст и добавьте источник. {streaming && mode !== 'draft' ? 'Звук передаётся на локальный сервер для обработки, копия сохраняется в этом браузере.' : 'Карточка встречи сохраняется в этом браузере.'}</p>
         </div>
       </div>
 
@@ -46,7 +46,7 @@ export default function NewMeetingPage() {
         </section>
 
         <section className={styles.section} aria-labelledby="meeting-source">
-          <div className={styles.sectionHeader}><span className={styles.index}>02</span><div><h2 id="meeting-source">Источник встречи</h2><p>Выберите один способ. {streaming ? 'Файл и запись уходят на локальный сервер для распознавания, копия остаётся в этом браузере.' : 'Файл и запись останутся в браузере на этом устройстве.'}</p></div></div>
+          <div className={styles.sectionHeader}><span className={styles.index}>02</span><div><h2 id="meeting-source">Источник встречи</h2><p>Выберите один способ. {streaming ? 'При загрузке файла или записи звук передаётся на локальный сервер. Копия сохраняется в этом браузере.' : 'Файл или запись сохраняются в браузере на этом устройстве.'}</p></div></div>
           <div className={styles.sourceBody}>
             <SegmentedControl className={styles.modeSwitch} fullWidth value={mode} onChange={changeMode} disabled={activeRecording || recorder.status === 'requesting' || recorder.status === 'finishing'} data={[{ label: 'Загрузить файл', value: 'upload' }, { label: 'Записать звук', value: 'record' }, { label: 'Без записи', value: 'draft' }]} />
             {mode === 'upload' && <div className={styles.sourcePanel}>

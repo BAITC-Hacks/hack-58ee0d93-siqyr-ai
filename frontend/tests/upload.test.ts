@@ -58,11 +58,11 @@ test('upload explains rejected formats and an unreachable server without server 
   const rejected = new ApiRecordingGateway(client(() => { throw new HttpError('request failed', 415); }), 'http://api');
   await assert.rejects(rejected.upload(input, file), /не аудио- или видеозапись поддерживаемого формата/);
   const offline = new ApiRecordingGateway(client(() => { throw new HttpError('request failed'); }), 'http://api');
-  await assert.rejects(offline.upload(input, file), /Сервер недоступен/);
+  await assert.rejects(offline.upload(input, file), /Не удалось связаться с сервером/);
   const busy = new ApiRecordingGateway(client(() => { throw new HttpError('request failed', 429); }), 'http://api');
   await assert.rejects(busy.upload(input, file), /Повторите через минуту/);
   const silent = new ApiRecordingGateway(client(() => ({ status: 'queued' })), 'http://api');
-  await assert.rejects(silent.upload(input, file), /идентификатор/);
+  await assert.rejects(silent.upload(input, file), /Не удалось принять запись/);
 });
 
 test('formats come from GET /api/formats and drive the browser check', async () => {

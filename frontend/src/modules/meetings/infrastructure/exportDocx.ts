@@ -16,10 +16,13 @@ function textParagraphs(text: string) {
 }
 
 export async function exportMeetingDocx(meeting: Meeting, tasks: Task[], includeTranscript = false) {
+  if (meeting.backendRunId) throw new Error('Экспорт серверной встречи доступен только из утверждённого протокола.');
+  const label = meeting.kind === 'example' ? 'ПРИМЕР ПРОТОКОЛА' : 'ЧЕРНОВИК ПРОТОКОЛА';
   const children: (Paragraph | Table)[] = [
     new Paragraph({ text: meeting.organization || 'Организация не указана', spacing: { after: 170 } }),
-    new Paragraph({ text: `ПРОТОКОЛ${meeting.number ? ` № ${meeting.number}` : ''}`, heading: HeadingLevel.HEADING_1, spacing: { after: 100 } }),
+    new Paragraph({ text: `${label}${meeting.number ? ` № ${meeting.number}` : ''}`, heading: HeadingLevel.HEADING_1, spacing: { after: 100 } }),
     new Paragraph({ text: meeting.title, heading: HeadingLevel.HEADING_2, spacing: { after: 180 } }),
+    new Paragraph({ text: meeting.kind === 'example' ? 'Демонстрационный пример. Не является рабочим протоколом.' : 'Черновик. Не утверждён секретарём.', spacing: { after: 180 } }),
     new Paragraph({ text: `Дата: ${dateText(meeting.date)}    Язык: ${languageText[meeting.language]}`, spacing: { after: 220 } }),
     new Paragraph({ text: 'Участники', heading: HeadingLevel.HEADING_2 }),
     ...textParagraphs(meeting.participants.length ? meeting.participants.map((person) => `${person.name}${person.role ? ` — ${person.role}` : ''}`).join('\n') : 'Участники не указаны.'),
@@ -55,7 +58,7 @@ export async function exportMeetingDocx(meeting: Meeting, tasks: Task[], include
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `${safeName(meeting.title)}.docx`;
+  link.download = `${meeting.kind === 'example' ? 'Пример' : 'Черновик'} — ${safeName(meeting.title)}.docx`;
   document.body.appendChild(link);
   link.click();
   link.remove();

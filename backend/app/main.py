@@ -32,7 +32,7 @@ from .mailer import send_due
 from .models import Assignment, Department, EcpChallenge, EmailDelivery, ExternalIdentity, Membership, Notification, Organization, Run, User, utcnow
 from .pipeline import Runtime
 from .readiness import as_dicts, blocking as unready
-from .rag import RagEngine
+from .rag import RagEngine, DEV_QUESTIONS
 from .rag_models import RagConversation, RagMessage
 from .rag_schemas import BrowserSync, ChatAsk, ChatConversationCreate, ChatConversationUpdate
 from .jira import register_jira_routes
@@ -156,8 +156,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "llm_provider": settings.llm_provider, "llm_model": settings.model_main, "today": today(settings).isoformat(),
                 "email": "configured" if settings.smtp_host else "unconfigured",
                 "ready": not unready(settings), "problems": as_dicts(unready(settings)),
-                "rag": {"service": rag_health is not None, "models_present": bool(rag_health and rag_health.get("models_present")),
-                        "llm_local": bool(rag_health and rag_health.get("llm_local"))}}
+                "rag": {"provider": settings.rag_provider, "service": rag_health is not None,
+                        "models_present": bool(rag_health and rag_health.get("models_present")),
+                        "llm_local": bool(rag_health and rag_health.get("llm_local")),
+                        "demo_questions": list(DEV_QUESTIONS) if settings.rag_provider == "dev_openai" else []}}
 
     def user_view(actor: Principal) -> dict:
         return {"id": actor.user.id, "username": actor.user.username, "display_name": actor.user.display_name,
@@ -734,6 +736,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/api/chat/messages")
     async def ask_chat(body: ChatAsk, actor: Principal = Depends(principal)):
+        if not body.question.strip():
+            raise HTTPException(400, "Введите вопрос.")
         with runtime().db.session() as session:
             allowed = {run.id for run in session.exec(select(Run)).all() if actor.can(run.department_id)}
         try:

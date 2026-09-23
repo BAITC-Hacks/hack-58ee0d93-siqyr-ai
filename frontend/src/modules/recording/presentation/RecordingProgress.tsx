@@ -17,11 +17,11 @@ export function RecordingProgress({ runId, className }: { runId: string; classNa
     if (!recordings) return;
     setProgress(null);
     setError('');
-    return recordings.watch(runId, setProgress, setError);
+    return recordings.watch(runId, (next) => { setProgress(next); setError(''); }, setError);
   }, [recordings, runId]);
-  if (!recordings) return <Alert color="gray" className={className} title="Серверная обработка недоступна">Задайте VITE_API_URL, чтобы видеть ход распознавания этой записи.</Alert>;
-  const status = progress?.status ?? 'queued';
-  return <Alert color={status === 'error' || error ? 'red' : 'teal'} className={className} title={statusLabel[status] ?? status}>
+  if (!recordings) return <Alert color="gray" className={className} title="Ход обработки недоступен">Откройте встречу после подключения к локальному серверу.</Alert>;
+  const status = progress?.status;
+  return <Alert color={status === 'error' || error ? 'red' : status ? 'teal' : 'gray'} className={className} title={status ? statusLabel[status] ?? 'Обработка встречи' : 'Получаем ход обработки…'}>
     {error && <p role="alert">{error}</p>}
     <ol aria-label="Этапы обработки">{progress?.steps.map((step) => <li key={step.seq}>{step.content}</li>)}</ol>
   </Alert>;

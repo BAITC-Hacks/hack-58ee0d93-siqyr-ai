@@ -2,9 +2,11 @@ import { isMeetingLanguage } from '@/modules/meetings/domain/meeting.types';
 import { Alert, Button, Modal, NumberInput, Select, TextInput } from '@mantine/core';
 import { Check, RotateCcw } from 'lucide-react';
 import { useSettingsModel } from '../models/useSettingsModel';
+import { useServices } from '@/modules/workspace/presentation/WorkspaceProvider';
 import styles from './SettingsPage.module.css';
 
 export default function SettingsPage() {
+  const { recordings } = useServices();
   const { saving, saved, setSaved, saveError, resetOpen, setResetOpen, resetting, resetMessage, setResetMessage, form, onSave, onReset } = useSettingsModel();
 
   return (
@@ -43,7 +45,7 @@ export default function SettingsPage() {
         <div className={styles.exampleAction}><p>Восстановление сбросит правки в демонстрационных встречах. Ваши собственные встречи и настройки сохранятся.</p><Button variant="default" leftSection={<RotateCcw size={15} />} onClick={() => { setResetMessage(''); setResetOpen(true); }}>Восстановить примеры</Button>{resetMessage && <span className={styles.resetMessage} role="status">{resetMessage}</span>}</div>
       </section>
 
-      <div className={styles.localNote}>Все записи, протоколы, поручения и настройки хранятся локально в браузере. Облачная синхронизация не подключена.</div>
+      <div className={styles.localNote}>{recordings ? 'При загрузке файла или записи звук передаётся на локальный сервер для обработки. Копия записи, карточка встречи, поручения и настройки сохраняются в этом браузере.' : 'Записи, черновики протоколов, поручения и настройки сохраняются в этом браузере.'}</div>
 
       <Modal opened={resetOpen} onClose={() => { if (!resetting) setResetOpen(false); }} title="Восстановить примеры?" centered size="sm" closeOnClickOutside={!resetting} closeOnEscape={!resetting}>
         <p className={styles.modalText}>Изменения в двух демонстрационных протоколах и их поручениях будут сброшены. Ваши локальные встречи и настройки сохранятся.</p>

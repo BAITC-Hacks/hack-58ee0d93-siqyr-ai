@@ -1,5 +1,6 @@
 import type { Task } from '@/modules/tasks/domain/task.types';
 import { useWorkspace } from '@/modules/workspace/presentation/useWorkspace';
+import { workingRecords } from '@/modules/workspace/domain/workingRecords';
 import { useMemo, useState } from 'react';
 import { TaskBoard, type TaskStatusFilter as StatusFilter } from '../../domain/TaskBoard';
 import { isTaskStatus } from '../../domain/task.types';
@@ -19,9 +20,7 @@ export function useTasksModel() {
   const [actionError, setActionError] = useState('');
   const [remindersOpen, setRemindersOpen] = useState(false);
   const reminderDays = settings.reminderDays;
-  const workingMeetings = useMemo(() => meetings.filter((meeting) => meeting.kind !== 'example'), [meetings]);
-  const workingIds = useMemo(() => new Set(workingMeetings.map((meeting) => meeting.id)), [workingMeetings]);
-  const workingTasks = useMemo(() => tasks.filter((task) => workingIds.has(task.meetingId)), [tasks, workingIds]);
+  const { meetings: workingMeetings, tasks: workingTasks } = useMemo(() => workingRecords(meetings, tasks), [meetings, tasks]);
   const board = new TaskBoard(workingTasks, reminderDays, new Date());
   const meetingMap = useMemo(() => new Map(workingMeetings.map((meeting) => [meeting.id, meeting])), [workingMeetings]);
   const { owners, counts, reminders, missingDates } = board;
